@@ -1,0 +1,111 @@
+{
+  "project_context": {
+    "domain": "Fabric Enquiry Tracking System / Internal SaaS",
+    "theme_archetype": "Archetype 4 (Swiss & High-Contrast), Light Theme",
+    "emotional_tone": "Authoritative, Structured, Functional, Clear",
+    "app_type": "dashboard"
+  },
+  "typography": {
+    "font_family": {
+      "headings": "Cabinet Grotesk, sans-serif",
+      "body": "IBM Plex Sans, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "scale": {
+      "h1": "text-4xl sm:text-5xl tracking-tight font-bold",
+      "h2": "text-2xl sm:text-3xl tracking-tight font-semibold",
+      "h3": "text-xl sm:text-2xl tracking-tight font-medium",
+      "h4": "text-lg sm:text-xl font-medium",
+      "body": "text-sm sm:text-base leading-relaxed",
+      "labels": "text-xs tracking-[0.05em] uppercase font-semibold text-zinc-500"
+    },
+    "typeset_rules": "Strict adherence to line-height. Headings should be tight (leading-none or leading-tight). Body loose (leading-relaxed). Avoid Inter for headings."
+  },
+  "colors": {
+    "background": {
+      "app": "#F4F4F5",
+      "surface": "#FFFFFF",
+      "glass": "rgba(255, 255, 255, 0.8)"
+    },
+    "text": {
+      "primary": "#09090B",
+      "secondary": "#52525B",
+      "muted": "#A1A1AA"
+    },
+    "brand_action": {
+      "primary": "#000000",
+      "primary_hover": "#27272A",
+      "primary_text": "#FFFFFF"
+    },
+    "status": {
+      "success": { "bg": "#D1FAE5", "text": "#065F46", "border": "#34D399" },
+      "warning": { "bg": "#FEF3C7", "text": "#92400E", "border": "#FBBF24" },
+      "error": { "bg": "#FEE2E2", "text": "#991B1B", "border": "#F87171" },
+      "info": { "bg": "#DBEAFE", "text": "#1E40AF", "border": "#60A5FA" },
+      "pending": { "bg": "#F3F4F6", "text": "#374151", "border": "#9CA3AF" }
+    },
+    "structural": {
+      "border": "#E4E4E7",
+      "divider": "#F4F4F5"
+    }
+  },
+  "spacing_and_layout": {
+    "grid_strategy": "Control Room Grid (Dense, Data Correlation). Base Grid: grid-cols-1 md:grid-cols-4 lg:grid-cols-12. Gap Strategy: gap-4 or gap-6. Every pixel must be utilized in dashboard overviews. No jagged bottoms, stretch children heights.",
+    "container_padding": "Generous. p-6 or p-8 inside cards with borders to prevent text collision.",
+    "border_radius": "Subtle roundness. Use rounded-sm (4px) or rounded-md (6px). Avoid overly pill-shaped elements."
+  },
+  "surface_strategies": {
+    "dashboard_cards": "Flat background (bg-white), 1px solid border (border-zinc-200), no shadow by default. On hover: subtle lift (-translate-y-0.5) and shadow-sm.",
+    "headers": "Crystal Glass variant: bg-white/80, backdrop-blur-xl, 1px bottom border border-zinc-200.",
+    "empty_states": "Tactile, subtle background textures or minimal graphic with centered clear CTA. Gray text, dashed borders."
+  },
+  "components_strategy": {
+    "shadcn_overrides": "Use Shadcn components heavily but customize them. Strip default shadows, replace with flat sharp borders. Override Tabs to have sharp bottoms.",
+    "forms": "Use pure HTML + Tailwind for macro layouts. Shadcn for Inputs, Select, Checkbox. Focus rings must be ring-1 ring-zinc-900 offset-1.",
+    "tables": "Dense. border-collapse. Subdued header backgrounds (bg-zinc-50), clear bottom borders per row.",
+    "badges": "Use sharp corners (rounded-sm). Match status colors for text and background."
+  },
+  "navigation": {
+    "structure": "Sidebar navigation (collapsible on mobile to hamburger) containing Logo, Links (Dashboard, Enquiries, Master Stages, Users), and Profile Dropdown at bottom.",
+    "active_state": "Solid gray background (bg-zinc-100) with bold text for active link. Muted text for inactive."
+  },
+  "interactions_motion": {
+    "buttons": "transition-colors duration-200 ease-in-out.",
+    "tables": "hover:bg-zinc-50 transition-colors.",
+    "cards": "transition-transform duration-300 ease-out.",
+    "accessibility": "Respect prefers-reduced-motion. High contrast focus rings mandatory."
+  },
+  "media_and_icons": {
+    "icon_library": "lucide-react (Standard, functional)",
+    "image_urls": {
+      "brand_logo": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/d6e2cb86-b645-48e5-932a-9b381cfe43d2/images/1be397fb5f6cb07765db6f4dea6c53ff41f9668b669bd581409e7b6125d29a4f.png",
+        "category": "logo",
+        "description": "Abstract industrial logo mark, sharp geometric woven threads, minimal, monochrome black"
+      },
+      "login_bg": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/d6e2cb86-b645-48e5-932a-9b381cfe43d2/images/913026981f17ff6eb4cf5ecfa9e079d72ce0a081457fded64da8cb5217bae5a7.png",
+        "category": "background",
+        "description": "Minimalist pure white and light grey woven fabric macro texture background"
+      },
+      "texture_accent": {
+        "url": "https://images.unsplash.com/photo-1770795946611-e60d748ca0ab?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzJ8MHwxfHNlYXJjaHwxfHxmYWJyaWMlMjB0ZXh0aWxlJTIwdGV4dHVyZSUyMG1hY3JvfGVufDB8fHx8MTc3NTgzMDI4MXww&ixlib=rb-4.1.0&q=85",
+        "category": "accent",
+        "description": "Textured yellow fabric folds for subtle empty state or accent backgrounds"
+      }
+    }
+  },
+  "testing_requirements": {
+    "data_testid_rules": "All interactive and key informational elements MUST include a data-testid attribute. Format: kebab-case, role-based. e.g., data-testid='enquiry-submit-button', data-testid='stage-status-badge'."
+  },
+  "instructions_to_main_agent": [
+    "Install 'lucide-react' for icons.",
+    "Import custom fonts (Cabinet Grotesk, IBM Plex Sans) using Google Fonts or local font face rules in index.css.",
+    "Use Shadcn UI for heavy lifting (Tables, Dialogs, Selects, Cards) but apply the custom flat border styles (border-radius: 4px, border-color: #E4E4E7).",
+    "Build a Left Sidebar Layout. Main area uses background #F4F4F5. Cards inside main area use #FFFFFF.",
+    "Create the Enquiries Table with heavy filtering capabilities. Display Custom Stages clearly using the status color mapping.",
+    "Implement an Admin Dashboard with widgets showing metrics like Total Enquiries, By Stage, and By Department. Use the 'Control Room Grid' pattern.",
+    "Ensure login page uses the provided login_bg image as a subtle background, with a sharp white central login card.",
+    "Add data-testid to every button, link, and major block."
+  ]
+}
