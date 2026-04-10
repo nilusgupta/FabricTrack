@@ -226,49 +226,63 @@ export default function EnquiryDetailPage() {
         <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold text-zinc-900">Stage Values</CardTitle></CardHeader>
         <CardContent data-testid="enquiry-stage-values">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {stages.map(s => (
-              <div key={s.id} className="space-y-1.5 p-3 border border-zinc-200 rounded-sm">
-                <Label className="text-xs text-zinc-600 flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: s.color }} />
-                  {s.name}
-                  {s.is_mandatory && <span className="text-red-500 text-[10px]">REQ</span>}
-                  <span className="text-zinc-400 text-[10px] ml-auto">{s.input_type}</span>
-                </Label>
-                {s.input_type === 'date' ? (
-                  <div className="flex gap-2">
-                    <Input
-                      type="date"
-                      value={getStageValue(s.id)}
-                      onChange={e => setStageValue(s.id, e.target.value)}
-                      data-testid={`stage-value-${s.id}`}
-                      className="border-zinc-200 flex-1 text-sm"
-                    />
-                    <Button type="button" variant="outline" size="sm"
-                      onClick={() => setStageValue(s.id, new Date().toISOString().split('T')[0])}
-                      className="text-xs border-zinc-200 whitespace-nowrap"
-                      data-testid={`stage-today-${s.id}`}
-                    >Today</Button>
-                  </div>
-                ) : s.input_type === 'select' ? (
-                  <Select value={getStageValue(s.id)} onValueChange={v => setStageValue(s.id, v)}>
-                    <SelectTrigger className="border-zinc-200 text-sm" data-testid={`stage-value-${s.id}`}>
-                      <SelectValue placeholder="Select..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(s.select_options || []).map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input
-                    value={getStageValue(s.id)}
-                    onChange={e => setStageValue(s.id, e.target.value)}
-                    data-testid={`stage-value-${s.id}`}
-                    className="border-zinc-200 text-sm"
-                    placeholder={`Enter ${s.name.toLowerCase()}...`}
-                  />
-                )}
-              </div>
-            ))}
+            {stages.map(s => {
+              const ds = enquiry.delay_status?.[s.id];
+              const isDelayed = ds?.status === 'delayed' || ds?.status === 'completed_late';
+              const isEarly = ds?.status === 'completed_early';
+              const isPending = ds?.status === 'pending' && ds?.lead_time_days > 0;
+              const borderClass = isDelayed ? 'border-red-300 bg-red-50/30' : isEarly ? 'border-green-300 bg-green-50/30' : 'border-zinc-200';
+              return (
+                <div key={s.id} className={`space-y-1.5 p-3 border rounded-sm ${borderClass}`}>
+                  <Label className="text-xs text-zinc-600 flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: s.color }} />
+                    {s.name}
+                    {s.is_mandatory && <span className="text-red-500 text-[10px]">REQ</span>}
+                    <span className="text-zinc-400 text-[10px] ml-auto">{s.input_type}{s.lead_time_days ? ` · ${s.lead_time_days}d` : ''}</span>
+                  </Label>
+                  {/* Delay indicator */}
+                  {isDelayed && (
+                    <div className="text-xs font-semibold text-red-600 flex items-center gap-1" data-testid={`delay-indicator-${s.id}`}>
+                      DELAYED {ds?.days_diff != null && <span className="font-normal text-red-500">({Math.abs(ds.days_diff)}d overdue)</span>}
+                    </div>
+                  )}
+                  {isEarly && (
+                    <div className="text-xs font-semibold text-green-600 flex items-center gap-1" data-testid={`early-indicator-${s.id}`}>
+                      ON TIME {ds?.days_diff != null && <span className="font-normal text-green-500">({ds.days_diff}d early)</span>}
+                    </div>
+                  )}
+                  {isPending && ds?.due_date && (
+                    <div className="text-xs text-amber-600" data-testid={`pending-indicator-${s.id}`}>
+                      Due: {new Date(ds.due_date).toLocaleDateString()} ({ds.days_diff}d remaining)
+                    </div>
+                  )}
+                  {/* Input field */}
+                  {s.input_type === 'date' ? (
+                    s.date_input_mode === 'auto' ? (
+                      <Button type="button" variant="outline" size="sm"
+                        onClick={() => setStageValue(s.id, new Date().toISOString().split('T')[0])}
+                        className={`text-xs w-full justify-start ${getStageValue(s.id) ? 'bg-green-50 border-green-300 text-green-700' : 'border-zinc-200'}`}
+                        data-testid={`stage-value-${s.id}`}
+                      >
+                        {getStageValue(s.id) ? `Captured: ${getStageValue(s.id)}` : 'Click to capture current date'}
+                      </Button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Input type="date" value={getStageValue(s.id)} onChange={e => setStageValue(s.id, e.target.value)} data-testid={`stage-value-${s.id}`} className="border-zinc-200 flex-1 text-sm" />
+                        <Button type="button" variant="outline" size="sm" onClick={() => setStageValue(s.id, new Date().toISOString().split('T')[0])} className="text-xs border-zinc-200 whitespace-nowrap" data-testid={`stage-today-${s.id}`}>Today</Button>
+                      </div>
+                    )
+                  ) : s.input_type === 'select' ? (
+                    <Select value={getStageValue(s.id)} onValueChange={v => setStageValue(s.id, v)}>
+                      <SelectTrigger className="border-zinc-200 text-sm" data-testid={`stage-value-${s.id}`}><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>{(s.select_options || []).map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
+                    </Select>
+                  ) : (
+                    <Input value={getStageValue(s.id)} onChange={e => setStageValue(s.id, e.target.value)} data-testid={`stage-value-${s.id}`} className="border-zinc-200 text-sm" placeholder={`Enter ${s.name.toLowerCase()}...`} />
+                  )}
+                </div>
+              );
+            })}
           </div>
           {stages.length === 0 && <div className="py-6 text-center text-zinc-400 text-sm">No stages defined. Go to Stage Master to create stages.</div>}
         </CardContent>

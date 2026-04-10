@@ -177,21 +177,31 @@ export default function EnquiriesPage() {
                           {s.name} {s.is_mandatory && <span className="text-red-500">*</span>}
                         </Label>
                         {s.input_type === 'date' ? (
-                          <div className="flex gap-2">
-                            <Input
-                              type="date"
-                              value={form.stage_values[s.id]?.value || ''}
-                              onChange={e => setStageValue(s.id, e.target.value)}
-                              required={s.is_mandatory}
-                              data-testid={`stage-value-${s.id}`}
-                              className="border-zinc-200 flex-1"
-                            />
+                          s.date_input_mode === 'auto' ? (
                             <Button type="button" variant="outline" size="sm"
                               onClick={() => setStageValue(s.id, new Date().toISOString().split('T')[0])}
-                              className="text-xs border-zinc-200 whitespace-nowrap"
-                              data-testid={`stage-today-${s.id}`}
-                            >Today</Button>
-                          </div>
+                              className={`text-xs border-zinc-200 w-full justify-start ${form.stage_values[s.id]?.value ? 'bg-green-50 border-green-300 text-green-700' : ''}`}
+                              data-testid={`stage-value-${s.id}`}
+                            >
+                              {form.stage_values[s.id]?.value ? `Captured: ${form.stage_values[s.id].value}` : 'Click to capture current date'}
+                            </Button>
+                          ) : (
+                            <div className="flex gap-2">
+                              <Input
+                                type="date"
+                                value={form.stage_values[s.id]?.value || ''}
+                                onChange={e => setStageValue(s.id, e.target.value)}
+                                required={s.is_mandatory}
+                                data-testid={`stage-value-${s.id}`}
+                                className="border-zinc-200 flex-1"
+                              />
+                              <Button type="button" variant="outline" size="sm"
+                                onClick={() => setStageValue(s.id, new Date().toISOString().split('T')[0])}
+                                className="text-xs border-zinc-200 whitespace-nowrap"
+                                data-testid={`stage-today-${s.id}`}
+                              >Today</Button>
+                            </div>
+                          )
                         ) : s.input_type === 'select' ? (
                           <Select
                             value={form.stage_values[s.id]?.value || ''}
@@ -300,13 +310,20 @@ export default function EnquiriesPage() {
                       <TableCell className="text-zinc-600">{enq.fabric_type}</TableCell>
                       {stages.map(s => {
                         const val = getStageDisplay(enq, s.id);
+                        const delayStatus = enq.delay_status?.[s.id];
+                        const isDelayed = delayStatus === 'delayed' || delayStatus === 'completed_late';
+                        const isEarly = delayStatus === 'completed_early';
                         return (
                           <TableCell key={s.id} className="text-xs">
-                            {val ? (
-                              <Badge className="rounded-sm text-xs font-normal" style={{ backgroundColor: s.color + '15', color: s.color, border: `1px solid ${s.color}30` }}>
-                                {val}
-                              </Badge>
-                            ) : <span className="text-zinc-300">—</span>}
+                            <div className="flex flex-col gap-0.5">
+                              {val ? (
+                                <Badge className="rounded-sm text-xs font-normal" style={{ backgroundColor: s.color + '15', color: s.color, border: `1px solid ${s.color}30` }}>
+                                  {val}
+                                </Badge>
+                              ) : <span className="text-zinc-300">—</span>}
+                              {isDelayed && <span className="text-[10px] font-semibold text-red-600" data-testid={`delay-badge-${enq.id}-${s.id}`}>DELAYED</span>}
+                              {isEarly && <span className="text-[10px] font-semibold text-green-600" data-testid={`early-badge-${enq.id}-${s.id}`}>ON TIME</span>}
+                            </div>
                           </TableCell>
                         );
                       })}

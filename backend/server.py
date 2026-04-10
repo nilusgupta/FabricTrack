@@ -144,6 +144,8 @@ class StageCreate(BaseModel):
     input_type: str = "text"  # text, date, select
     is_mandatory: bool = False
     select_options: List[str] = []
+    lead_time_days: int = 0  # lead time in days from previous stage completion
+    date_input_mode: str = "manual"  # "auto" (button captures now) or "manual" (date picker)
 
 class StageUpdate(BaseModel):
     name: Optional[str] = None
@@ -153,6 +155,8 @@ class StageUpdate(BaseModel):
     input_type: Optional[str] = None
     is_mandatory: Optional[bool] = None
     select_options: Optional[List[str]] = None
+    lead_time_days: Optional[int] = None
+    date_input_mode: Optional[str] = None
 
 class EnquiryCreate(BaseModel):
     customer_name: str
@@ -300,6 +304,8 @@ async def create_stage(req: StageCreate, request: Request):
         "color": req.color, "description": req.description,
         "input_type": req.input_type, "is_mandatory": req.is_mandatory,
         "select_options": req.select_options,
+        "lead_time_days": req.lead_time_days,
+        "date_input_mode": req.date_input_mode,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.stages.insert_one(stage_doc)
@@ -390,6 +396,39 @@ async def get_enquiries(request: Request, stage: Optional[str] = None, departmen
             {"style_no": {"$regex": search, "$options": "i"}}
         ]
     enquiries = await db.enquiries.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    # Calculate delay status for list view
+    stages = await db.stages.find({}, {"_id": 0}).sort("order", 1).to_list(100)
+    now = datetime.now(timezone.utc)
+    for enq in enquiries:
+        sv = enq.get("stage_values", {})
+        delay_info = {}
+        for i, stage in enumerate(stages):
+            sid = stage["id"]
+            lead_time = stage.get("lead_time_days", 0)
+            stage_val = sv.get(sid, {})
+            stage_value = stage_val.get("value", "") if isinstance(stage_val, dict) else str(stage_val) if stage_val else ""
+            stage_updated_at = stage_val.get("updated_at", "") if isinstance(stage_val, dict) else ""
+            status = "pending"
+            if lead_time > 0 and i > 0:
+                prev_stage = stages[i - 1]
+                prev_val = sv.get(prev_stage["id"], {})
+                prev_updated = prev_val.get("updated_at", "") if isinstance(prev_val, dict) else ""
+                prev_value = prev_val.get("value", "") if isinstance(prev_val, dict) else str(prev_val) if prev_val else ""
+                if prev_value and prev_updated:
+                    try:
+                        prev_date = datetime.fromisoformat(prev_updated.replace("Z", "+00:00"))
+                        expected_due = prev_date + timedelta(days=lead_time)
+                        if stage_value and stage_updated_at:
+                            completed = datetime.fromisoformat(stage_updated_at.replace("Z", "+00:00"))
+                            status = "completed_early" if completed <= expected_due else "completed_late"
+                        else:
+                            status = "pending" if now <= expected_due else "delayed"
+                    except (ValueError, TypeError):
+                        pass
+            elif stage_value:
+                status = "completed"
+            delay_info[sid] = status
+        enq["delay_status"] = delay_info
     return enquiries
 
 @api_router.get("/enquiries/{enquiry_id}")
@@ -400,6 +439,48 @@ async def get_enquiry(enquiry_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Enquiry not found")
     history = await db.enquiry_history.find({"enquiry_id": enquiry_id}, {"_id": 0}).sort("changed_at", -1).to_list(100)
     enquiry["history"] = history
+    # Calculate delay status for each stage
+    stages = await db.stages.find({}, {"_id": 0}).sort("order", 1).to_list(100)
+    sv = enquiry.get("stage_values", {})
+    delay_status = {}
+    for i, stage in enumerate(stages):
+        sid = stage["id"]
+        lead_time = stage.get("lead_time_days", 0)
+        stage_val = sv.get(sid, {})
+        stage_value = stage_val.get("value", "") if isinstance(stage_val, dict) else str(stage_val) if stage_val else ""
+        stage_updated_at = stage_val.get("updated_at", "") if isinstance(stage_val, dict) else ""
+        status = "pending"  # pending / on_time / delayed / completed_early / completed_late
+        due_date = None
+        days_diff = None
+        if lead_time > 0 and i > 0:
+            # Find previous stage completion date
+            prev_stage = stages[i - 1]
+            prev_val = sv.get(prev_stage["id"], {})
+            prev_updated = prev_val.get("updated_at", "") if isinstance(prev_val, dict) else ""
+            prev_value = prev_val.get("value", "") if isinstance(prev_val, dict) else str(prev_val) if prev_val else ""
+            if prev_value and prev_updated:
+                try:
+                    prev_date = datetime.fromisoformat(prev_updated.replace("Z", "+00:00"))
+                    expected_due = prev_date + timedelta(days=lead_time)
+                    due_date = expected_due.isoformat()
+                    now = datetime.now(timezone.utc)
+                    if stage_value and stage_updated_at:
+                        # Stage is completed - check if it was early or late
+                        completed = datetime.fromisoformat(stage_updated_at.replace("Z", "+00:00"))
+                        diff = (expected_due - completed).total_seconds() / 86400
+                        days_diff = round(diff, 1)
+                        status = "completed_early" if diff >= 0 else "completed_late"
+                    else:
+                        # Stage not yet completed - check if overdue
+                        diff = (expected_due - now).total_seconds() / 86400
+                        days_diff = round(diff, 1)
+                        status = "pending" if diff >= 0 else "delayed"
+                except (ValueError, TypeError):
+                    pass
+        elif stage_value:
+            status = "completed"
+        delay_status[sid] = {"status": status, "due_date": due_date, "days_diff": days_diff, "lead_time_days": lead_time}
+    enquiry["delay_status"] = delay_status
     return enquiry
 
 @api_router.post("/enquiries")

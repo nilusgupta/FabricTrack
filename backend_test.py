@@ -13,6 +13,7 @@ class FabricEnquiryAPITester:
         self.user_id = None
         self.stage_id = None
         self.date_stage_id = None
+        self.manual_date_stage_id = None
         self.select_stage_id = None
         self.enquiry_id = None
 
@@ -111,9 +112,9 @@ class FabricEnquiryAPITester:
         return success
 
     def test_create_date_stage(self):
-        """Test creating a date stage"""
+        """Test creating a date stage with lead time and auto mode"""
         success, response = self.run_test(
-            "Create Stage (Date Type)",
+            "Create Stage (Date Type with Lead Time)",
             "POST",
             "stages",
             200,
@@ -124,18 +125,46 @@ class FabricEnquiryAPITester:
                 "description": "Date stage for testing",
                 "input_type": "date",
                 "is_mandatory": True,
-                "select_options": []
+                "select_options": [],
+                "lead_time_days": 3,
+                "date_input_mode": "auto"
             }
         )
         if success:
             self.date_stage_id = response.get('id')
             print(f"   Created date stage ID: {self.date_stage_id}")
+            print(f"   Lead time: {response.get('lead_time_days')}d, Mode: {response.get('date_input_mode')}")
+        return success
+
+    def test_create_manual_date_stage(self):
+        """Test creating a manual date stage with lead time"""
+        success, response = self.run_test(
+            "Create Stage (Manual Date Type with Lead Time)",
+            "POST",
+            "stages",
+            200,
+            data={
+                "name": "Test Manual Date Stage",
+                "order": 4,
+                "color": "#8B5CF6",
+                "description": "Manual date stage for testing",
+                "input_type": "date",
+                "is_mandatory": False,
+                "select_options": [],
+                "lead_time_days": 5,
+                "date_input_mode": "manual"
+            }
+        )
+        if success:
+            self.manual_date_stage_id = response.get('id')
+            print(f"   Created manual date stage ID: {self.manual_date_stage_id}")
+            print(f"   Lead time: {response.get('lead_time_days')}d, Mode: {response.get('date_input_mode')}")
         return success
 
     def test_create_select_stage(self):
-        """Test creating a select stage"""
+        """Test creating a select stage with lead time"""
         success, response = self.run_test(
-            "Create Stage (Select Type)",
+            "Create Stage (Select Type with Lead Time)",
             "POST",
             "stages",
             200,
@@ -146,12 +175,14 @@ class FabricEnquiryAPITester:
                 "description": "Select stage for testing",
                 "input_type": "select",
                 "is_mandatory": True,
-                "select_options": ["APPROVED", "PENDING", "REJECTED"]
+                "select_options": ["APPROVED", "PENDING", "REJECTED"],
+                "lead_time_days": 5
             }
         )
         if success:
             self.select_stage_id = response.get('id')
             print(f"   Created select stage ID: {self.select_stage_id}")
+            print(f"   Lead time: {response.get('lead_time_days')}d")
         return success
 
     def test_get_stages(self):
@@ -234,25 +265,30 @@ class FabricEnquiryAPITester:
         return success
 
     def test_get_enquiries(self):
-        """Test getting all enquiries"""
+        """Test getting all enquiries with delay status"""
         success, response = self.run_test(
-            "Get Enquiries",
+            "Get Enquiries with Delay Status",
             "GET",
             "enquiries",
             200
         )
         if success:
             print(f"   Found {len(response)} enquiries")
+            # Check if delay status is included in list view
+            for enq in response[:2]:  # Check first 2 enquiries
+                delay_status = enq.get('delay_status', {})
+                if delay_status:
+                    print(f"   Enquiry {enq.get('customer_name', 'Unknown')}: delay status for {len(delay_status)} stages")
         return success
 
     def test_get_enquiry_detail(self):
-        """Test getting enquiry details"""
+        """Test getting enquiry details with delay status"""
         if not self.enquiry_id:
             print("⚠️  Skipping enquiry detail test - no enquiry ID")
             return True
             
         success, response = self.run_test(
-            "Get Enquiry Detail",
+            "Get Enquiry Detail with Delay Status",
             "GET",
             f"enquiries/{self.enquiry_id}",
             200
@@ -260,6 +296,11 @@ class FabricEnquiryAPITester:
         if success:
             print(f"   Customer: {response.get('customer_name')}")
             print(f"   History entries: {len(response.get('history', []))}")
+            delay_status = response.get('delay_status', {})
+            print(f"   Delay status calculated for {len(delay_status)} stages")
+            for stage_id, status_info in delay_status.items():
+                if isinstance(status_info, dict):
+                    print(f"     Stage {stage_id}: {status_info.get('status', 'unknown')}")
         return success
 
     def test_update_enquiry(self):
@@ -384,6 +425,7 @@ def main():
     # Stage management tests
     tester.test_create_stage()
     tester.test_create_date_stage()
+    tester.test_create_manual_date_stage()
     tester.test_create_select_stage()
     tester.test_get_stages()
     

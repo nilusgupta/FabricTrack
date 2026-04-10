@@ -28,7 +28,7 @@ export default function StageMasterPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editStage, setEditStage] = useState(null);
-  const [form, setForm] = useState({ name: '', order: 0, color: '#3B82F6', description: '', input_type: 'text', is_mandatory: false, select_options: [] });
+  const [form, setForm] = useState({ name: '', order: 0, color: '#3B82F6', description: '', input_type: 'text', is_mandatory: false, select_options: [], lead_time_days: 0, date_input_mode: 'manual' });
   const [newOption, setNewOption] = useState('');
 
   const fetchStages = useCallback(async () => {
@@ -46,7 +46,7 @@ export default function StageMasterPage() {
 
   const openCreate = () => {
     setEditStage(null);
-    setForm({ name: '', order: stages.length + 1, color: '#3B82F6', description: '', input_type: 'text', is_mandatory: false, select_options: [] });
+    setForm({ name: '', order: stages.length + 1, color: '#3B82F6', description: '', input_type: 'text', is_mandatory: false, select_options: [], lead_time_days: 0, date_input_mode: 'manual' });
     setNewOption('');
     setDialogOpen(true);
   };
@@ -57,7 +57,9 @@ export default function StageMasterPage() {
       name: stage.name, order: stage.order, color: stage.color,
       description: stage.description || '', input_type: stage.input_type || 'text',
       is_mandatory: stage.is_mandatory || false,
-      select_options: stage.select_options || []
+      select_options: stage.select_options || [],
+      lead_time_days: stage.lead_time_days || 0,
+      date_input_mode: stage.date_input_mode || 'manual'
     });
     setNewOption('');
     setDialogOpen(true);
@@ -181,6 +183,30 @@ export default function StageMasterPage() {
                 </div>
               )}
 
+              {form.input_type === 'date' && (
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Date Input Mode</Label>
+                  <Select value={form.date_input_mode} onValueChange={v => setForm({ ...form, date_input_mode: v })}>
+                    <SelectTrigger data-testid="stage-date-mode-select" className="border-zinc-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Auto - Button captures current date/time</SelectItem>
+                      <SelectItem value="manual">Manual - User picks date during enquiry</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    {form.date_input_mode === 'auto' ? 'A button will capture the current date when clicked' : 'User will see a date picker to select a date'}
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Lead Time (Days)</Label>
+                <Input type="number" min="0" value={form.lead_time_days} onChange={e => setForm({ ...form, lead_time_days: parseInt(e.target.value) || 0 })} data-testid="stage-lead-time-input" className="border-zinc-200" />
+                <p className="text-xs text-zinc-400">Days allowed from previous stage completion. 0 = no lead time tracking.</p>
+              </div>
+
               <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Color</Label>
                 <div className="flex gap-2 flex-wrap">
@@ -220,7 +246,7 @@ export default function StageMasterPage() {
                       <span className="text-white/70 text-xs mr-1">{s.order}.</span>{s.name}
                     </div>
                     <span className="text-[10px] text-zinc-400">
-                      {inputTypeLabel(s.input_type || 'text')} {s.is_mandatory ? '(req)' : ''}
+                      {inputTypeLabel(s.input_type || 'text')} {s.is_mandatory ? '(req)' : ''} {s.lead_time_days ? `· ${s.lead_time_days}d` : ''}
                     </span>
                   </div>
                 </React.Fragment>
@@ -243,15 +269,16 @@ export default function StageMasterPage() {
                 <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Color</TableHead>
                 <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Input Type</TableHead>
                 <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Mandatory</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Options</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Lead Time</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Options / Mode</TableHead>
                 <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500 w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                [...Array(3)].map((_, i) => <TableRow key={i}>{[...Array(7)].map((_, j) => <TableCell key={j}><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></TableCell>)}</TableRow>)
+                [...Array(3)].map((_, i) => <TableRow key={i}>{[...Array(8)].map((_, j) => <TableCell key={j}><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></TableCell>)}</TableRow>)
               ) : stages.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-12 text-zinc-400">No stages yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-12 text-zinc-400">No stages yet</TableCell></TableRow>
               ) : (
                 stages.map(s => (
                   <TableRow key={s.id} className="hover:bg-zinc-50 transition-colors" data-testid={`stage-row-${s.id}`}>
@@ -260,7 +287,8 @@ export default function StageMasterPage() {
                     <TableCell><div className="flex items-center gap-2"><div className="w-5 h-5 rounded-sm" style={{ backgroundColor: s.color }} /><span className="text-xs text-zinc-500 font-mono">{s.color}</span></div></TableCell>
                     <TableCell><Badge className="rounded-sm text-xs bg-zinc-100 text-zinc-700">{inputTypeLabel(s.input_type || 'text')}</Badge></TableCell>
                     <TableCell><Badge className={`rounded-sm text-xs ${s.is_mandatory ? 'bg-red-50 text-red-700' : 'bg-zinc-50 text-zinc-400'}`}>{s.is_mandatory ? 'Required' : 'Optional'}</Badge></TableCell>
-                    <TableCell className="text-zinc-500 text-xs">{s.input_type === 'select' ? (s.select_options || []).join(', ') : '—'}</TableCell>
+                    <TableCell className="text-zinc-600 text-sm font-mono">{s.lead_time_days ? `${s.lead_time_days}d` : '—'}</TableCell>
+                    <TableCell className="text-zinc-500 text-xs">{s.input_type === 'select' ? (s.select_options || []).join(', ') : s.input_type === 'date' ? (s.date_input_mode === 'auto' ? 'Auto capture' : 'Manual pick') : '—'}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="sm" onClick={() => openEdit(s)} data-testid={`edit-stage-${s.id}`}><Edit2 className="w-3 h-3" /></Button>
