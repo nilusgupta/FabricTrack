@@ -4,17 +4,21 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends, UploadFile, File, Query, Header
+from fastapi.responses import StreamingResponse
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 import os
+import io
 import logging
 import bcrypt
 import jwt
 import secrets
+import uuid as uuid_mod
+import requests
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, timedelta
 
 # MongoDB connection
@@ -24,6 +28,41 @@ db = client[os.environ['DB_NAME']]
 
 JWT_ALGORITHM = "HS256"
 
+# ─── Object Storage ───
+STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
+EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
+APP_NAME = "fabrictrack"
+storage_key = None
+
+def init_storage():
+    global storage_key
+    if storage_key:
+        return storage_key
+    resp = requests.post(f"{STORAGE_URL}/init", json={"emergent_key": EMERGENT_KEY}, timeout=30)
+    resp.raise_for_status()
+    storage_key = resp.json()["storage_key"]
+    return storage_key
+
+def put_object(path: str, data: bytes, content_type: str) -> dict:
+    key = init_storage()
+    resp = requests.put(
+        f"{STORAGE_URL}/objects/{path}",
+        headers={"X-Storage-Key": key, "Content-Type": content_type},
+        data=data, timeout=120
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+def get_object(path: str):
+    key = init_storage()
+    resp = requests.get(
+        f"{STORAGE_URL}/objects/{path}",
+        headers={"X-Storage-Key": key}, timeout=60
+    )
+    resp.raise_for_status()
+    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
+
+# ─── Auth Helpers ───
 def get_jwt_secret():
     return os.environ["JWT_SECRET"]
 
@@ -84,13 +123,6 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
-class RegisterRequest(BaseModel):
-    email: str
-    password: str
-    name: str
-    role: str = "sales"
-    department: str = "Sales"
-
 class CreateUserRequest(BaseModel):
     email: str
     password: str
@@ -109,30 +141,45 @@ class StageCreate(BaseModel):
     order: int
     color: str = "#9CA3AF"
     description: str = ""
+    input_type: str = "text"  # text, date, select
+    is_mandatory: bool = False
+    select_options: List[str] = []
 
 class StageUpdate(BaseModel):
     name: Optional[str] = None
     order: Optional[int] = None
     color: Optional[str] = None
     description: Optional[str] = None
+    input_type: Optional[str] = None
+    is_mandatory: Optional[bool] = None
+    select_options: Optional[List[str]] = None
 
 class EnquiryCreate(BaseModel):
     customer_name: str
     fabric_type: str
     quantity: str
-    current_stage_id: Optional[str] = None
+    style_no: str = ""
     assigned_to: Optional[str] = None
     department: Optional[str] = None
     notes: str = ""
+    rate: str = ""
+    po_no: str = ""
+    po_del_date: str = ""
+    stage_values: Dict[str, Any] = {}
 
 class EnquiryUpdate(BaseModel):
     customer_name: Optional[str] = None
     fabric_type: Optional[str] = None
     quantity: Optional[str] = None
-    current_stage_id: Optional[str] = None
+    style_no: Optional[str] = None
     assigned_to: Optional[str] = None
     department: Optional[str] = None
     notes: Optional[str] = None
+    rate: Optional[str] = None
+    po_no: Optional[str] = None
+    po_del_date: Optional[str] = None
+    stage_values: Optional[Dict[str, Any]] = None
+    image_path: Optional[str] = None
 
 # ─── Auth Routes ───
 @api_router.post("/auth/login")
@@ -140,7 +187,6 @@ async def login(req: LoginRequest, response: Response, request: Request):
     email = req.email.strip().lower()
     ip = request.client.host if request.client else "unknown"
     identifier = f"{ip}:{email}"
-    # Brute force check
     attempt = await db.login_attempts.find_one({"identifier": identifier})
     if attempt and attempt.get("count", 0) >= 5:
         lockout_until = attempt.get("locked_until")
@@ -148,7 +194,6 @@ async def login(req: LoginRequest, response: Response, request: Request):
             raise HTTPException(status_code=429, detail="Too many failed attempts. Try again in 15 minutes.")
         else:
             await db.login_attempts.delete_one({"identifier": identifier})
-
     user = await db.users.find_one({"email": email})
     if not user or not verify_password(req.password, user["password_hash"]):
         await db.login_attempts.update_one(
@@ -157,7 +202,6 @@ async def login(req: LoginRequest, response: Response, request: Request):
             upsert=True
         )
         raise HTTPException(status_code=401, detail="Invalid email or password")
-
     await db.login_attempts.delete_one({"identifier": identifier})
     user_id = str(user["_id"])
     access_token = create_access_token(user_id, email)
@@ -173,8 +217,7 @@ async def logout(response: Response):
 
 @api_router.get("/auth/me")
 async def get_me(request: Request):
-    user = await get_current_user(request)
-    return user
+    return await get_current_user(request)
 
 @api_router.post("/auth/refresh")
 async def refresh_token(request: Request, response: Response):
@@ -194,7 +237,7 @@ async def refresh_token(request: Request, response: Response):
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-# ─── User Management Routes ───
+# ─── User Management ───
 @api_router.get("/users")
 async def get_users(request: Request):
     await get_current_user(request)
@@ -213,13 +256,9 @@ async def create_user(req: CreateUserRequest, request: Request):
     if existing:
         raise HTTPException(status_code=400, detail="Email already exists")
     user_doc = {
-        "email": email,
-        "password_hash": hash_password(req.password),
-        "name": req.name,
-        "role": req.role,
-        "department": req.department,
-        "is_active": True,
-        "created_at": datetime.now(timezone.utc)
+        "email": email, "password_hash": hash_password(req.password),
+        "name": req.name, "role": req.role, "department": req.department,
+        "is_active": True, "created_at": datetime.now(timezone.utc)
     }
     result = await db.users.insert_one(user_doc)
     return {"_id": str(result.inserted_id), "email": email, "name": req.name, "role": req.role, "department": req.department, "is_active": True}
@@ -230,9 +269,7 @@ async def update_user(user_id: str, req: UpdateUserRequest, request: Request):
     update_data = {k: v for k, v in req.model_dump().items() if v is not None}
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
-    result = await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": update_data})
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="User not found")
+    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": update_data})
     user = await db.users.find_one({"_id": ObjectId(user_id)}, {"password_hash": 0})
     user["_id"] = str(user["_id"])
     if "created_at" in user and isinstance(user["created_at"], datetime):
@@ -247,7 +284,7 @@ async def delete_user(user_id: str, request: Request):
         raise HTTPException(status_code=404, detail="User not found")
     return {"message": "User deleted"}
 
-# ─── Stage Master Routes ───
+# ─── Stage Master ───
 @api_router.get("/stages")
 async def get_stages(request: Request):
     await get_current_user(request)
@@ -259,11 +296,10 @@ async def create_stage(req: StageCreate, request: Request):
     await require_admin(request)
     stage_id = secrets.token_hex(12)
     stage_doc = {
-        "id": stage_id,
-        "name": req.name,
-        "order": req.order,
-        "color": req.color,
-        "description": req.description,
+        "id": stage_id, "name": req.name, "order": req.order,
+        "color": req.color, "description": req.description,
+        "input_type": req.input_type, "is_mandatory": req.is_mandatory,
+        "select_options": req.select_options,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.stages.insert_one(stage_doc)
@@ -289,21 +325,69 @@ async def delete_stage(stage_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Stage not found")
     return {"message": "Stage deleted"}
 
+# ─── File Upload ───
+@api_router.post("/upload")
+async def upload_file(request: Request, file: UploadFile = File(...)):
+    user = await get_current_user(request)
+    ext = file.filename.split(".")[-1] if "." in file.filename else "bin"
+    path = f"{APP_NAME}/uploads/{user['_id']}/{uuid_mod.uuid4()}.{ext}"
+    data = await file.read()
+    content_type = file.content_type or "application/octet-stream"
+    result = put_object(path, data, content_type)
+    file_doc = {
+        "id": str(uuid_mod.uuid4()), "storage_path": result["path"],
+        "original_filename": file.filename, "content_type": content_type,
+        "size": result.get("size", len(data)), "is_deleted": False,
+        "uploaded_by": user["_id"],
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.files.insert_one(file_doc)
+    return {"path": result["path"], "filename": file.filename, "id": file_doc["id"]}
+
+@api_router.get("/files/{path:path}")
+async def download_file(path: str, request: Request, auth: Optional[str] = Query(None)):
+    # Auth check - try cookie first, then query param
+    token = request.cookies.get("access_token")
+    if not token and auth:
+        token = auth
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        payload = jwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    record = await db.files.find_one({"storage_path": path, "is_deleted": False})
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+    data, ct = get_object(path)
+    return Response(content=data, media_type=record.get("content_type", ct))
+
 # ─── Enquiry Routes ───
 @api_router.get("/enquiries")
-async def get_enquiries(request: Request, stage: Optional[str] = None, department: Optional[str] = None, assigned_to: Optional[str] = None, search: Optional[str] = None):
+async def get_enquiries(request: Request, stage: Optional[str] = None, department: Optional[str] = None, assigned_to: Optional[str] = None, search: Optional[str] = None, customer_name: Optional[str] = None, fabric_type: Optional[str] = None, style_no: Optional[str] = None):
     await get_current_user(request)
     query = {}
     if stage:
-        query["current_stage_id"] = stage
+        query[f"stage_values.{stage}"] = {"$exists": True}
     if department:
         query["department"] = department
     if assigned_to:
         query["assigned_to"] = assigned_to
+    if customer_name:
+        query["customer_name"] = {"$regex": customer_name, "$options": "i"}
+    if fabric_type:
+        query["fabric_type"] = {"$regex": fabric_type, "$options": "i"}
+    if style_no:
+        query["style_no"] = {"$regex": style_no, "$options": "i"}
     if search:
         query["$or"] = [
             {"customer_name": {"$regex": search, "$options": "i"}},
-            {"fabric_type": {"$regex": search, "$options": "i"}}
+            {"fabric_type": {"$regex": search, "$options": "i"}},
+            {"style_no": {"$regex": search, "$options": "i"}}
         ]
     enquiries = await db.enquiries.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
     return enquiries
@@ -324,31 +408,25 @@ async def create_enquiry(req: EnquiryCreate, request: Request):
     enquiry_id = secrets.token_hex(12)
     now = datetime.now(timezone.utc).isoformat()
     enquiry_doc = {
-        "id": enquiry_id,
-        "customer_name": req.customer_name,
-        "fabric_type": req.fabric_type,
-        "quantity": req.quantity,
-        "current_stage_id": req.current_stage_id or "",
+        "id": enquiry_id, "customer_name": req.customer_name,
+        "fabric_type": req.fabric_type, "quantity": req.quantity,
+        "style_no": req.style_no, "image_path": "",
         "assigned_to": req.assigned_to or "",
         "department": req.department or user.get("department", ""),
-        "notes": req.notes,
-        "created_by": user["_id"],
-        "created_by_name": user["name"],
-        "created_at": now,
-        "updated_at": now
+        "notes": req.notes, "rate": req.rate, "po_no": req.po_no,
+        "po_del_date": req.po_del_date,
+        "stage_values": req.stage_values,
+        "created_by": user["_id"], "created_by_name": user["name"],
+        "created_at": now, "updated_at": now
     }
     await db.enquiries.insert_one(enquiry_doc)
-    # Add initial history entry
-    if req.current_stage_id:
+    # Track history for initial stage values
+    for stage_id, val in req.stage_values.items():
         history_doc = {
-            "id": secrets.token_hex(12),
-            "enquiry_id": enquiry_id,
-            "from_stage": "",
-            "to_stage": req.current_stage_id,
-            "changed_by": user["_id"],
-            "changed_by_name": user["name"],
-            "changed_at": now,
-            "notes": "Enquiry created"
+            "id": secrets.token_hex(12), "enquiry_id": enquiry_id,
+            "stage_id": stage_id, "old_value": "", "new_value": val.get("value", "") if isinstance(val, dict) else str(val),
+            "changed_by": user["_id"], "changed_by_name": user["name"],
+            "changed_at": now, "notes": "Initial value set"
         }
         await db.enquiry_history.insert_one(history_doc)
     return {k: v for k, v in enquiry_doc.items() if k != "_id"}
@@ -359,24 +437,37 @@ async def update_enquiry(enquiry_id: str, req: EnquiryUpdate, request: Request):
     existing = await db.enquiries.find_one({"id": enquiry_id})
     if not existing:
         raise HTTPException(status_code=404, detail="Enquiry not found")
-
-    update_data = {k: v for k, v in req.model_dump().items() if v is not None}
-    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
-
-    # Track stage changes in history
-    if "current_stage_id" in update_data and update_data["current_stage_id"] != existing.get("current_stage_id", ""):
-        history_doc = {
-            "id": secrets.token_hex(12),
-            "enquiry_id": enquiry_id,
-            "from_stage": existing.get("current_stage_id", ""),
-            "to_stage": update_data["current_stage_id"],
-            "changed_by": user["_id"],
-            "changed_by_name": user["name"],
-            "changed_at": datetime.now(timezone.utc).isoformat(),
-            "notes": f"Stage updated"
-        }
-        await db.enquiry_history.insert_one(history_doc)
-
+    update_data = {}
+    req_dict = req.model_dump(exclude_unset=True)
+    now = datetime.now(timezone.utc).isoformat()
+    # Handle stage_values separately for history tracking
+    if "stage_values" in req_dict and req_dict["stage_values"] is not None:
+        new_sv = req_dict.pop("stage_values")
+        old_sv = existing.get("stage_values", {})
+        for stage_id, new_val in new_sv.items():
+            new_value_str = new_val.get("value", "") if isinstance(new_val, dict) else str(new_val)
+            old_val = old_sv.get(stage_id, {})
+            old_value_str = old_val.get("value", "") if isinstance(old_val, dict) else str(old_val) if old_val else ""
+            if new_value_str != old_value_str:
+                history_doc = {
+                    "id": secrets.token_hex(12), "enquiry_id": enquiry_id,
+                    "stage_id": stage_id, "old_value": old_value_str, "new_value": new_value_str,
+                    "changed_by": user["_id"], "changed_by_name": user["name"],
+                    "changed_at": now, "notes": "Stage value updated"
+                }
+                await db.enquiry_history.insert_one(history_doc)
+        # Merge stage values
+        merged = {**old_sv}
+        for k, v in new_sv.items():
+            if isinstance(v, dict):
+                v["updated_at"] = now
+                v["updated_by"] = user["_id"]
+            merged[k] = v
+        update_data["stage_values"] = merged
+    for k, v in req_dict.items():
+        if v is not None:
+            update_data[k] = v
+    update_data["updated_at"] = now
     await db.enquiries.update_one({"id": enquiry_id}, {"$set": update_data})
     enquiry = await db.enquiries.find_one({"id": enquiry_id}, {"_id": 0})
     return enquiry
@@ -390,54 +481,48 @@ async def delete_enquiry(enquiry_id: str, request: Request):
     await db.enquiry_history.delete_many({"enquiry_id": enquiry_id})
     return {"message": "Enquiry deleted"}
 
-# ─── Dashboard Routes ───
+# ─── Dashboard ───
 @api_router.get("/dashboard")
 async def get_dashboard(request: Request):
     await get_current_user(request)
     total = await db.enquiries.count_documents({})
     stages = await db.stages.find({}, {"_id": 0}).sort("order", 1).to_list(100)
     stage_map = {s["id"]: s["name"] for s in stages}
-
-    # By stage
-    by_stage_pipeline = [{"$group": {"_id": "$current_stage_id", "count": {"$sum": 1}}}]
-    by_stage_raw = await db.enquiries.aggregate(by_stage_pipeline).to_list(100)
-    by_stage = [{"stage_id": s["_id"], "stage_name": stage_map.get(s["_id"], "Unknown"), "count": s["count"]} for s in by_stage_raw]
-
-    # By department
+    # Count enquiries that have a value for each stage
+    by_stage = []
+    for s in stages:
+        count = await db.enquiries.count_documents({f"stage_values.{s['id']}": {"$exists": True}})
+        by_stage.append({"stage_id": s["id"], "stage_name": s["name"], "count": count})
     by_dept_pipeline = [{"$group": {"_id": "$department", "count": {"$sum": 1}}}]
     by_dept_raw = await db.enquiries.aggregate(by_dept_pipeline).to_list(100)
     by_department = [{"department": d["_id"] or "Unassigned", "count": d["count"]} for d in by_dept_raw]
-
-    # Recent enquiries
     recent = await db.enquiries.find({}, {"_id": 0}).sort("created_at", -1).limit(5).to_list(5)
-
-    # Users count
     users_count = await db.users.count_documents({})
-
     return {
-        "total_enquiries": total,
-        "by_stage": by_stage,
-        "by_department": by_department,
-        "recent_enquiries": recent,
-        "total_users": users_count,
-        "total_stages": len(stages)
+        "total_enquiries": total, "by_stage": by_stage,
+        "by_department": by_department, "recent_enquiries": recent,
+        "total_users": users_count, "total_stages": len(stages)
     }
 
-# ─── Reports Routes ───
+# ─── Reports ───
 @api_router.get("/reports/enquiries")
-async def report_enquiries(request: Request, start_date: Optional[str] = None, end_date: Optional[str] = None, stage: Optional[str] = None, department: Optional[str] = None, assigned_to: Optional[str] = None):
+async def report_enquiries(request: Request, start_date: Optional[str] = None, end_date: Optional[str] = None, department: Optional[str] = None, assigned_to: Optional[str] = None, customer_name: Optional[str] = None, fabric_type: Optional[str] = None, style_no: Optional[str] = None):
     await get_current_user(request)
     query = {}
     if start_date:
         query["created_at"] = {"$gte": start_date}
     if end_date:
         query.setdefault("created_at", {})["$lte"] = end_date
-    if stage:
-        query["current_stage_id"] = stage
     if department:
         query["department"] = department
     if assigned_to:
         query["assigned_to"] = assigned_to
+    if customer_name:
+        query["customer_name"] = {"$regex": customer_name, "$options": "i"}
+    if fabric_type:
+        query["fabric_type"] = {"$regex": fabric_type, "$options": "i"}
+    if style_no:
+        query["style_no"] = {"$regex": style_no, "$options": "i"}
     enquiries = await db.enquiries.find(query, {"_id": 0}).sort("created_at", -1).to_list(5000)
     return {"total": len(enquiries), "enquiries": enquiries}
 
@@ -445,44 +530,16 @@ async def report_enquiries(request: Request, start_date: Optional[str] = None, e
 async def report_stage_summary(request: Request):
     await get_current_user(request)
     stages = await db.stages.find({}, {"_id": 0}).sort("order", 1).to_list(100)
-    stage_map = {s["id"]: s for s in stages}
-    pipeline = [{"$group": {"_id": "$current_stage_id", "count": {"$sum": 1}}}]
-    raw = await db.enquiries.aggregate(pipeline).to_list(100)
-
     summary = []
     for s in stages:
-        count = 0
-        for r in raw:
-            if r["_id"] == s["id"]:
-                count = r["count"]
-                break
-        # Calculate avg time: look at history entries for this stage
-        history_entries = await db.enquiry_history.find({"to_stage": s["id"]}, {"_id": 0}).to_list(5000)
-        avg_hours = 0
-        if history_entries:
-            durations = []
-            for h in history_entries:
-                # Find the next stage change for this enquiry
-                next_change = await db.enquiry_history.find_one(
-                    {"enquiry_id": h["enquiry_id"], "from_stage": s["id"]},
-                    {"_id": 0}
-                )
-                if next_change:
-                    try:
-                        start = datetime.fromisoformat(h["changed_at"])
-                        end = datetime.fromisoformat(next_change["changed_at"])
-                        durations.append((end - start).total_seconds() / 3600)
-                    except (ValueError, TypeError):
-                        pass
-            if durations:
-                avg_hours = round(sum(durations) / len(durations), 1)
-
+        count = await db.enquiries.count_documents({f"stage_values.{s['id']}": {"$exists": True}})
+        filled_count = await db.enquiries.count_documents({
+            f"stage_values.{s['id']}.value": {"$exists": True, "$ne": ""}
+        })
         summary.append({
-            "stage_id": s["id"],
-            "stage_name": s["name"],
-            "color": s["color"],
-            "count": count,
-            "avg_hours_in_stage": avg_hours
+            "stage_id": s["id"], "stage_name": s["name"], "color": s["color"],
+            "input_type": s.get("input_type", "text"), "is_mandatory": s.get("is_mandatory", False),
+            "total_enquiries": count, "filled_count": filled_count
         })
     return summary
 
@@ -494,32 +551,18 @@ async def report_user_performance(request: Request):
     for u in users:
         uid = str(u["_id"])
         total_assigned = await db.enquiries.count_documents({"assigned_to": uid})
-        # Get completed count - enquiries at last stage
-        stages = await db.stages.find({}, {"_id": 0}).sort("order", -1).limit(1).to_list(1)
-        completed = 0
-        if stages:
-            last_stage_id = stages[0]["id"]
-            completed = await db.enquiries.count_documents({"assigned_to": uid, "current_stage_id": last_stage_id})
+        changes_made = await db.enquiry_history.count_documents({"changed_by": uid})
         performance.append({
-            "user_id": uid,
-            "user_name": u["name"],
-            "department": u.get("department", ""),
-            "role": u["role"],
-            "total_assigned": total_assigned,
-            "completed": completed,
-            "completion_rate": round((completed / total_assigned * 100) if total_assigned > 0 else 0, 1)
+            "user_id": uid, "user_name": u["name"],
+            "department": u.get("department", ""), "role": u["role"],
+            "total_assigned": total_assigned, "changes_made": changes_made
         })
     return performance
 
 @api_router.get("/reports/department")
 async def report_department(request: Request):
     await get_current_user(request)
-    pipeline = [
-        {"$group": {
-            "_id": "$department",
-            "total": {"$sum": 1}
-        }}
-    ]
+    pipeline = [{"$group": {"_id": "$department", "total": {"$sum": 1}}}]
     raw = await db.enquiries.aggregate(pipeline).to_list(100)
     stages = await db.stages.find({}, {"_id": 0}).sort("order", 1).to_list(100)
     result = []
@@ -527,14 +570,91 @@ async def report_department(request: Request):
         dept_name = dept["_id"] or "Unassigned"
         stage_breakdown = []
         for s in stages:
-            count = await db.enquiries.count_documents({"department": dept["_id"], "current_stage_id": s["id"]})
+            count = await db.enquiries.count_documents({
+                "department": dept["_id"],
+                f"stage_values.{s['id']}": {"$exists": True}
+            })
             stage_breakdown.append({"stage_name": s["name"], "stage_id": s["id"], "color": s["color"], "count": count})
-        result.append({
-            "department": dept_name,
-            "total": dept["total"],
-            "stage_breakdown": stage_breakdown
-        })
+        result.append({"department": dept_name, "total": dept["total"], "stage_breakdown": stage_breakdown})
     return result
+
+# ─── Excel Export ───
+@api_router.get("/reports/export-excel")
+async def export_excel(request: Request, department: Optional[str] = None, customer_name: Optional[str] = None, fabric_type: Optional[str] = None):
+    await get_current_user(request)
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    stages = await db.stages.find({}, {"_id": 0}).sort("order", 1).to_list(100)
+    users_list = await db.users.find({}, {"password_hash": 0}).to_list(1000)
+    user_map = {str(u["_id"]): u["name"] for u in users_list}
+
+    query = {}
+    if department:
+        query["department"] = department
+    if customer_name:
+        query["customer_name"] = {"$regex": customer_name, "$options": "i"}
+    if fabric_type:
+        query["fabric_type"] = {"$regex": fabric_type, "$options": "i"}
+    enquiries = await db.enquiries.find(query, {"_id": 0}).sort("created_at", -1).to_list(5000)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Enquiry Report"
+
+    header_fill = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
+    header_font = Font(bold=True, size=10)
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+
+    # Build headers: SR NO, IMAGE, STYLE NO., FABRIC, [stage columns], RATE, PO No., PO DEL DATE, Assigned To, Department, comment
+    headers = ["SR NO", "IMAGE", "STYLE NO.", "FABRIC"]
+    for s in stages:
+        headers.append(s["name"])
+    headers.extend(["RATE", "PO No.", "PO DEL DATE", "Assigned To", "Department", "Comment"])
+
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', wrap_text=True)
+        cell.border = thin_border
+
+    for row_idx, enq in enumerate(enquiries, 2):
+        ws.cell(row=row_idx, column=1, value=row_idx - 1).border = thin_border
+        ws.cell(row=row_idx, column=2, value="Yes" if enq.get("image_path") else "").border = thin_border
+        ws.cell(row=row_idx, column=3, value=enq.get("style_no", "")).border = thin_border
+        ws.cell(row=row_idx, column=4, value=enq.get("fabric_type", "")).border = thin_border
+
+        sv = enq.get("stage_values", {})
+        for s_idx, s in enumerate(stages):
+            val = sv.get(s["id"], {})
+            display = val.get("value", "") if isinstance(val, dict) else str(val) if val else ""
+            ws.cell(row=row_idx, column=5 + s_idx, value=display).border = thin_border
+
+        col_offset = 5 + len(stages)
+        ws.cell(row=row_idx, column=col_offset, value=enq.get("rate", "")).border = thin_border
+        ws.cell(row=row_idx, column=col_offset + 1, value=enq.get("po_no", "")).border = thin_border
+        ws.cell(row=row_idx, column=col_offset + 2, value=enq.get("po_del_date", "")).border = thin_border
+        ws.cell(row=row_idx, column=col_offset + 3, value=user_map.get(enq.get("assigned_to", ""), "")).border = thin_border
+        ws.cell(row=row_idx, column=col_offset + 4, value=enq.get("department", "")).border = thin_border
+        ws.cell(row=row_idx, column=col_offset + 5, value=enq.get("notes", "")).border = thin_border
+
+    # Auto-width
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 30)
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=enquiry_report.xlsx"}
+    )
 
 # Include router
 app.include_router(api_router)
@@ -555,33 +675,33 @@ logger = logging.getLogger(__name__)
 # Startup
 @app.on_event("startup")
 async def startup():
-    # Create indexes
     await db.users.create_index("email", unique=True)
     await db.login_attempts.create_index("identifier")
     await db.stages.create_index("id", unique=True)
     await db.enquiries.create_index("id", unique=True)
+    # Init storage
+    try:
+        init_storage()
+        logger.info("Object storage initialized")
+    except Exception as e:
+        logger.error(f"Storage init failed: {e}")
     # Seed admin
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@example.com").lower()
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
     existing = await db.users.find_one({"email": admin_email})
     if existing is None:
         await db.users.insert_one({
-            "email": admin_email,
-            "password_hash": hash_password(admin_password),
-            "name": "Admin",
-            "role": "admin",
-            "department": "Admin",
-            "is_active": True,
-            "created_at": datetime.now(timezone.utc)
+            "email": admin_email, "password_hash": hash_password(admin_password),
+            "name": "Admin", "role": "admin", "department": "Admin",
+            "is_active": True, "created_at": datetime.now(timezone.utc)
         })
         logger.info(f"Admin user created: {admin_email}")
     elif not verify_password(admin_password, existing["password_hash"]):
         await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": hash_password(admin_password)}})
-        logger.info("Admin password updated")
     # Write test credentials
     os.makedirs("/app/memory", exist_ok=True)
     with open("/app/memory/test_credentials.md", "w") as f:
-        f.write(f"# Test Credentials\n\n## Admin\n- Email: {admin_email}\n- Password: {admin_password}\n- Role: admin\n\n## Auth Endpoints\n- POST /api/auth/login\n- POST /api/auth/logout\n- GET /api/auth/me\n- POST /api/auth/refresh\n")
+        f.write(f"# Test Credentials\n\n## Admin\n- Email: {admin_email}\n- Password: {admin_password}\n- Role: admin\n\n## Auth Endpoints\n- POST /api/auth/login\n- POST /api/auth/logout\n- GET /api/auth/me\n")
 
 @app.on_event("shutdown")
 async def shutdown():

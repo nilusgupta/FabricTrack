@@ -12,6 +12,8 @@ class FabricEnquiryAPITester:
         self.tests_passed = 0
         self.user_id = None
         self.stage_id = None
+        self.date_stage_id = None
+        self.select_stage_id = None
         self.enquiry_id = None
 
     def run_test(self, name, method, endpoint, expected_status, data=None, params=None):
@@ -87,22 +89,69 @@ class FabricEnquiryAPITester:
         return success
 
     def test_create_stage(self):
-        """Test creating a stage"""
+        """Test creating a stage with enhanced fields"""
         success, response = self.run_test(
-            "Create Stage",
+            "Create Stage (Text Type)",
             "POST",
             "stages",
             200,
             data={
-                "name": "Test Stage",
+                "name": "Test Text Stage",
                 "order": 1,
                 "color": "#3B82F6",
-                "description": "Test stage for API testing"
+                "description": "Test stage for API testing",
+                "input_type": "text",
+                "is_mandatory": False,
+                "select_options": []
             }
         )
         if success:
             self.stage_id = response.get('id')
             print(f"   Created stage ID: {self.stage_id}")
+        return success
+
+    def test_create_date_stage(self):
+        """Test creating a date stage"""
+        success, response = self.run_test(
+            "Create Stage (Date Type)",
+            "POST",
+            "stages",
+            200,
+            data={
+                "name": "Test Date Stage",
+                "order": 2,
+                "color": "#EF4444",
+                "description": "Date stage for testing",
+                "input_type": "date",
+                "is_mandatory": True,
+                "select_options": []
+            }
+        )
+        if success:
+            self.date_stage_id = response.get('id')
+            print(f"   Created date stage ID: {self.date_stage_id}")
+        return success
+
+    def test_create_select_stage(self):
+        """Test creating a select stage"""
+        success, response = self.run_test(
+            "Create Stage (Select Type)",
+            "POST",
+            "stages",
+            200,
+            data={
+                "name": "Test Select Stage",
+                "order": 3,
+                "color": "#22C55E",
+                "description": "Select stage for testing",
+                "input_type": "select",
+                "is_mandatory": True,
+                "select_options": ["APPROVED", "PENDING", "REJECTED"]
+            }
+        )
+        if success:
+            self.select_stage_id = response.get('id')
+            print(f"   Created select stage ID: {self.select_stage_id}")
         return success
 
     def test_get_stages(self):
@@ -150,7 +199,15 @@ class FabricEnquiryAPITester:
         return success
 
     def test_create_enquiry(self):
-        """Test creating an enquiry"""
+        """Test creating an enquiry with enhanced fields"""
+        stage_values = {}
+        if self.stage_id:
+            stage_values[self.stage_id] = {"value": "Test text value"}
+        if self.date_stage_id:
+            stage_values[self.date_stage_id] = {"value": "2024-01-15"}
+        if self.select_stage_id:
+            stage_values[self.select_stage_id] = {"value": "APPROVED"}
+            
         success, response = self.run_test(
             "Create Enquiry",
             "POST",
@@ -160,15 +217,20 @@ class FabricEnquiryAPITester:
                 "customer_name": "Test Customer",
                 "fabric_type": "Cotton",
                 "quantity": "100 meters",
-                "current_stage_id": self.stage_id or "",
+                "style_no": "STY001",
                 "assigned_to": self.user_id or "",
                 "department": "Sales",
-                "notes": "Test enquiry for API testing"
+                "notes": "Test enquiry for API testing",
+                "rate": "150.00",
+                "po_no": "PO123",
+                "po_del_date": "2024-02-15",
+                "stage_values": stage_values
             }
         )
         if success:
             self.enquiry_id = response.get('id')
             print(f"   Created enquiry ID: {self.enquiry_id}")
+            print(f"   Stage values: {len(stage_values)} stages set")
         return success
 
     def test_get_enquiries(self):
@@ -201,10 +263,14 @@ class FabricEnquiryAPITester:
         return success
 
     def test_update_enquiry(self):
-        """Test updating an enquiry"""
+        """Test updating an enquiry with stage values"""
         if not self.enquiry_id:
             print("⚠️  Skipping enquiry update test - no enquiry ID")
             return True
+            
+        stage_values = {}
+        if self.select_stage_id:
+            stage_values[self.select_stage_id] = {"value": "PENDING"}
             
         success, response = self.run_test(
             "Update Enquiry",
@@ -212,21 +278,43 @@ class FabricEnquiryAPITester:
             f"enquiries/{self.enquiry_id}",
             200,
             data={
-                "notes": "Updated notes for testing"
+                "notes": "Updated notes for testing",
+                "rate": "175.00",
+                "stage_values": stage_values
             }
         )
+        if success:
+            print(f"   Updated stage values: {len(stage_values)} stages")
         return success
 
-    def test_reports_enquiries(self):
-        """Test enquiries report"""
+    def test_reports_enquiries_with_filters(self):
+        """Test enquiries report with filters"""
         success, response = self.run_test(
-            "Enquiries Report",
+            "Enquiries Report with Filters",
             "GET",
             "reports/enquiries",
-            200
+            200,
+            params={
+                "customer_name": "Test",
+                "fabric_type": "Cotton",
+                "department": "Sales"
+            }
         )
         if success:
-            print(f"   Total in report: {response.get('total', 0)}")
+            print(f"   Filtered results: {response.get('total', 0)}")
+        return success
+
+    def test_excel_export(self):
+        """Test Excel export functionality"""
+        success, response = self.run_test(
+            "Excel Export",
+            "GET",
+            "reports/export-excel",
+            200,
+            params={"department": "Sales"}
+        )
+        if success:
+            print(f"   Excel export successful")
         return success
 
     def test_reports_stage_summary(self):
@@ -295,6 +383,8 @@ def main():
     
     # Stage management tests
     tester.test_create_stage()
+    tester.test_create_date_stage()
+    tester.test_create_select_stage()
     tester.test_get_stages()
     
     # User management tests
@@ -308,7 +398,8 @@ def main():
     tester.test_update_enquiry()
     
     # Reports tests
-    tester.test_reports_enquiries()
+    tester.test_reports_enquiries_with_filters()
+    tester.test_excel_export()
     tester.test_reports_stage_summary()
     tester.test_reports_user_performance()
     tester.test_reports_department()
