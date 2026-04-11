@@ -328,6 +328,27 @@ class FabricEnquiryAPITester:
             print(f"   Updated stage values: {len(stage_values)} stages")
         return success
 
+    def test_add_stage_comment(self):
+        """Test adding a comment to a stage"""
+        if not self.enquiry_id or not self.stage_id:
+            print("⚠️  Skipping stage comment test - no enquiry or stage ID")
+            return True
+            
+        success, response = self.run_test(
+            "Add Stage Comment",
+            "POST",
+            f"enquiries/{self.enquiry_id}/comments",
+            200,
+            data={
+                "stage_id": self.stage_id,
+                "comment": "This is a test comment for the stage"
+            }
+        )
+        if success:
+            print(f"   Comment added to stage {self.stage_id}")
+            print(f"   Comment ID: {response.get('id')}")
+        return success
+
     def test_reports_enquiries_with_filters(self):
         """Test enquiries report with filters"""
         success, response = self.run_test(
@@ -438,6 +459,7 @@ def main():
     tester.test_get_enquiries()
     tester.test_get_enquiry_detail()
     tester.test_update_enquiry()
+    tester.test_add_stage_comment()  # Test new comment functionality
     
     # Reports tests
     tester.test_reports_enquiries_with_filters()

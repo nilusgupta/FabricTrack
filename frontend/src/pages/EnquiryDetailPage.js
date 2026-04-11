@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Label } from '../components/ui/label';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
-import { ArrowLeft, Save, Trash2, Clock, User, Upload } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, Clock, User, Upload, Camera, Image as ImageIcon, Send, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 
 const departments = ['Sales', 'Production', 'Quality', 'Admin', 'Design', 'Logistics'];
@@ -26,6 +26,8 @@ export default function EnquiryDetailPage() {
   const [form, setForm] = useState({});
   const [imageFile, setImageFile] = useState(null);
   const [imageBlobUrl, setImageBlobUrl] = useState(null);
+  const [stageComments, setStageComments] = useState({});
+  const [commentSending, setCommentSending] = useState({});
 
   const fetchData = useCallback(async () => {
     try {
@@ -121,6 +123,22 @@ export default function EnquiryDetailPage() {
     }
   };
 
+  const handleAddComment = async (stageId) => {
+    const comment = stageComments[stageId]?.trim();
+    if (!comment) return;
+    setCommentSending(prev => ({ ...prev, [stageId]: true }));
+    try {
+      await api.post(`/enquiries/${id}/comments`, { stage_id: stageId, comment });
+      setStageComments(prev => ({ ...prev, [stageId]: '' }));
+      toast.success('Comment added');
+      fetchData();
+    } catch (err) {
+      toast.error('Failed to add comment');
+    } finally {
+      setCommentSending(prev => ({ ...prev, [stageId]: false }));
+    }
+  };
+
   if (loading) {
     return <div className="space-y-6 animate-pulse" data-testid="enquiry-detail-loading"><div className="h-8 w-48 bg-zinc-200 rounded-sm" /><div className="h-64 bg-zinc-200 rounded-sm" /></div>;
   }
@@ -155,8 +173,23 @@ export default function EnquiryDetailPage() {
               </div>
             )}
             <div className="space-y-2">
-              <Input type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])} data-testid="edit-image-input" className="border-zinc-200" />
-              <p className="text-xs text-zinc-400">Upload a fabric image (JPG, PNG)</p>
+              <p className="text-xs text-zinc-500 font-medium">Upload from:</p>
+              <div className="flex gap-2 flex-wrap">
+                <label className="cursor-pointer">
+                  <input type="file" accept="image/*" capture="environment" onChange={e => setImageFile(e.target.files[0])} className="hidden" data-testid="edit-image-camera" />
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 rounded-sm text-xs text-zinc-600 hover:bg-zinc-50 transition-colors">
+                    <Camera className="w-3 h-3" /> Camera
+                  </div>
+                </label>
+                <label className="cursor-pointer">
+                  <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])} className="hidden" data-testid="edit-image-gallery" />
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 rounded-sm text-xs text-zinc-600 hover:bg-zinc-50 transition-colors">
+                    <ImageIcon className="w-3 h-3" /> Gallery / File
+                  </div>
+                </label>
+              </div>
+              {imageFile && <p className="text-xs text-green-600">{imageFile.name}</p>}
+              <p className="text-xs text-zinc-400">Supports camera, photo gallery, or file picker</p>
             </div>
           </div>
         </CardContent>
@@ -225,60 +258,109 @@ export default function EnquiryDetailPage() {
       <Card className="bg-white border-zinc-200 rounded-sm">
         <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold text-zinc-900">Stage Values</CardTitle></CardHeader>
         <CardContent data-testid="enquiry-stage-values">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-4">
             {stages.map(s => {
               const ds = enquiry.delay_status?.[s.id];
               const isDelayed = ds?.status === 'delayed' || ds?.status === 'completed_late';
               const isEarly = ds?.status === 'completed_early';
               const isPending = ds?.status === 'pending' && ds?.lead_time_days > 0;
               const borderClass = isDelayed ? 'border-red-300 bg-red-50/30' : isEarly ? 'border-green-300 bg-green-50/30' : 'border-zinc-200';
+              const stageHistory = (enquiry.history || []).filter(h => h.stage_id === s.id);
               return (
-                <div key={s.id} className={`space-y-1.5 p-3 border rounded-sm ${borderClass}`}>
-                  <Label className="text-xs text-zinc-600 flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: s.color }} />
-                    {s.name}
-                    {s.is_mandatory && <span className="text-red-500 text-[10px]">REQ</span>}
-                    <span className="text-zinc-400 text-[10px] ml-auto">{s.input_type}{s.lead_time_days ? ` · ${s.lead_time_days}d` : ''}</span>
-                  </Label>
+                <div key={s.id} className={`p-4 border rounded-sm ${borderClass}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: s.color }} />
+                    <span className="text-sm font-semibold text-zinc-900">{s.name}</span>
+                    {s.is_mandatory && <span className="text-red-500 text-[10px] font-semibold">REQ</span>}
+                    <span className="text-zinc-400 text-[10px] ml-auto">{s.input_type}{s.lead_time_days ? ` · ${s.lead_time_days}d lead` : ''}</span>
+                  </div>
                   {/* Delay indicator */}
                   {isDelayed && (
-                    <div className="text-xs font-semibold text-red-600 flex items-center gap-1" data-testid={`delay-indicator-${s.id}`}>
-                      DELAYED {ds?.days_diff != null && <span className="font-normal text-red-500">({Math.abs(ds.days_diff)}d overdue)</span>}
+                    <div className="text-xs font-semibold text-red-600 mb-2 px-2 py-1 bg-red-50 rounded-sm inline-flex items-center gap-1" data-testid={`delay-indicator-${s.id}`}>
+                      DELAYED {ds?.days_diff != null && <span className="font-normal">({Math.abs(ds.days_diff)}d overdue)</span>}
                     </div>
                   )}
                   {isEarly && (
-                    <div className="text-xs font-semibold text-green-600 flex items-center gap-1" data-testid={`early-indicator-${s.id}`}>
-                      ON TIME {ds?.days_diff != null && <span className="font-normal text-green-500">({ds.days_diff}d early)</span>}
+                    <div className="text-xs font-semibold text-green-600 mb-2 px-2 py-1 bg-green-50 rounded-sm inline-flex items-center gap-1" data-testid={`early-indicator-${s.id}`}>
+                      ON TIME {ds?.days_diff != null && <span className="font-normal">({ds.days_diff}d early)</span>}
                     </div>
                   )}
                   {isPending && ds?.due_date && (
-                    <div className="text-xs text-amber-600" data-testid={`pending-indicator-${s.id}`}>
+                    <div className="text-xs text-amber-600 mb-2 px-2 py-1 bg-amber-50 rounded-sm inline-block" data-testid={`pending-indicator-${s.id}`}>
                       Due: {new Date(ds.due_date).toLocaleDateString()} ({ds.days_diff}d remaining)
                     </div>
                   )}
                   {/* Input field */}
-                  {s.input_type === 'date' ? (
-                    s.date_input_mode === 'auto' ? (
-                      <Button type="button" variant="outline" size="sm"
-                        onClick={() => setStageValue(s.id, new Date().toISOString().split('T')[0])}
-                        className={`text-xs w-full justify-start ${getStageValue(s.id) ? 'bg-green-50 border-green-300 text-green-700' : 'border-zinc-200'}`}
-                        data-testid={`stage-value-${s.id}`}
-                      >
-                        {getStageValue(s.id) ? `Captured: ${getStageValue(s.id)}` : 'Click to capture current date'}
-                      </Button>
+                  <div className="mb-3">
+                    {s.input_type === 'date' ? (
+                      s.date_input_mode === 'auto' ? (
+                        <Button type="button" variant="outline" size="sm"
+                          onClick={() => setStageValue(s.id, new Date().toISOString().split('T')[0])}
+                          className={`text-xs w-full justify-start ${getStageValue(s.id) ? 'bg-green-50 border-green-300 text-green-700' : 'border-zinc-200'}`}
+                          data-testid={`stage-value-${s.id}`}
+                        >
+                          {getStageValue(s.id) ? `Captured: ${getStageValue(s.id)}` : 'Click to capture current date'}
+                        </Button>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Input type="date" value={getStageValue(s.id)} onChange={e => setStageValue(s.id, e.target.value)} data-testid={`stage-value-${s.id}`} className="border-zinc-200 flex-1 text-sm" />
+                          <Button type="button" variant="outline" size="sm" onClick={() => setStageValue(s.id, new Date().toISOString().split('T')[0])} className="text-xs border-zinc-200 whitespace-nowrap" data-testid={`stage-today-${s.id}`}>Today</Button>
+                        </div>
+                      )
+                    ) : s.input_type === 'select' ? (
+                      <Select value={getStageValue(s.id)} onValueChange={v => setStageValue(s.id, v)}>
+                        <SelectTrigger className="border-zinc-200 text-sm" data-testid={`stage-value-${s.id}`}><SelectValue placeholder="Select..." /></SelectTrigger>
+                        <SelectContent>{(s.select_options || []).map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
+                      </Select>
                     ) : (
-                      <div className="flex gap-2">
-                        <Input type="date" value={getStageValue(s.id)} onChange={e => setStageValue(s.id, e.target.value)} data-testid={`stage-value-${s.id}`} className="border-zinc-200 flex-1 text-sm" />
-                        <Button type="button" variant="outline" size="sm" onClick={() => setStageValue(s.id, new Date().toISOString().split('T')[0])} className="text-xs border-zinc-200 whitespace-nowrap" data-testid={`stage-today-${s.id}`}>Today</Button>
-                      </div>
-                    )
-                  ) : s.input_type === 'select' ? (
-                    <Select value={getStageValue(s.id)} onValueChange={v => setStageValue(s.id, v)}>
-                      <SelectTrigger className="border-zinc-200 text-sm" data-testid={`stage-value-${s.id}`}><SelectValue placeholder="Select..." /></SelectTrigger>
-                      <SelectContent>{(s.select_options || []).map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
-                    </Select>
-                  ) : (
-                    <Input value={getStageValue(s.id)} onChange={e => setStageValue(s.id, e.target.value)} data-testid={`stage-value-${s.id}`} className="border-zinc-200 text-sm" placeholder={`Enter ${s.name.toLowerCase()}...`} />
+                      <Input value={getStageValue(s.id)} onChange={e => setStageValue(s.id, e.target.value)} data-testid={`stage-value-${s.id}`} className="border-zinc-200 text-sm" placeholder={`Enter ${s.name.toLowerCase()}...`} />
+                    )}
+                  </div>
+                  {/* Stage Comment Input */}
+                  <div className="flex gap-2 mb-2">
+                    <Input
+                      value={stageComments[s.id] || ''}
+                      onChange={e => setStageComments(prev => ({ ...prev, [s.id]: e.target.value }))}
+                      placeholder={`Add comment for ${s.name}...`}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddComment(s.id); } }}
+                      data-testid={`stage-comment-input-${s.id}`}
+                      className="border-zinc-200 text-sm flex-1"
+                    />
+                    <Button
+                      type="button" size="sm" variant="outline"
+                      onClick={() => handleAddComment(s.id)}
+                      disabled={commentSending[s.id] || !stageComments[s.id]?.trim()}
+                      data-testid={`stage-comment-send-${s.id}`}
+                      className="border-zinc-200"
+                    >
+                      <Send className="w-3 h-3" />
+                    </Button>
+                  </div>
+                  {/* Stage History & Comments */}
+                  {stageHistory.length > 0 && (
+                    <div className="border-t border-zinc-100 pt-2 space-y-1.5">
+                      {stageHistory.map(h => (
+                        <div key={h.id} className="flex items-start gap-2 text-xs" data-testid={`stage-history-${h.id}`}>
+                          <div className={`w-5 h-5 rounded-sm flex items-center justify-center flex-shrink-0 ${h.type === 'comment' ? 'bg-blue-50' : 'bg-zinc-100'}`}>
+                            {h.type === 'comment' ? <MessageSquare className="w-2.5 h-2.5 text-blue-500" /> : <Clock className="w-2.5 h-2.5 text-zinc-400" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            {h.type === 'comment' ? (
+                              <p className="text-zinc-700">{h.comment || h.notes}</p>
+                            ) : (
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {h.old_value && <span className="text-zinc-400 line-through">{h.old_value}</span>}
+                                {h.old_value && <span className="text-zinc-300">→</span>}
+                                <span className="text-zinc-700 font-medium">{h.new_value}</span>
+                              </div>
+                            )}
+                            <p className="text-[10px] text-zinc-400 mt-0.5">
+                              {h.changed_by_name} · {new Date(h.changed_at).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               );
@@ -295,23 +377,31 @@ export default function EnquiryDetailPage() {
         </Button>
       </div>
 
-      {/* History */}
+      {/* Full History */}
       <Card className="bg-white border-zinc-200 rounded-sm">
-        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold text-zinc-900">Change History</CardTitle></CardHeader>
+        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold text-zinc-900">Full Change History</CardTitle></CardHeader>
         <CardContent data-testid="enquiry-history">
           {(enquiry.history?.length || 0) > 0 ? (
             <div className="space-y-2">
               {enquiry.history.map(h => (
                 <div key={h.id} className="flex items-start gap-3 py-2 border-b border-zinc-100 last:border-0">
-                  <div className="w-7 h-7 rounded-sm bg-zinc-100 flex items-center justify-center flex-shrink-0">
-                    <Clock className="w-3.5 h-3.5 text-zinc-500" />
+                  <div className={`w-7 h-7 rounded-sm flex items-center justify-center flex-shrink-0 ${h.type === 'comment' ? 'bg-blue-50' : 'bg-zinc-100'}`}>
+                    {h.type === 'comment' ? <MessageSquare className="w-3.5 h-3.5 text-blue-500" /> : <Clock className="w-3.5 h-3.5 text-zinc-500" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap text-xs">
-                      <span className="font-medium text-zinc-900">{stageMap[h.stage_id]?.name || h.stage_id}</span>
-                      {h.old_value && <span className="text-zinc-400 line-through">{h.old_value}</span>}
-                      {h.old_value && <span className="text-zinc-400">→</span>}
-                      <span className="text-zinc-700">{h.new_value}</span>
+                      <Badge className="rounded-sm text-[10px] px-1.5" style={{ backgroundColor: (stageMap[h.stage_id]?.color || '#9CA3AF') + '20', color: stageMap[h.stage_id]?.color || '#9CA3AF' }}>
+                        {stageMap[h.stage_id]?.name || h.stage_id}
+                      </Badge>
+                      {h.type === 'comment' ? (
+                        <span className="text-zinc-700">{h.comment || h.notes}</span>
+                      ) : (
+                        <>
+                          {h.old_value && <span className="text-zinc-400 line-through">{h.old_value}</span>}
+                          {h.old_value && <span className="text-zinc-400">→</span>}
+                          <span className="text-zinc-700 font-medium">{h.new_value}</span>
+                        </>
+                      )}
                     </div>
                     <p className="text-[11px] text-zinc-400 mt-0.5">
                       <User className="w-3 h-3 inline mr-0.5" />{h.changed_by_name} · {new Date(h.changed_at).toLocaleString()}

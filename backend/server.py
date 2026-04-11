@@ -532,7 +532,8 @@ async def update_enquiry(enquiry_id: str, req: EnquiryUpdate, request: Request):
             if new_value_str != old_value_str:
                 history_doc = {
                     "id": secrets.token_hex(12), "enquiry_id": enquiry_id,
-                    "stage_id": stage_id, "old_value": old_value_str, "new_value": new_value_str,
+                    "stage_id": stage_id, "type": "value_change",
+                    "old_value": old_value_str, "new_value": new_value_str,
                     "changed_by": user["_id"], "changed_by_name": user["name"],
                     "changed_at": now, "notes": "Stage value updated"
                 }
@@ -561,6 +562,34 @@ async def delete_enquiry(enquiry_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Enquiry not found")
     await db.enquiry_history.delete_many({"enquiry_id": enquiry_id})
     return {"message": "Enquiry deleted"}
+
+# ─── Stage Comments ───
+class StageCommentCreate(BaseModel):
+    stage_id: str
+    comment: str
+
+@api_router.post("/enquiries/{enquiry_id}/comments")
+async def add_stage_comment(enquiry_id: str, req: StageCommentCreate, request: Request):
+    user = await get_current_user(request)
+    existing = await db.enquiries.find_one({"id": enquiry_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Enquiry not found")
+    now = datetime.now(timezone.utc).isoformat()
+    comment_doc = {
+        "id": secrets.token_hex(12),
+        "enquiry_id": enquiry_id,
+        "stage_id": req.stage_id,
+        "type": "comment",
+        "comment": req.comment,
+        "changed_by": user["_id"],
+        "changed_by_name": user["name"],
+        "changed_at": now,
+        "old_value": "",
+        "new_value": "",
+        "notes": req.comment
+    }
+    await db.enquiry_history.insert_one(comment_doc)
+    return {k: v for k, v in comment_doc.items() if k != "_id"}
 
 # ─── Dashboard ───
 @api_router.get("/dashboard")

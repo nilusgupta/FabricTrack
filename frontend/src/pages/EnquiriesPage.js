@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Textarea } from '../components/ui/textarea';
-import { Plus, Search, Filter, X, Image as ImageIcon } from 'lucide-react';
+import { Plus, Search, Filter, X, Image as ImageIcon, Camera } from 'lucide-react';
 import { toast } from 'sonner';
 
 const departments = ['Sales', 'Production', 'Quality', 'Admin', 'Design', 'Logistics'];
@@ -82,13 +82,6 @@ export default function EnquiriesPage() {
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to create');
     }
-  };
-
-  const setStageValue = (stageId, value) => {
-    setForm(prev => ({
-      ...prev,
-      stage_values: { ...prev.stage_values, [stageId]: { value } }
-    }));
   };
 
   const getStageDisplay = (enq, stageId) => {
@@ -165,74 +158,24 @@ export default function EnquiriesPage() {
                 </div>
               </div>
 
-              {/* Stage Fields */}
-              {stages.length > 0 && (
-                <div className="space-y-3 pt-2 border-t border-zinc-200">
-                  <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Stage Values</Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {stages.map(s => (
-                      <div key={s.id} className="space-y-1">
-                        <Label className="text-xs text-zinc-600 flex items-center gap-1">
-                          <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: s.color }} />
-                          {s.name} {s.is_mandatory && <span className="text-red-500">*</span>}
-                        </Label>
-                        {s.input_type === 'date' ? (
-                          s.date_input_mode === 'auto' ? (
-                            <Button type="button" variant="outline" size="sm"
-                              onClick={() => setStageValue(s.id, new Date().toISOString().split('T')[0])}
-                              className={`text-xs border-zinc-200 w-full justify-start ${form.stage_values[s.id]?.value ? 'bg-green-50 border-green-300 text-green-700' : ''}`}
-                              data-testid={`stage-value-${s.id}`}
-                            >
-                              {form.stage_values[s.id]?.value ? `Captured: ${form.stage_values[s.id].value}` : 'Click to capture current date'}
-                            </Button>
-                          ) : (
-                            <div className="flex gap-2">
-                              <Input
-                                type="date"
-                                value={form.stage_values[s.id]?.value || ''}
-                                onChange={e => setStageValue(s.id, e.target.value)}
-                                required={s.is_mandatory}
-                                data-testid={`stage-value-${s.id}`}
-                                className="border-zinc-200 flex-1"
-                              />
-                              <Button type="button" variant="outline" size="sm"
-                                onClick={() => setStageValue(s.id, new Date().toISOString().split('T')[0])}
-                                className="text-xs border-zinc-200 whitespace-nowrap"
-                                data-testid={`stage-today-${s.id}`}
-                              >Today</Button>
-                            </div>
-                          )
-                        ) : s.input_type === 'select' ? (
-                          <Select
-                            value={form.stage_values[s.id]?.value || ''}
-                            onValueChange={v => setStageValue(s.id, v)}
-                          >
-                            <SelectTrigger className="border-zinc-200" data-testid={`stage-value-${s.id}`}>
-                              <SelectValue placeholder="Select..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(s.select_options || []).map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Input
-                            value={form.stage_values[s.id]?.value || ''}
-                            onChange={e => setStageValue(s.id, e.target.value)}
-                            required={s.is_mandatory}
-                            data-testid={`stage-value-${s.id}`}
-                            className="border-zinc-200"
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Image upload */}
+              {/* Image upload - supports camera, gallery, file */}
               <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Image</Label>
-                <Input type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])} data-testid="enquiry-image-input" className="border-zinc-200" />
+                <div className="flex gap-2">
+                  <label className="flex-1 cursor-pointer">
+                    <Input type="file" accept="image/*" capture="environment" onChange={e => setImageFile(e.target.files[0])} data-testid="enquiry-image-camera" className="hidden" />
+                    <div className="flex items-center justify-center gap-2 px-3 py-2 border border-zinc-200 rounded-sm text-sm text-zinc-600 hover:bg-zinc-50 transition-colors">
+                      <Camera className="w-4 h-4" /> Camera
+                    </div>
+                  </label>
+                  <label className="flex-1 cursor-pointer">
+                    <Input type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])} data-testid="enquiry-image-gallery" className="hidden" />
+                    <div className="flex items-center justify-center gap-2 px-3 py-2 border border-zinc-200 rounded-sm text-sm text-zinc-600 hover:bg-zinc-50 transition-colors">
+                      <ImageIcon className="w-4 h-4" /> Gallery / File
+                    </div>
+                  </label>
+                </div>
+                {imageFile && <p className="text-xs text-green-600">{imageFile.name}</p>}
               </div>
 
               <div className="space-y-2">
