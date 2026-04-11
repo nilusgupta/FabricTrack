@@ -1,21 +1,45 @@
-# FabricTrack - Fabric Enquiry Tracking System PRD
+# FabricTrack - Fabric Enquiry Tracking System
 
-## Original Problem Statement
-Build a fabric enquiry tracking system with overview of status of enquiry at various stages assigned to users.
+## Problem Statement
+Build a fabric enquiry tracking system with overview of status of enquiry at various stages assigned to users. Mobile and web interfaces, dynamic stage master, per-stage lead times, image uploads, per-stage comments and history, department master, reports with Excel export, and stage-level user permissions.
 
-## What's Been Implemented (2026-04-10)
-- JWT auth with admin seeding, brute force protection
-- User management (CRUD, roles, departments)
-- Enhanced Stage Master: input_type (text/date/select), is_mandatory, select_options, lead_time_days, date_input_mode (auto/manual)
-- Enquiry management with dynamic stage_values, style_no, rate, po_no, po_del_date, image upload
-- Lead time tracking: calculates delay/early status per stage based on previous stage completion + lead_time_days
-- Date input modes: "auto" captures current date on button click, "manual" shows date picker
-- Delay indicators: DELAYED (red), ON TIME (green), pending with due date shown in enquiry list & detail
-- Dashboard with stat cards and Recharts charts
-- Reports: Enquiry (multi-field filters), Stage Summary, User Performance, Department
-- Excel export matching TASK.xlsx format
-- Object Storage for fabric images
+## Architecture
+- **Frontend**: React + TailwindCSS + Shadcn UI (port 3000)
+- **Backend**: FastAPI + Motor (async MongoDB) + PyJWT (port 8001)
+- **Storage**: Emergent Object Storage for images
+- **Database**: MongoDB
+
+## Completed Features
+- [x] Auth system (Admin/Sales/Production/Quality roles, JWT cookies, brute-force protection)
+- [x] Stage Master CRUD (input_type, is_mandatory, lead_time_days, date_input_mode, assigned_users)
+- [x] Enquiry Pipeline UI with delay/early status tracking
+- [x] Image uploads via Emergent Object Storage (camera/gallery/file)
+- [x] Per-stage commenting and audit history
+- [x] Excel export via openpyxl (with Created By, Department, Created Date columns)
+- [x] Dashboard with stats and recent enquiries
+- [x] Department Master CRUD (seeded: Sales, Production, Quality, Admin, Design, Logistics)
+- [x] Removed "Assigned To" from enquiries (replaced with Department-based assignment)
+- [x] Stage-level user permissions (assigned_users on stages, UI gating + backend enforcement)
+- [x] Reports: stage summary, user performance, department breakdown
+
+## Key Pages
+- `/login` - Authentication
+- `/` - Dashboard
+- `/enquiries` - Enquiry list with filters
+- `/enquiries/:id` - Enquiry detail with stage values, comments, history
+- `/stages` - Stage Master (admin)
+- `/departments` - Department Master (admin)
+- `/users` - User Management (admin)
+- `/reports` - Reports with Excel export
+
+## Key API Endpoints
+- `POST /api/auth/login`, `GET /api/auth/me`
+- `GET/POST /api/stages`, `PUT/DELETE /api/stages/:id`
+- `GET/POST /api/departments`, `PUT/DELETE /api/departments/:id`
+- `GET/POST /api/enquiries`, `PUT/DELETE /api/enquiries/:id`
+- `POST /api/enquiries/:id/comments` (permission enforced)
+- `GET /api/reports/export-excel`
+- `POST /api/upload`, `GET /api/files/:path`
 
 ## Backlog
-P1: Email notifications, Bulk import/export, PDF reports, Stage transition rules
-P2: Audit log, Custom fields, File attachments, Customer grouping view
+- P2: Pagination/infinite scrolling for enquiries list and history logs
