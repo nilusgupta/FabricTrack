@@ -144,8 +144,9 @@ class StageCreate(BaseModel):
     input_type: str = "text"  # text, date, select
     is_mandatory: bool = False
     select_options: List[str] = []
-    lead_time_days: int = 0  # lead time in days from previous stage completion
-    date_input_mode: str = "manual"  # "auto" (button captures now) or "manual" (date picker)
+    lead_time_days: int = 0
+    date_input_mode: str = "manual"
+    assigned_users: List[str] = []  # user IDs who can complete/comment on this stage
 
 class StageUpdate(BaseModel):
     name: Optional[str] = None
@@ -157,13 +158,13 @@ class StageUpdate(BaseModel):
     select_options: Optional[List[str]] = None
     lead_time_days: Optional[int] = None
     date_input_mode: Optional[str] = None
+    assigned_users: Optional[List[str]] = None
 
 class EnquiryCreate(BaseModel):
     customer_name: str
     fabric_type: str
     quantity: str
     style_no: str = ""
-    assigned_to: Optional[str] = None
     department: Optional[str] = None
     notes: str = ""
     rate: str = ""
@@ -176,7 +177,6 @@ class EnquiryUpdate(BaseModel):
     fabric_type: Optional[str] = None
     quantity: Optional[str] = None
     style_no: Optional[str] = None
-    assigned_to: Optional[str] = None
     department: Optional[str] = None
     notes: Optional[str] = None
     rate: Optional[str] = None
@@ -184,6 +184,14 @@ class EnquiryUpdate(BaseModel):
     po_del_date: Optional[str] = None
     stage_values: Optional[Dict[str, Any]] = None
     image_path: Optional[str] = None
+
+class DepartmentCreate(BaseModel):
+    name: str
+    description: str = ""
+
+class DepartmentUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
 
 # ─── Auth Routes ───
 @api_router.post("/auth/login")
@@ -306,6 +314,7 @@ async def create_stage(req: StageCreate, request: Request):
         "select_options": req.select_options,
         "lead_time_days": req.lead_time_days,
         "date_input_mode": req.date_input_mode,
+        "assigned_users": req.assigned_users,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.stages.insert_one(stage_doc)
@@ -492,7 +501,6 @@ async def create_enquiry(req: EnquiryCreate, request: Request):
         "id": enquiry_id, "customer_name": req.customer_name,
         "fabric_type": req.fabric_type, "quantity": req.quantity,
         "style_no": req.style_no, "image_path": "",
-        "assigned_to": req.assigned_to or "",
         "department": req.department or user.get("department", ""),
         "notes": req.notes, "rate": req.rate, "po_no": req.po_no,
         "po_del_date": req.po_del_date,
@@ -525,7 +533,14 @@ async def update_enquiry(enquiry_id: str, req: EnquiryUpdate, request: Request):
     if "stage_values" in req_dict and req_dict["stage_values"] is not None:
         new_sv = req_dict.pop("stage_values")
         old_sv = existing.get("stage_values", {})
+        # Load stages for permission check
+        all_stages = {s["id"]: s for s in await db.stages.find({}, {"_id": 0}).to_list(100)}
         for stage_id, new_val in new_sv.items():
+            # Check if user is assigned to this stage
+            stage_def = all_stages.get(stage_id)
+            if stage_def and stage_def.get("assigned_users") and len(stage_def["assigned_users"]) > 0:
+                if user["_id"] not in stage_def["assigned_users"] and user.get("role") != "admin":
+                    continue  # Skip stages the user isn't assigned to
             new_value_str = new_val.get("value", "") if isinstance(new_val, dict) else str(new_val)
             old_val = old_sv.get(stage_id, {})
             old_value_str = old_val.get("value", "") if isinstance(old_val, dict) else str(old_val) if old_val else ""
@@ -574,6 +589,11 @@ async def add_stage_comment(enquiry_id: str, req: StageCommentCreate, request: R
     existing = await db.enquiries.find_one({"id": enquiry_id})
     if not existing:
         raise HTTPException(status_code=404, detail="Enquiry not found")
+    # Check if user is assigned to this stage
+    stage = await db.stages.find_one({"id": req.stage_id}, {"_id": 0})
+    if stage and stage.get("assigned_users") and len(stage["assigned_users"]) > 0:
+        if user["_id"] not in stage["assigned_users"] and user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="You are not assigned to this stage")
     now = datetime.now(timezone.utc).isoformat()
     comment_doc = {
         "id": secrets.token_hex(12),
@@ -590,6 +610,44 @@ async def add_stage_comment(enquiry_id: str, req: StageCommentCreate, request: R
     }
     await db.enquiry_history.insert_one(comment_doc)
     return {k: v for k, v in comment_doc.items() if k != "_id"}
+
+# ─── Department Master ───
+@api_router.get("/departments")
+async def get_departments(request: Request):
+    await get_current_user(request)
+    depts = await db.departments.find({}, {"_id": 0}).sort("name", 1).to_list(100)
+    return depts
+
+@api_router.post("/departments")
+async def create_department(req: DepartmentCreate, request: Request):
+    await require_admin(request)
+    existing = await db.departments.find_one({"name": req.name})
+    if existing:
+        raise HTTPException(status_code=400, detail="Department already exists")
+    dept_id = secrets.token_hex(12)
+    dept_doc = {"id": dept_id, "name": req.name, "description": req.description, "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.departments.insert_one(dept_doc)
+    return {k: v for k, v in dept_doc.items() if k != "_id"}
+
+@api_router.put("/departments/{dept_id}")
+async def update_department(dept_id: str, req: DepartmentUpdate, request: Request):
+    await require_admin(request)
+    update_data = {k: v for k, v in req.model_dump().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    result = await db.departments.update_one({"id": dept_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Department not found")
+    dept = await db.departments.find_one({"id": dept_id}, {"_id": 0})
+    return dept
+
+@api_router.delete("/departments/{dept_id}")
+async def delete_department(dept_id: str, request: Request):
+    await require_admin(request)
+    result = await db.departments.delete_one({"id": dept_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Department not found")
+    return {"message": "Department deleted"}
 
 # ─── Dashboard ───
 @api_router.get("/dashboard")
@@ -719,11 +777,11 @@ async def export_excel(request: Request, department: Optional[str] = None, custo
         top=Side(style='thin'), bottom=Side(style='thin')
     )
 
-    # Build headers: SR NO, IMAGE, STYLE NO., FABRIC, [stage columns], RATE, PO No., PO DEL DATE, Assigned To, Department, comment
+    # Build headers: SR NO, IMAGE, STYLE NO., FABRIC, [stage columns], RATE, PO No., PO DEL DATE, Created By, Department, Created Date, Comment
     headers = ["SR NO", "IMAGE", "STYLE NO.", "FABRIC"]
     for s in stages:
         headers.append(s["name"])
-    headers.extend(["RATE", "PO No.", "PO DEL DATE", "Assigned To", "Department", "Comment"])
+    headers.extend(["RATE", "PO No.", "PO DEL DATE", "Created By", "Department", "Created Date", "Comment"])
 
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=h)
@@ -748,9 +806,10 @@ async def export_excel(request: Request, department: Optional[str] = None, custo
         ws.cell(row=row_idx, column=col_offset, value=enq.get("rate", "")).border = thin_border
         ws.cell(row=row_idx, column=col_offset + 1, value=enq.get("po_no", "")).border = thin_border
         ws.cell(row=row_idx, column=col_offset + 2, value=enq.get("po_del_date", "")).border = thin_border
-        ws.cell(row=row_idx, column=col_offset + 3, value=user_map.get(enq.get("assigned_to", ""), "")).border = thin_border
+        ws.cell(row=row_idx, column=col_offset + 3, value=user_map.get(enq.get("created_by", ""), enq.get("created_by_name", ""))).border = thin_border
         ws.cell(row=row_idx, column=col_offset + 4, value=enq.get("department", "")).border = thin_border
-        ws.cell(row=row_idx, column=col_offset + 5, value=enq.get("notes", "")).border = thin_border
+        ws.cell(row=row_idx, column=col_offset + 5, value=enq.get("created_at", "")).border = thin_border
+        ws.cell(row=row_idx, column=col_offset + 6, value=enq.get("notes", "")).border = thin_border
 
     # Auto-width
     for col in ws.columns:
@@ -789,6 +848,15 @@ async def startup():
     await db.login_attempts.create_index("identifier")
     await db.stages.create_index("id", unique=True)
     await db.enquiries.create_index("id", unique=True)
+    await db.departments.create_index("id", unique=True)
+    await db.departments.create_index("name", unique=True)
+    # Seed default departments
+    default_depts = ["Sales", "Production", "Quality", "Admin", "Design", "Logistics"]
+    for dept_name in default_depts:
+        existing_dept = await db.departments.find_one({"name": dept_name})
+        if not existing_dept:
+            await db.departments.insert_one({"id": secrets.token_hex(12), "name": dept_name, "description": "", "created_at": datetime.now(timezone.utc).isoformat()})
+    logger.info("Default departments seeded")
     # Init storage
     try:
         init_storage()

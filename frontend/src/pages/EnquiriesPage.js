@@ -13,12 +13,10 @@ import { Textarea } from '../components/ui/textarea';
 import { Plus, Search, Filter, X, Image as ImageIcon, Camera } from 'lucide-react';
 import { toast } from 'sonner';
 
-const departments = ['Sales', 'Production', 'Quality', 'Admin', 'Design', 'Logistics'];
-
 export default function EnquiriesPage() {
   const [enquiries, setEnquiries] = useState([]);
   const [stages, setStages] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -27,8 +25,7 @@ export default function EnquiriesPage() {
 
   const [form, setForm] = useState({
     customer_name: '', fabric_type: '', quantity: '', style_no: '',
-    assigned_to: '', department: '', notes: '', rate: '', po_no: '', po_del_date: '',
-    stage_values: {}
+    department: '', notes: '', rate: '', po_no: '', po_del_date: ''
   });
   const [imageFile, setImageFile] = useState(null);
 
@@ -37,14 +34,14 @@ export default function EnquiriesPage() {
       const params = {};
       if (search) params.search = search;
       if (filterDept) params.department = filterDept;
-      const [enqRes, stagesRes, usersRes] = await Promise.all([
+      const [enqRes, stagesRes, deptsRes] = await Promise.all([
         api.get('/enquiries', { params }),
         api.get('/stages'),
-        api.get('/users')
+        api.get('/departments')
       ]);
       setEnquiries(enqRes.data);
       setStages(stagesRes.data);
-      setUsers(usersRes.data);
+      setDepartments(deptsRes.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -56,8 +53,6 @@ export default function EnquiriesPage() {
 
   const stageMap = {};
   stages.forEach(s => { stageMap[s.id] = s; });
-  const userMap = {};
-  users.forEach(u => { userMap[u._id] = u; });
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -76,7 +71,7 @@ export default function EnquiriesPage() {
       }
       toast.success('Enquiry created');
       setDialogOpen(false);
-      setForm({ customer_name: '', fabric_type: '', quantity: '', style_no: '', assigned_to: '', department: '', notes: '', rate: '', po_no: '', po_del_date: '', stage_values: {} });
+      setForm({ customer_name: '', fabric_type: '', quantity: '', style_no: '', department: '', notes: '', rate: '', po_no: '', po_del_date: '' });
       setImageFile(null);
       fetchData();
     } catch (err) {
@@ -123,7 +118,7 @@ export default function EnquiriesPage() {
                   <Input value={form.style_no} onChange={e => setForm({ ...form, style_no: e.target.value })} data-testid="enquiry-style-no-input" className="border-zinc-200" />
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Quantity *</Label>
                   <Input value={form.quantity} onChange={e => setForm({ ...form, quantity: e.target.value })} required data-testid="enquiry-quantity-input" className="border-zinc-200" />
@@ -132,14 +127,7 @@ export default function EnquiriesPage() {
                   <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Department</Label>
                   <Select value={form.department} onValueChange={v => setForm({ ...form, department: v })}>
                     <SelectTrigger data-testid="enquiry-department-select" className="border-zinc-200"><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>{departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Assign To</Label>
-                  <Select value={form.assigned_to} onValueChange={v => setForm({ ...form, assigned_to: v })}>
-                    <SelectTrigger data-testid="enquiry-assign-select" className="border-zinc-200"><SelectValue placeholder="Select user" /></SelectTrigger>
-                    <SelectContent>{users.map(u => <SelectItem key={u._id} value={u._id}>{u.name} ({u.department})</SelectItem>)}</SelectContent>
+                    <SelectContent>{departments.map(d => <SelectItem key={d.id || d.name} value={d.name}>{d.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </div>
@@ -204,7 +192,7 @@ export default function EnquiriesPage() {
               <SelectTrigger className="w-full sm:w-44 border-zinc-200" data-testid="filter-dept-select">
                 <Filter className="w-3 h-3 mr-2 text-zinc-400" /><SelectValue placeholder="All Departments" />
               </SelectTrigger>
-              <SelectContent>{departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+              <SelectContent>{departments.map(d => <SelectItem key={d.id || d.name} value={d.name}>{d.name}</SelectItem>)}</SelectContent>
             </Select>
             {hasFilters && (
               <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setFilterDept(''); }} data-testid="clear-filters-button" className="text-zinc-500 hover:text-zinc-900">
@@ -231,7 +219,7 @@ export default function EnquiriesPage() {
                 ))}
                 <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Rate</TableHead>
                 <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Dept</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Assigned</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Created</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -240,10 +228,9 @@ export default function EnquiriesPage() {
                   <TableRow key={i}>{[...Array(6 + stages.length)].map((_, j) => <TableCell key={j}><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></TableCell>)}</TableRow>
                 ))
               ) : enquiries.length === 0 ? (
-                <TableRow><TableCell colSpan={9 + stages.length} className="text-center py-12 text-zinc-400">No enquiries found. Create your first enquiry.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8 + stages.length} className="text-center py-12 text-zinc-400">No enquiries found. Create your first enquiry.</TableCell></TableRow>
               ) : (
                 enquiries.map((enq, idx) => {
-                  const assignedUser = userMap[enq.assigned_to];
                   return (
                     <TableRow key={enq.id} className="cursor-pointer hover:bg-zinc-50 transition-colors" onClick={() => navigate(`/enquiries/${enq.id}`)} data-testid={`enquiry-row-${enq.id}`}>
                       <TableCell className="text-zinc-500 text-xs font-mono">{idx + 1}</TableCell>
@@ -272,7 +259,7 @@ export default function EnquiriesPage() {
                       })}
                       <TableCell className="text-zinc-600 text-sm">{enq.rate || '—'}</TableCell>
                       <TableCell className="text-zinc-600 text-xs">{enq.department || '—'}</TableCell>
-                      <TableCell className="text-zinc-600 text-xs">{assignedUser?.name || '—'}</TableCell>
+                      <TableCell className="text-zinc-400 text-xs">{new Date(enq.created_at).toLocaleDateString()}</TableCell>
                     </TableRow>
                   );
                 })

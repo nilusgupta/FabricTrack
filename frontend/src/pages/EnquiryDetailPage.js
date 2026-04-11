@@ -9,10 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Label } from '../components/ui/label';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
-import { ArrowLeft, Save, Trash2, Clock, User, Upload, Camera, Image as ImageIcon, Send, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, Clock, User, Upload, Camera, Image as ImageIcon, Send, MessageSquare, Lock } from 'lucide-react';
 import { toast } from 'sonner';
-
-const departments = ['Sales', 'Production', 'Quality', 'Admin', 'Design', 'Logistics'];
 
 export default function EnquiryDetailPage() {
   const { id } = useParams();
@@ -20,7 +18,7 @@ export default function EnquiryDetailPage() {
   const { user } = useAuth();
   const [enquiry, setEnquiry] = useState(null);
   const [stages, setStages] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({});
@@ -29,24 +27,31 @@ export default function EnquiryDetailPage() {
   const [stageComments, setStageComments] = useState({});
   const [commentSending, setCommentSending] = useState({});
 
+  // Check if current user can edit a stage
+  const canEditStage = (stage) => {
+    if (!stage || !user) return false;
+    if (user.role === 'admin') return true;
+    if (!stage.assigned_users || stage.assigned_users.length === 0) return true;
+    return stage.assigned_users.includes(user._id);
+  };
+
   const fetchData = useCallback(async () => {
     try {
-      const [enqRes, stagesRes, usersRes] = await Promise.all([
+      const [enqRes, stagesRes, deptsRes] = await Promise.all([
         api.get(`/enquiries/${id}`),
         api.get('/stages'),
-        api.get('/users')
+        api.get('/departments')
       ]);
       const enq = enqRes.data;
       setEnquiry(enq);
       setStages(stagesRes.data);
-      setUsers(usersRes.data);
+      setDepartments(deptsRes.data);
       setForm({
         customer_name: enq.customer_name,
         fabric_type: enq.fabric_type,
         quantity: enq.quantity,
         style_no: enq.style_no || '',
-        assigned_to: enq.assigned_to,
-        department: enq.department,
+        department: enq.department || '',
         notes: enq.notes || '',
         rate: enq.rate || '',
         po_no: enq.po_no || '',
@@ -231,21 +236,12 @@ export default function EnquiryDetailPage() {
               <Input type="date" value={form.po_del_date || ''} onChange={e => setForm({ ...form, po_del_date: e.target.value })} data-testid="edit-po-del-date" className="border-zinc-200" />
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Department</Label>
-              <Select value={form.department || ''} onValueChange={v => setForm({ ...form, department: v })}>
-                <SelectTrigger data-testid="edit-department" className="border-zinc-200"><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>{departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Assigned To</Label>
-              <Select value={form.assigned_to || ''} onValueChange={v => setForm({ ...form, assigned_to: v })}>
-                <SelectTrigger data-testid="edit-assigned-to" className="border-zinc-200"><SelectValue placeholder="Select user" /></SelectTrigger>
-                <SelectContent>{users.map(u => <SelectItem key={u._id} value={u._id}>{u.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Department</Label>
+            <Select value={form.department || ''} onValueChange={v => setForm({ ...form, department: v })}>
+              <SelectTrigger data-testid="edit-department" className="border-zinc-200"><SelectValue placeholder="Select department" /></SelectTrigger>
+              <SelectContent>{departments.map(d => <SelectItem key={d.id || d.name} value={d.name}>{d.name}</SelectItem>)}</SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Notes / Comment</Label>
@@ -266,12 +262,18 @@ export default function EnquiryDetailPage() {
               const isPending = ds?.status === 'pending' && ds?.lead_time_days > 0;
               const borderClass = isDelayed ? 'border-red-300 bg-red-50/30' : isEarly ? 'border-green-300 bg-green-50/30' : 'border-zinc-200';
               const stageHistory = (enquiry.history || []).filter(h => h.stage_id === s.id);
+              const editable = canEditStage(s);
               return (
                 <div key={s.id} className={`p-4 border rounded-sm ${borderClass}`}>
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: s.color }} />
                     <span className="text-sm font-semibold text-zinc-900">{s.name}</span>
                     {s.is_mandatory && <span className="text-red-500 text-[10px] font-semibold">REQ</span>}
+                    {!editable && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded-sm" data-testid={`stage-locked-${s.id}`}>
+                        <Lock className="w-2.5 h-2.5" /> Restricted
+                      </span>
+                    )}
                     <span className="text-zinc-400 text-[10px] ml-auto">{s.input_type}{s.lead_time_days ? ` · ${s.lead_time_days}d lead` : ''}</span>
                   </div>
                   {/* Delay indicator */}
@@ -290,52 +292,62 @@ export default function EnquiryDetailPage() {
                       Due: {new Date(ds.due_date).toLocaleDateString()} ({ds.days_diff}d remaining)
                     </div>
                   )}
-                  {/* Input field */}
+                  {/* Input field - only editable if user has permission */}
                   <div className="mb-3">
-                    {s.input_type === 'date' ? (
-                      s.date_input_mode === 'auto' ? (
-                        <Button type="button" variant="outline" size="sm"
-                          onClick={() => setStageValue(s.id, new Date().toISOString().split('T')[0])}
-                          className={`text-xs w-full justify-start ${getStageValue(s.id) ? 'bg-green-50 border-green-300 text-green-700' : 'border-zinc-200'}`}
-                          data-testid={`stage-value-${s.id}`}
-                        >
-                          {getStageValue(s.id) ? `Captured: ${getStageValue(s.id)}` : 'Click to capture current date'}
-                        </Button>
-                      ) : (
-                        <div className="flex gap-2">
-                          <Input type="date" value={getStageValue(s.id)} onChange={e => setStageValue(s.id, e.target.value)} data-testid={`stage-value-${s.id}`} className="border-zinc-200 flex-1 text-sm" />
-                          <Button type="button" variant="outline" size="sm" onClick={() => setStageValue(s.id, new Date().toISOString().split('T')[0])} className="text-xs border-zinc-200 whitespace-nowrap" data-testid={`stage-today-${s.id}`}>Today</Button>
-                        </div>
-                      )
-                    ) : s.input_type === 'select' ? (
-                      <Select value={getStageValue(s.id)} onValueChange={v => setStageValue(s.id, v)}>
-                        <SelectTrigger className="border-zinc-200 text-sm" data-testid={`stage-value-${s.id}`}><SelectValue placeholder="Select..." /></SelectTrigger>
-                        <SelectContent>{(s.select_options || []).map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
-                      </Select>
+                    {editable ? (
+                      <>
+                        {s.input_type === 'date' ? (
+                          s.date_input_mode === 'auto' ? (
+                            <Button type="button" variant="outline" size="sm"
+                              onClick={() => setStageValue(s.id, new Date().toISOString().split('T')[0])}
+                              className={`text-xs w-full justify-start ${getStageValue(s.id) ? 'bg-green-50 border-green-300 text-green-700' : 'border-zinc-200'}`}
+                              data-testid={`stage-value-${s.id}`}
+                            >
+                              {getStageValue(s.id) ? `Captured: ${getStageValue(s.id)}` : 'Click to capture current date'}
+                            </Button>
+                          ) : (
+                            <div className="flex gap-2">
+                              <Input type="date" value={getStageValue(s.id)} onChange={e => setStageValue(s.id, e.target.value)} data-testid={`stage-value-${s.id}`} className="border-zinc-200 flex-1 text-sm" />
+                              <Button type="button" variant="outline" size="sm" onClick={() => setStageValue(s.id, new Date().toISOString().split('T')[0])} className="text-xs border-zinc-200 whitespace-nowrap" data-testid={`stage-today-${s.id}`}>Today</Button>
+                            </div>
+                          )
+                        ) : s.input_type === 'select' ? (
+                          <Select value={getStageValue(s.id)} onValueChange={v => setStageValue(s.id, v)}>
+                            <SelectTrigger className="border-zinc-200 text-sm" data-testid={`stage-value-${s.id}`}><SelectValue placeholder="Select..." /></SelectTrigger>
+                            <SelectContent>{(s.select_options || []).map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
+                          </Select>
+                        ) : (
+                          <Input value={getStageValue(s.id)} onChange={e => setStageValue(s.id, e.target.value)} data-testid={`stage-value-${s.id}`} className="border-zinc-200 text-sm" placeholder={`Enter ${s.name.toLowerCase()}...`} />
+                        )}
+                      </>
                     ) : (
-                      <Input value={getStageValue(s.id)} onChange={e => setStageValue(s.id, e.target.value)} data-testid={`stage-value-${s.id}`} className="border-zinc-200 text-sm" placeholder={`Enter ${s.name.toLowerCase()}...`} />
+                      <div className="px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-sm text-sm text-zinc-500" data-testid={`stage-value-readonly-${s.id}`}>
+                        {getStageValue(s.id) || <span className="italic text-zinc-400">No value set</span>}
+                      </div>
                     )}
                   </div>
-                  {/* Stage Comment Input */}
-                  <div className="flex gap-2 mb-2">
-                    <Input
-                      value={stageComments[s.id] || ''}
-                      onChange={e => setStageComments(prev => ({ ...prev, [s.id]: e.target.value }))}
-                      placeholder={`Add comment for ${s.name}...`}
-                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddComment(s.id); } }}
-                      data-testid={`stage-comment-input-${s.id}`}
-                      className="border-zinc-200 text-sm flex-1"
-                    />
-                    <Button
-                      type="button" size="sm" variant="outline"
-                      onClick={() => handleAddComment(s.id)}
-                      disabled={commentSending[s.id] || !stageComments[s.id]?.trim()}
-                      data-testid={`stage-comment-send-${s.id}`}
-                      className="border-zinc-200"
-                    >
-                      <Send className="w-3 h-3" />
-                    </Button>
-                  </div>
+                  {/* Stage Comment Input - only if user has permission */}
+                  {editable ? (
+                    <div className="flex gap-2 mb-2">
+                      <Input
+                        value={stageComments[s.id] || ''}
+                        onChange={e => setStageComments(prev => ({ ...prev, [s.id]: e.target.value }))}
+                        placeholder={`Add comment for ${s.name}...`}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddComment(s.id); } }}
+                        data-testid={`stage-comment-input-${s.id}`}
+                        className="border-zinc-200 text-sm flex-1"
+                      />
+                      <Button
+                        type="button" size="sm" variant="outline"
+                        onClick={() => handleAddComment(s.id)}
+                        disabled={commentSending[s.id] || !stageComments[s.id]?.trim()}
+                        data-testid={`stage-comment-send-${s.id}`}
+                        className="border-zinc-200"
+                      >
+                        <Send className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ) : null}
                   {/* Stage History & Comments */}
                   {stageHistory.length > 0 && (
                     <div className="border-t border-zinc-100 pt-2 space-y-1.5">

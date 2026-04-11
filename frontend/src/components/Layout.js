@@ -11,14 +11,16 @@ import {
   LogOut,
   Menu,
   X,
-  ChevronRight
+  ChevronRight,
+  Building2
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/enquiries', label: 'Enquiries', icon: FileText },
-  { path: '/stages', label: 'Stage Master', icon: Layers },
-  { path: '/users', label: 'Users', icon: Users },
+  { path: '/stages', label: 'Stage Master', icon: Layers, adminOnly: true },
+  { path: '/departments', label: 'Departments', icon: Building2, adminOnly: true },
+  { path: '/users', label: 'Users', icon: Users, adminOnly: true },
   { path: '/reports', label: 'Reports', icon: BarChart3 },
 ];
 
@@ -69,8 +71,8 @@ export default function Layout({ children }) {
         <nav className="flex-1 px-3 py-4 space-y-1" data-testid="sidebar-nav">
           {NAV_ITEMS.map(item => {
             const active = isActive(item.path);
-            // Only show Users and Stage Master to admin
-            if ((item.path === '/users' || item.path === '/stages') && user?.role !== 'admin') return null;
+            // Only show admin-only items to admin
+            if (item.adminOnly && user?.role !== 'admin') return null;
             return (
               <Link
                 key={item.path}

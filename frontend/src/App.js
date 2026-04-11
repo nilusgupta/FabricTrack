@@ -10,6 +10,7 @@ import EnquiryDetailPage from './pages/EnquiryDetailPage';
 import StageMasterPage from './pages/StageMasterPage';
 import UsersPage from './pages/UsersPage';
 import ReportsPage from './pages/ReportsPage';
+import DepartmentMasterPage from './pages/DepartmentMasterPage';
 import '@/App.css';
 
 function ProtectedRoute({ children }) {
@@ -45,6 +46,7 @@ function App() {
           <Route path="/enquiries" element={<ProtectedRoute><EnquiriesPage /></ProtectedRoute>} />
           <Route path="/enquiries/:id" element={<ProtectedRoute><EnquiryDetailPage /></ProtectedRoute>} />
           <Route path="/stages" element={<ProtectedRoute><StageMasterPage /></ProtectedRoute>} />
+          <Route path="/departments" element={<ProtectedRoute><DepartmentMasterPage /></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
