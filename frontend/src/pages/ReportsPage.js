@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import api from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -14,6 +14,31 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { CalendarIcon, Download, Filter, BarChart3, Users, Layers, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+
+function ReportThumbnail({ imagePath }) {
+  const [blobUrl, setBlobUrl] = useState(null);
+  const [hovered, setHovered] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!imagePath) return;
+    let revoke = null;
+    api.get(`/files/${imagePath}`, { responseType: 'blob' })
+      .then(res => { const url = URL.createObjectURL(res.data); revoke = url; setBlobUrl(url); })
+      .catch(() => {});
+    return () => { if (revoke) URL.revokeObjectURL(revoke); };
+  }, [imagePath]);
+  if (!blobUrl) return <span className="text-zinc-300">—</span>;
+  return (
+    <div ref={ref} className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+      <img src={blobUrl} alt="Fabric" className="w-8 h-8 object-cover rounded-sm border border-zinc-200" data-testid="report-thumb" />
+      {hovered && (
+        <div className="fixed z-[100] pointer-events-none" style={{ top: ref.current ? ref.current.getBoundingClientRect().bottom + 8 : 0, left: ref.current ? ref.current.getBoundingClientRect().left : 0 }}>
+          <img src={blobUrl} alt="Preview" className="w-64 h-64 object-contain rounded-md border border-zinc-300 shadow-xl bg-white" data-testid="report-thumb-preview" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 const departments_placeholder = []; // Fetched dynamically in components
 
@@ -165,33 +190,36 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="min-w-[1200px]">
               <TableHeader>
                 <TableRow className="bg-zinc-50">
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500">SR</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500">Style No.</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500">Customer</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500">Fabric</TableHead>
-                  {stages.map(s => <TableHead key={s.id} className="text-xs font-semibold uppercase text-zinc-500">{s.name}</TableHead>)}
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500">Rate</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500">PO No.</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500">PO Del</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500">Dept</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500">Comment</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 sticky left-0 bg-zinc-50 z-10 min-w-[40px]">SR</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 sticky left-[40px] bg-zinc-50 z-10 min-w-[48px]">Img</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 sticky left-[88px] bg-zinc-50 z-10 min-w-[100px]">Style No.</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 sticky left-[188px] bg-zinc-50 z-10 min-w-[130px]">Customer</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 sticky left-[318px] bg-zinc-50 z-10 min-w-[120px] after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-[3px] after:bg-gradient-to-r after:from-zinc-200 after:to-transparent">Fabric</TableHead>
+                  {stages.map(s => <TableHead key={s.id} className="text-xs font-semibold uppercase text-zinc-500 min-w-[110px]">{s.name}</TableHead>)}
+                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 min-w-[70px]">Rate</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 min-w-[80px]">PO No.</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 min-w-[80px]">PO Del</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 min-w-[90px]">Dept</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 min-w-[90px]">Created</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 min-w-[150px]">Comment</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  [...Array(3)].map((_, i) => <TableRow key={i}>{[...Array(7 + stages.length)].map((_, j) => <TableCell key={j}><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></TableCell>)}</TableRow>)
+                  [...Array(3)].map((_, i) => <TableRow key={i}>{[...Array(10 + stages.length)].map((_, j) => <TableCell key={j}><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></TableCell>)}</TableRow>)
                 ) : !data?.enquiries?.length ? (
-                  <TableRow><TableCell colSpan={10 + stages.length} className="text-center py-8 text-zinc-400">No data</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12 + stages.length} className="text-center py-8 text-zinc-400">No data</TableCell></TableRow>
                 ) : (
                   data.enquiries.map((e, idx) => (
-                    <TableRow key={e.id} className="hover:bg-zinc-50" data-testid={`report-row-${e.id}`}>
-                      <TableCell className="text-zinc-500 text-xs font-mono">{idx + 1}</TableCell>
-                      <TableCell className="text-zinc-600 text-xs">{e.style_no || '—'}</TableCell>
-                      <TableCell className="font-medium text-zinc-900 text-sm">{e.customer_name}</TableCell>
-                      <TableCell className="text-zinc-600 text-sm">{e.fabric_type}</TableCell>
+                    <TableRow key={e.id} className="hover:bg-zinc-50 group" data-testid={`report-row-${e.id}`}>
+                      <TableCell className="text-zinc-500 text-xs font-mono sticky left-0 bg-white group-hover:bg-zinc-50 z-10">{idx + 1}</TableCell>
+                      <TableCell className="sticky left-[40px] bg-white group-hover:bg-zinc-50 z-10">{e.image_path ? <ReportThumbnail imagePath={e.image_path} /> : <span className="text-zinc-300">—</span>}</TableCell>
+                      <TableCell className="text-zinc-600 text-xs sticky left-[88px] bg-white group-hover:bg-zinc-50 z-10">{e.style_no || '—'}</TableCell>
+                      <TableCell className="font-medium text-zinc-900 text-sm sticky left-[188px] bg-white group-hover:bg-zinc-50 z-10">{e.customer_name}</TableCell>
+                      <TableCell className="text-zinc-600 text-sm sticky left-[318px] bg-white group-hover:bg-zinc-50 z-10 after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-[3px] after:bg-gradient-to-r after:from-zinc-200 after:to-transparent">{e.fabric_type}</TableCell>
                       {stages.map(s => {
                         const val = getStageDisplay(e, s.id);
                         return <TableCell key={s.id} className="text-xs text-zinc-600">{val || '—'}</TableCell>;
@@ -200,6 +228,7 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
                       <TableCell className="text-zinc-600 text-xs">{e.po_no || '—'}</TableCell>
                       <TableCell className="text-zinc-600 text-xs">{e.po_del_date || '—'}</TableCell>
                       <TableCell className="text-zinc-600 text-xs">{e.department || '—'}</TableCell>
+                      <TableCell className="text-zinc-400 text-xs">{e.created_at ? new Date(e.created_at).toLocaleDateString() : '—'}</TableCell>
                       <TableCell className="text-zinc-500 text-xs max-w-[200px] truncate">{e.notes || '—'}</TableCell>
                     </TableRow>
                   ))

@@ -266,38 +266,38 @@ export default function EnquiriesPage() {
       {/* Table */}
       <Card className="bg-white border-zinc-200 rounded-sm overflow-hidden">
         <div className="overflow-x-auto" data-testid="enquiries-table">
-          <Table>
+          <Table className="min-w-[1200px]">
             <TableHeader>
               <TableRow className="bg-zinc-50 hover:bg-zinc-50">
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">SR</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Img</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Style No.</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Customer</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Fabric</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky left-0 bg-zinc-50 z-10 min-w-[40px]">SR</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky left-[40px] bg-zinc-50 z-10 min-w-[48px]">Img</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky left-[88px] bg-zinc-50 z-10 min-w-[100px]">Style No.</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky left-[188px] bg-zinc-50 z-10 min-w-[130px]">Customer</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky left-[318px] bg-zinc-50 z-10 min-w-[120px] after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-[3px] after:bg-gradient-to-r after:from-zinc-200 after:to-transparent">Fabric</TableHead>
                 {stages.map(s => (
-                  <TableHead key={s.id} className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{s.name}</TableHead>
+                  <TableHead key={s.id} className="text-xs font-semibold uppercase tracking-wide text-zinc-500 min-w-[110px]">{s.name}</TableHead>
                 ))}
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Rate</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Dept</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Created</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500 min-w-[70px]">Rate</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500 min-w-[90px]">Dept</TableHead>
+                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500 min-w-[90px]">Created</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 [...Array(5)].map((_, i) => (
-                  <TableRow key={i}>{[...Array(6 + stages.length)].map((_, j) => <TableCell key={j}><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></TableCell>)}</TableRow>
+                  <TableRow key={i}>{[...Array(8 + stages.length)].map((_, j) => <TableCell key={j}><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></TableCell>)}</TableRow>
                 ))
               ) : enquiries.length === 0 ? (
                 <TableRow><TableCell colSpan={8 + stages.length} className="text-center py-12 text-zinc-400">No enquiries found. Create your first enquiry.</TableCell></TableRow>
               ) : (
                 enquiries.map((enq, idx) => {
                   return (
-                    <TableRow key={enq.id} className="cursor-pointer hover:bg-zinc-50 transition-colors" onClick={() => navigate(`/enquiries/${enq.id}`)} data-testid={`enquiry-row-${enq.id}`}>
-                      <TableCell className="text-zinc-500 text-xs font-mono">{(page - 1) * pageSize + idx + 1}</TableCell>
-                      <TableCell>{enq.image_path ? <EnquiryThumbnail imagePath={enq.image_path} /> : <span className="text-zinc-300">—</span>}</TableCell>
-                      <TableCell className="text-zinc-600 text-sm">{enq.style_no || '—'}</TableCell>
-                      <TableCell className="font-medium text-zinc-900">{enq.customer_name}</TableCell>
-                      <TableCell className="text-zinc-600">{enq.fabric_type}</TableCell>
+                    <TableRow key={enq.id} className="cursor-pointer hover:bg-zinc-50 transition-colors group" onClick={() => navigate(`/enquiries/${enq.id}`)} data-testid={`enquiry-row-${enq.id}`}>
+                      <TableCell className="text-zinc-500 text-xs font-mono sticky left-0 bg-white group-hover:bg-zinc-50 z-10">{(page - 1) * pageSize + idx + 1}</TableCell>
+                      <TableCell className="sticky left-[40px] bg-white group-hover:bg-zinc-50 z-10">{enq.image_path ? <EnquiryThumbnail imagePath={enq.image_path} /> : <span className="text-zinc-300">—</span>}</TableCell>
+                      <TableCell className="text-zinc-600 text-sm sticky left-[88px] bg-white group-hover:bg-zinc-50 z-10">{enq.style_no || '—'}</TableCell>
+                      <TableCell className="font-medium text-zinc-900 sticky left-[188px] bg-white group-hover:bg-zinc-50 z-10">{enq.customer_name}</TableCell>
+                      <TableCell className="text-zinc-600 sticky left-[318px] bg-white group-hover:bg-zinc-50 z-10 after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-[3px] after:bg-gradient-to-r after:from-zinc-200 after:to-transparent">{enq.fabric_type}</TableCell>
                       {stages.map(s => {
                         const val = getStageDisplay(enq, s.id);
                         const delayStatus = enq.delay_status?.[s.id];
