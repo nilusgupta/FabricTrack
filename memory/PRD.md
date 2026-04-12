@@ -23,6 +23,11 @@ Build a fabric enquiry tracking system with overview of status of enquiry at var
 - [x] Reports: stage summary, user performance, department breakdown
 
 - [x] Enquiry list pagination (server-side, 20 per page, page controls with first/prev/next/last)
+- [x] Customer Master CRUD (name field)
+- [x] Fabric Type Master CRUD (name, gsm, width, composition, construction)
+- [x] Master-based dropdowns in enquiry forms with "+" quick-create buttons
+- [x] Fabric Received yes/no field with conditional Qty Received
+- [x] PO Del Date renamed to PO Received Date
 - [x] Image thumbnails in enquiry list with hover preview
 
 ## Key Pages
@@ -31,6 +36,8 @@ Build a fabric enquiry tracking system with overview of status of enquiry at var
 - `/enquiries` - Enquiry list with filters
 - `/enquiries/:id` - Enquiry detail with stage values, comments, history
 - `/stages` - Stage Master (admin)
+- `/customers` - Customer Master (admin)
+- `/fabric-types` - Fabric Type Master (admin)
 - `/departments` - Department Master (admin)
 - `/users` - User Management (admin)
 - `/reports` - Reports with Excel export
@@ -38,6 +45,8 @@ Build a fabric enquiry tracking system with overview of status of enquiry at var
 ## Key API Endpoints
 - `POST /api/auth/login`, `GET /api/auth/me`
 - `GET/POST /api/stages`, `PUT/DELETE /api/stages/:id`
+- `GET/POST /api/customers`, `PUT/DELETE /api/customers/:id`
+- `GET/POST /api/fabric-types`, `PUT/DELETE /api/fabric-types/:id`
 - `GET/POST /api/departments`, `PUT/DELETE /api/departments/:id`
 - `GET/POST /api/enquiries`, `PUT/DELETE /api/enquiries/:id`
 - `POST /api/enquiries/:id/comments` (permission enforced)
