@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Label } from '../components/ui/label';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
-import { ArrowLeft, Save, Trash2, Clock, User, Upload, Camera, Image as ImageIcon, Send, MessageSquare, Lock } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, Clock, User, Upload, Camera, Image as ImageIcon, Send, MessageSquare, Lock, Plus } from 'lucide-react';
 import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 
 export default function EnquiryDetailPage() {
   const { id } = useParams();
@@ -19,6 +20,8 @@ export default function EnquiryDetailPage() {
   const [enquiry, setEnquiry] = useState(null);
   const [stages, setStages] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [fabricTypes, setFabricTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({});
@@ -26,6 +29,8 @@ export default function EnquiryDetailPage() {
   const [imageBlobUrl, setImageBlobUrl] = useState(null);
   const [stageComments, setStageComments] = useState({});
   const [commentSending, setCommentSending] = useState({});
+  const [quickCustomer, setQuickCustomer] = useState({ open: false, name: '' });
+  const [quickFabric, setQuickFabric] = useState({ open: false, name: '', gsm: '', width: '', composition: '', construction: '' });
 
   // Check if current user can edit a stage
   const canEditStage = (stage) => {
@@ -37,15 +42,19 @@ export default function EnquiryDetailPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [enqRes, stagesRes, deptsRes] = await Promise.all([
+      const [enqRes, stagesRes, deptsRes, custRes, fabRes] = await Promise.all([
         api.get(`/enquiries/${id}`),
         api.get('/stages'),
-        api.get('/departments')
+        api.get('/departments'),
+        api.get('/customers'),
+        api.get('/fabric-types')
       ]);
       const enq = enqRes.data;
       setEnquiry(enq);
       setStages(stagesRes.data);
       setDepartments(deptsRes.data);
+      setCustomers(custRes.data);
+      setFabricTypes(fabRes.data);
       setForm({
         customer_name: enq.customer_name,
         fabric_type: enq.fabric_type,
@@ -209,11 +218,57 @@ export default function EnquiryDetailPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Customer Name</Label>
-              <Input value={form.customer_name || ''} onChange={e => setForm({ ...form, customer_name: e.target.value })} data-testid="edit-customer-name" className="border-zinc-200" />
+              <div className="flex gap-1">
+                <Select value={form.customer_name || ''} onValueChange={v => setForm({ ...form, customer_name: v })}>
+                  <SelectTrigger data-testid="edit-customer-name" className="border-zinc-200 flex-1"><SelectValue placeholder="Select customer" /></SelectTrigger>
+                  <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
+                </Select>
+                <Dialog open={quickCustomer.open} onOpenChange={v => setQuickCustomer(p => ({ ...p, open: v }))}>
+                  <DialogTrigger asChild>
+                    <Button type="button" variant="outline" size="icon" className="border-zinc-200 shrink-0" data-testid="detail-quick-add-customer"><Plus className="w-4 h-4" /></Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-sm">
+                    <DialogHeader><DialogTitle>Quick Add Customer</DialogTitle></DialogHeader>
+                    <form onSubmit={async (e) => { e.preventDefault(); try { const res = await api.post('/customers', { name: quickCustomer.name }); setCustomers(prev => [...prev, res.data].sort((a, b) => a.name.localeCompare(b.name))); setForm(f => ({ ...f, customer_name: res.data.name })); setQuickCustomer({ open: false, name: '' }); toast.success('Customer created'); } catch (err) { toast.error(err.response?.data?.detail || 'Failed'); } }} className="space-y-4 mt-2">
+                      <Input value={quickCustomer.name} onChange={e => setQuickCustomer(p => ({ ...p, name: e.target.value }))} required placeholder="Customer name" className="border-zinc-200" />
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={() => setQuickCustomer({ open: false, name: '' })} className="rounded-sm border-zinc-200">Cancel</Button>
+                        <Button type="submit" className="bg-zinc-900 hover:bg-zinc-800 text-white rounded-sm">Add</Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Fabric Type</Label>
-              <Input value={form.fabric_type || ''} onChange={e => setForm({ ...form, fabric_type: e.target.value })} data-testid="edit-fabric-type" className="border-zinc-200" />
+              <div className="flex gap-1">
+                <Select value={form.fabric_type || ''} onValueChange={v => setForm({ ...form, fabric_type: v })}>
+                  <SelectTrigger data-testid="edit-fabric-type" className="border-zinc-200 flex-1"><SelectValue placeholder="Select fabric" /></SelectTrigger>
+                  <SelectContent>{fabricTypes.map(f => <SelectItem key={f.id} value={f.name}>{f.name}{f.gsm ? ` (${f.gsm} GSM)` : ''}</SelectItem>)}</SelectContent>
+                </Select>
+                <Dialog open={quickFabric.open} onOpenChange={v => setQuickFabric(p => ({ ...p, open: v }))}>
+                  <DialogTrigger asChild>
+                    <Button type="button" variant="outline" size="icon" className="border-zinc-200 shrink-0" data-testid="detail-quick-add-fabric"><Plus className="w-4 h-4" /></Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-lg">
+                    <DialogHeader><DialogTitle>Quick Add Fabric Type</DialogTitle></DialogHeader>
+                    <form onSubmit={async (e) => { e.preventDefault(); try { const res = await api.post('/fabric-types', { name: quickFabric.name, gsm: quickFabric.gsm, width: quickFabric.width, composition: quickFabric.composition, construction: quickFabric.construction }); setFabricTypes(prev => [...prev, res.data].sort((a, b) => a.name.localeCompare(b.name))); setForm(f => ({ ...f, fabric_type: res.data.name })); setQuickFabric({ open: false, name: '', gsm: '', width: '', composition: '', construction: '' }); toast.success('Fabric type created'); } catch (err) { toast.error(err.response?.data?.detail || 'Failed'); } }} className="space-y-3 mt-2">
+                      <Input value={quickFabric.name} onChange={e => setQuickFabric(p => ({ ...p, name: e.target.value }))} required placeholder="Fabric name *" className="border-zinc-200" />
+                      <div className="grid grid-cols-2 gap-3">
+                        <Input value={quickFabric.gsm} onChange={e => setQuickFabric(p => ({ ...p, gsm: e.target.value }))} placeholder="GSM" className="border-zinc-200" />
+                        <Input value={quickFabric.width} onChange={e => setQuickFabric(p => ({ ...p, width: e.target.value }))} placeholder="Width" className="border-zinc-200" />
+                      </div>
+                      <Input value={quickFabric.composition} onChange={e => setQuickFabric(p => ({ ...p, composition: e.target.value }))} placeholder="Composition" className="border-zinc-200" />
+                      <Input value={quickFabric.construction} onChange={e => setQuickFabric(p => ({ ...p, construction: e.target.value }))} placeholder="Construction" className="border-zinc-200" />
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={() => setQuickFabric({ open: false, name: '', gsm: '', width: '', composition: '', construction: '' })} className="rounded-sm border-zinc-200">Cancel</Button>
+                        <Button type="submit" className="bg-zinc-900 hover:bg-zinc-800 text-white rounded-sm">Add</Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Style No.</Label>

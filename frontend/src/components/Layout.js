@@ -12,7 +12,9 @@ import {
   Menu,
   X,
   ChevronRight,
-  Building2
+  Building2,
+  UserCircle,
+  Shirt
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -20,6 +22,8 @@ const NAV_ITEMS = [
   { path: '/enquiries', label: 'Enquiries', icon: FileText },
   { path: '/stages', label: 'Stage Master', icon: Layers, adminOnly: true },
   { path: '/departments', label: 'Departments', icon: Building2, adminOnly: true },
+  { path: '/customers', label: 'Customers', icon: UserCircle, adminOnly: true },
+  { path: '/fabric-types', label: 'Fabric Types', icon: Shirt, adminOnly: true },
   { path: '/users', label: 'Users', icon: Users, adminOnly: true },
   { path: '/reports', label: 'Reports', icon: BarChart3 },
 ];

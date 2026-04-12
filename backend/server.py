@@ -197,6 +197,26 @@ class DepartmentUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
 
+class CustomerCreate(BaseModel):
+    name: str
+
+class CustomerUpdate(BaseModel):
+    name: Optional[str] = None
+
+class FabricTypeCreate(BaseModel):
+    name: str
+    gsm: str = ""
+    width: str = ""
+    composition: str = ""
+    construction: str = ""
+
+class FabricTypeUpdate(BaseModel):
+    name: Optional[str] = None
+    gsm: Optional[str] = None
+    width: Optional[str] = None
+    composition: Optional[str] = None
+    construction: Optional[str] = None
+
 # ─── Auth Routes ───
 @api_router.post("/auth/login")
 async def login(req: LoginRequest, response: Response, request: Request):
@@ -656,6 +676,80 @@ async def delete_department(dept_id: str, request: Request):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Department not found")
     return {"message": "Department deleted"}
+
+# ─── Customer Master ───
+@api_router.get("/customers")
+async def get_customers(request: Request):
+    await get_current_user(request)
+    customers = await db.customers.find({}, {"_id": 0}).sort("name", 1).to_list(1000)
+    return customers
+
+@api_router.post("/customers")
+async def create_customer(req: CustomerCreate, request: Request):
+    await get_current_user(request)
+    existing = await db.customers.find_one({"name": req.name})
+    if existing:
+        raise HTTPException(status_code=400, detail="Customer already exists")
+    cust_id = secrets.token_hex(12)
+    doc = {"id": cust_id, "name": req.name, "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.customers.insert_one(doc)
+    return {k: v for k, v in doc.items() if k != "_id"}
+
+@api_router.put("/customers/{cust_id}")
+async def update_customer(cust_id: str, req: CustomerUpdate, request: Request):
+    await get_current_user(request)
+    update_data = {k: v for k, v in req.model_dump().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    result = await db.customers.update_one({"id": cust_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return await db.customers.find_one({"id": cust_id}, {"_id": 0})
+
+@api_router.delete("/customers/{cust_id}")
+async def delete_customer(cust_id: str, request: Request):
+    await require_admin(request)
+    result = await db.customers.delete_one({"id": cust_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return {"message": "Customer deleted"}
+
+# ─── Fabric Type Master ───
+@api_router.get("/fabric-types")
+async def get_fabric_types(request: Request):
+    await get_current_user(request)
+    fabrics = await db.fabric_types.find({}, {"_id": 0}).sort("name", 1).to_list(1000)
+    return fabrics
+
+@api_router.post("/fabric-types")
+async def create_fabric_type(req: FabricTypeCreate, request: Request):
+    await get_current_user(request)
+    existing = await db.fabric_types.find_one({"name": req.name})
+    if existing:
+        raise HTTPException(status_code=400, detail="Fabric type already exists")
+    fab_id = secrets.token_hex(12)
+    doc = {"id": fab_id, "name": req.name, "gsm": req.gsm, "width": req.width, "composition": req.composition, "construction": req.construction, "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.fabric_types.insert_one(doc)
+    return {k: v for k, v in doc.items() if k != "_id"}
+
+@api_router.put("/fabric-types/{fab_id}")
+async def update_fabric_type(fab_id: str, req: FabricTypeUpdate, request: Request):
+    await get_current_user(request)
+    update_data = {k: v for k, v in req.model_dump().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    result = await db.fabric_types.update_one({"id": fab_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Fabric type not found")
+    return await db.fabric_types.find_one({"id": fab_id}, {"_id": 0})
+
+@api_router.delete("/fabric-types/{fab_id}")
+async def delete_fabric_type(fab_id: str, request: Request):
+    await require_admin(request)
+    result = await db.fabric_types.delete_one({"id": fab_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Fabric type not found")
+    return {"message": "Fabric type deleted"}
 
 # ─── Dashboard ───
 @api_router.get("/dashboard")

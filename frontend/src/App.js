@@ -11,6 +11,8 @@ import StageMasterPage from './pages/StageMasterPage';
 import UsersPage from './pages/UsersPage';
 import ReportsPage from './pages/ReportsPage';
 import DepartmentMasterPage from './pages/DepartmentMasterPage';
+import CustomerMasterPage from './pages/CustomerMasterPage';
+import FabricTypeMasterPage from './pages/FabricTypeMasterPage';
 import '@/App.css';
 
 function ProtectedRoute({ children }) {
@@ -47,6 +49,8 @@ function App() {
           <Route path="/enquiries/:id" element={<ProtectedRoute><EnquiryDetailPage /></ProtectedRoute>} />
           <Route path="/stages" element={<ProtectedRoute><StageMasterPage /></ProtectedRoute>} />
           <Route path="/departments" element={<ProtectedRoute><DepartmentMasterPage /></ProtectedRoute>} />
+          <Route path="/customers" element={<ProtectedRoute><CustomerMasterPage /></ProtectedRoute>} />
+          <Route path="/fabric-types" element={<ProtectedRoute><FabricTypeMasterPage /></ProtectedRoute>} />
           <Route path="/users" element={<ProtectedRoute><UsersPage /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
