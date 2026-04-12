@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Textarea } from '../components/ui/textarea';
-import { Plus, Search, Filter, X, Image as ImageIcon, Camera } from 'lucide-react';
+import { Plus, Search, Filter, X, Image as ImageIcon, Camera, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 function EnquiryThumbnail({ imagePath }) {
@@ -72,6 +72,10 @@ export default function EnquiriesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [filterDept, setFilterDept] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
@@ -82,7 +86,7 @@ export default function EnquiriesPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const params = {};
+      const params = { page, page_size: pageSize };
       if (search) params.search = search;
       if (filterDept) params.department = filterDept;
       const [enqRes, stagesRes, deptsRes] = await Promise.all([
@@ -90,7 +94,9 @@ export default function EnquiriesPage() {
         api.get('/stages'),
         api.get('/departments')
       ]);
-      setEnquiries(enqRes.data);
+      setEnquiries(enqRes.data.enquiries);
+      setTotalCount(enqRes.data.total);
+      setTotalPages(enqRes.data.total_pages);
       setStages(stagesRes.data);
       setDepartments(deptsRes.data);
     } catch (err) {
@@ -98,9 +104,12 @@ export default function EnquiriesPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterDept]);
+  }, [search, filterDept, page, pageSize]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => { setPage(1); }, [search, filterDept]);
 
   const stageMap = {};
   stages.forEach(s => { stageMap[s.id] = s; });
@@ -144,7 +153,7 @@ export default function EnquiriesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">Enquiries</h1>
-          <p className="text-sm text-zinc-500 mt-1">{enquiries.length} enquiries found</p>
+          <p className="text-sm text-zinc-500 mt-1">{totalCount} enquiries found</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -284,7 +293,7 @@ export default function EnquiriesPage() {
                 enquiries.map((enq, idx) => {
                   return (
                     <TableRow key={enq.id} className="cursor-pointer hover:bg-zinc-50 transition-colors" onClick={() => navigate(`/enquiries/${enq.id}`)} data-testid={`enquiry-row-${enq.id}`}>
-                      <TableCell className="text-zinc-500 text-xs font-mono">{idx + 1}</TableCell>
+                      <TableCell className="text-zinc-500 text-xs font-mono">{(page - 1) * pageSize + idx + 1}</TableCell>
                       <TableCell>{enq.image_path ? <EnquiryThumbnail imagePath={enq.image_path} /> : <span className="text-zinc-300">—</span>}</TableCell>
                       <TableCell className="text-zinc-600 text-sm">{enq.style_no || '—'}</TableCell>
                       <TableCell className="font-medium text-zinc-900">{enq.customer_name}</TableCell>
@@ -318,6 +327,51 @@ export default function EnquiriesPage() {
             </TableBody>
           </Table>
         </div>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-200" data-testid="pagination-controls">
+            <p className="text-xs text-zinc-500">
+              Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, totalCount)} of {totalCount}
+            </p>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(1)} data-testid="pagination-first" className="border-zinc-200 h-8 w-8 p-0">
+                <ChevronsLeft className="w-3.5 h-3.5" />
+              </Button>
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)} data-testid="pagination-prev" className="border-zinc-200 h-8 w-8 p-0">
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </Button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                .reduce((acc, p, i, arr) => {
+                  if (i > 0 && p - arr[i - 1] > 1) acc.push('...');
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, i) =>
+                  p === '...' ? (
+                    <span key={`dot-${i}`} className="text-xs text-zinc-400 px-1">...</span>
+                  ) : (
+                    <Button
+                      key={p}
+                      variant={p === page ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setPage(p)}
+                      data-testid={`pagination-page-${p}`}
+                      className={`h-8 w-8 p-0 text-xs ${p === page ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'border-zinc-200'}`}
+                    >
+                      {p}
+                    </Button>
+                  )
+                )}
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} data-testid="pagination-next" className="border-zinc-200 h-8 w-8 p-0">
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Button>
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(totalPages)} data-testid="pagination-last" className="border-zinc-200 h-8 w-8 p-0">
+                <ChevronsRight className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );

@@ -22,6 +22,9 @@ Build a fabric enquiry tracking system with overview of status of enquiry at var
 - [x] Stage-level user permissions (assigned_users on stages, UI gating + backend enforcement)
 - [x] Reports: stage summary, user performance, department breakdown
 
+- [x] Enquiry list pagination (server-side, 20 per page, page controls with first/prev/next/last)
+- [x] Image thumbnails in enquiry list with hover preview
+
 ## Key Pages
 - `/login` - Authentication
 - `/` - Dashboard
@@ -42,4 +45,4 @@ Build a fabric enquiry tracking system with overview of status of enquiry at var
 - `POST /api/upload`, `GET /api/files/:path`
 
 ## Backlog
-- P2: Pagination/infinite scrolling for enquiries list and history logs
+- No pending items

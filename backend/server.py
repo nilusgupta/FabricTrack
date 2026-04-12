@@ -383,7 +383,7 @@ async def download_file(path: str, request: Request, auth: Optional[str] = Query
 
 # ─── Enquiry Routes ───
 @api_router.get("/enquiries")
-async def get_enquiries(request: Request, stage: Optional[str] = None, department: Optional[str] = None, assigned_to: Optional[str] = None, search: Optional[str] = None, customer_name: Optional[str] = None, fabric_type: Optional[str] = None, style_no: Optional[str] = None):
+async def get_enquiries(request: Request, stage: Optional[str] = None, department: Optional[str] = None, assigned_to: Optional[str] = None, search: Optional[str] = None, customer_name: Optional[str] = None, fabric_type: Optional[str] = None, style_no: Optional[str] = None, page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100)):
     await get_current_user(request)
     query = {}
     if stage:
@@ -404,7 +404,9 @@ async def get_enquiries(request: Request, stage: Optional[str] = None, departmen
             {"fabric_type": {"$regex": search, "$options": "i"}},
             {"style_no": {"$regex": search, "$options": "i"}}
         ]
-    enquiries = await db.enquiries.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    total = await db.enquiries.count_documents(query)
+    skip = (page - 1) * page_size
+    enquiries = await db.enquiries.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(page_size).to_list(page_size)
     # Calculate delay status for list view
     stages = await db.stages.find({}, {"_id": 0}).sort("order", 1).to_list(100)
     now = datetime.now(timezone.utc)
@@ -438,7 +440,7 @@ async def get_enquiries(request: Request, stage: Optional[str] = None, departmen
                 status = "completed"
             delay_info[sid] = status
         enq["delay_status"] = delay_info
-    return enquiries
+    return {"enquiries": enquiries, "total": total, "page": page, "page_size": page_size, "total_pages": -(-total // page_size)}
 
 @api_router.get("/enquiries/{enquiry_id}")
 async def get_enquiry(enquiry_id: str, request: Request):
