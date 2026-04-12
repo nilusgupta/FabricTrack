@@ -15,17 +15,19 @@ import { CalendarIcon, Download, Filter, BarChart3, Users, Layers, Building2 } f
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
-const departments = ['Sales', 'Production', 'Quality', 'Admin', 'Design', 'Logistics'];
+const departments_placeholder = []; // Fetched dynamically in components
 
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState('enquiries');
   const [stages, setStages] = useState([]);
   const [users, setUsers] = useState([]);
+  const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
-    Promise.all([api.get('/stages'), api.get('/users')]).then(([sRes, uRes]) => {
+    Promise.all([api.get('/stages'), api.get('/users'), api.get('/departments')]).then(([sRes, uRes, dRes]) => {
       setStages(sRes.data);
       setUsers(uRes.data);
+      setDepartments(dRes.data);
     });
   }, []);
 
@@ -44,7 +46,7 @@ export default function ReportsPage() {
           <TabsTrigger value="users" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-users"><Users className="w-3 h-3 mr-1.5" /> User Performance</TabsTrigger>
           <TabsTrigger value="departments" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-departments"><Building2 className="w-3 h-3 mr-1.5" /> Department</TabsTrigger>
         </TabsList>
-        <TabsContent value="enquiries"><EnquiryReport stages={stages} users={users} stageMap={stageMap} userMap={userMap} /></TabsContent>
+        <TabsContent value="enquiries"><EnquiryReport stages={stages} users={users} stageMap={stageMap} userMap={userMap} departments={departments} /></TabsContent>
         <TabsContent value="stages"><StageSummary stageMap={stageMap} /></TabsContent>
         <TabsContent value="users"><UserPerformance /></TabsContent>
         <TabsContent value="departments"><DepartmentReport stageMap={stageMap} /></TabsContent>
@@ -53,7 +55,7 @@ export default function ReportsPage() {
   );
 }
 
-function EnquiryReport({ stages, users, stageMap, userMap }) {
+function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ start_date: '', end_date: '', department: '', assigned_to: '', customer_name: '', fabric_type: '', style_no: '' });
@@ -144,7 +146,7 @@ function EnquiryReport({ stages, users, stageMap, userMap }) {
               <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Dept</Label>
               <Select value={filters.department} onValueChange={v => setFilters({ ...filters, department: v })}>
                 <SelectTrigger className="border-zinc-200" data-testid="report-dept-filter"><SelectValue placeholder="All" /></SelectTrigger>
-                <SelectContent>{departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                <SelectContent>{departments.map(d => <SelectItem key={d.id || d.name} value={d.name}>{d.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <Button variant="outline" size="sm" onClick={exportExcel} data-testid="export-excel-button" className="border-zinc-200 self-end">

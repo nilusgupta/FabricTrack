@@ -15,17 +15,21 @@ import { toast } from 'sonner';
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
-  const [form, setForm] = useState({ email: '', password: '', name: '', role: 'sales', department: 'Sales' });
-  const departments = ['Sales', 'Production', 'Quality', 'Admin', 'Design', 'Logistics'];
+  const [form, setForm] = useState({ email: '', password: '', name: '', role: 'sales', department: '' });
   const roles = ['admin', 'sales', 'production', 'quality', 'design', 'logistics'];
 
-  const fetchUsers = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const res = await api.get('/users');
-      setUsers(res.data);
+      const [usersRes, deptsRes] = await Promise.all([
+        api.get('/users'),
+        api.get('/departments')
+      ]);
+      setUsers(usersRes.data);
+      setDepartments(deptsRes.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -33,17 +37,17 @@ export default function UsersPage() {
     }
   }, []);
 
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const openCreate = () => {
     setEditUser(null);
-    setForm({ email: '', password: '', name: '', role: 'sales', department: 'Sales' });
+    setForm({ email: '', password: '', name: '', role: 'sales', department: departments[0]?.name || '' });
     setDialogOpen(true);
   };
 
   const openEdit = (u) => {
     setEditUser(u);
-    setForm({ email: u.email, password: '', name: u.name, role: u.role, department: u.department || 'Sales' });
+    setForm({ email: u.email, password: '', name: u.name, role: u.role, department: u.department || '' });
     setDialogOpen(true);
   };
 
@@ -59,7 +63,7 @@ export default function UsersPage() {
         toast.success('User created');
       }
       setDialogOpen(false);
-      fetchUsers();
+      fetchData();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to save');
     }
@@ -70,7 +74,7 @@ export default function UsersPage() {
     try {
       await api.delete(`/users/${userId}`);
       toast.success('User deleted');
-      fetchUsers();
+      fetchData();
     } catch (err) {
       toast.error('Failed to delete');
     }
@@ -80,7 +84,7 @@ export default function UsersPage() {
     try {
       await api.put(`/users/${u._id}`, { is_active: !u.is_active });
       toast.success(`User ${u.is_active ? 'deactivated' : 'activated'}`);
-      fetchUsers();
+      fetchData();
     } catch (err) {
       toast.error('Failed to update');
     }
@@ -152,7 +156,7 @@ export default function UsersPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                        {departments.map(d => <SelectItem key={d.id || d.name} value={d.name}>{d.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
