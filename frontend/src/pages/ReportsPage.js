@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import api from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -18,6 +19,7 @@ import { toast } from 'sonner';
 function ReportThumbnail({ imagePath }) {
   const [blobUrl, setBlobUrl] = useState(null);
   const [hovered, setHovered] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
   const ref = useRef(null);
   useEffect(() => {
     if (!imagePath) return;
@@ -27,14 +29,22 @@ function ReportThumbnail({ imagePath }) {
       .catch(() => {});
     return () => { if (revoke) URL.revokeObjectURL(revoke); };
   }, [imagePath]);
+  const handleMouseEnter = () => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 8, left: rect.left });
+    }
+    setHovered(true);
+  };
   if (!blobUrl) return <span className="text-zinc-300">—</span>;
   return (
-    <div ref={ref} className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+    <div ref={ref} className="relative" onMouseEnter={handleMouseEnter} onMouseLeave={() => setHovered(false)}>
       <img src={blobUrl} alt="Fabric" className="w-8 h-8 object-cover rounded-sm border border-zinc-200" data-testid="report-thumb" />
-      {hovered && (
-        <div className="fixed z-[100] pointer-events-none" style={{ top: ref.current ? ref.current.getBoundingClientRect().bottom + 8 : 0, left: ref.current ? ref.current.getBoundingClientRect().left : 0 }}>
+      {hovered && ReactDOM.createPortal(
+        <div className="pointer-events-none" style={{ position: 'fixed', zIndex: 9999, top: pos.top, left: pos.left }}>
           <img src={blobUrl} alt="Preview" className="w-64 h-64 object-contain rounded-md border border-zinc-300 shadow-xl bg-white" data-testid="report-thumb-preview" />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -201,7 +211,7 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
                   {stages.map(s => <th key={s.id} className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 180 }}>{s.name}</th>)}
                   <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 100 }}>Rate</th>
                   <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 100 }}>PO No.</th>
-                  <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 100 }}>PO Del</th>
+                  <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 100 }}>PO Rcvd</th>
                   <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 100 }}>Dept</th>
                   <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 120 }}>Created</th>
                   <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 200 }}>Comment</th>

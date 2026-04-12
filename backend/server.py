@@ -170,6 +170,8 @@ class EnquiryCreate(BaseModel):
     rate: str = ""
     po_no: str = ""
     po_del_date: str = ""
+    fabric_received: str = "no"
+    qty_received: str = ""
     stage_values: Dict[str, Any] = {}
 
 class EnquiryUpdate(BaseModel):
@@ -182,6 +184,8 @@ class EnquiryUpdate(BaseModel):
     rate: Optional[str] = None
     po_no: Optional[str] = None
     po_del_date: Optional[str] = None
+    fabric_received: Optional[str] = None
+    qty_received: Optional[str] = None
     stage_values: Optional[Dict[str, Any]] = None
     image_path: Optional[str] = None
 
@@ -506,6 +510,8 @@ async def create_enquiry(req: EnquiryCreate, request: Request):
         "department": req.department or user.get("department", ""),
         "notes": req.notes, "rate": req.rate, "po_no": req.po_no,
         "po_del_date": req.po_del_date,
+        "fabric_received": req.fabric_received,
+        "qty_received": req.qty_received,
         "stage_values": req.stage_values,
         "created_by": user["_id"], "created_by_name": user["name"],
         "created_at": now, "updated_at": now
@@ -783,7 +789,7 @@ async def export_excel(request: Request, department: Optional[str] = None, custo
     headers = ["SR NO", "IMAGE", "STYLE NO.", "FABRIC"]
     for s in stages:
         headers.append(s["name"])
-    headers.extend(["RATE", "PO No.", "PO DEL DATE", "Created By", "Department", "Created Date", "Comment"])
+    headers.extend(["RATE", "PO No.", "PO Received Date", "Created By", "Department", "Created Date", "Fabric Received", "Qty Received", "Comment"])
 
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=h)
@@ -811,7 +817,9 @@ async def export_excel(request: Request, department: Optional[str] = None, custo
         ws.cell(row=row_idx, column=col_offset + 3, value=user_map.get(enq.get("created_by", ""), enq.get("created_by_name", ""))).border = thin_border
         ws.cell(row=row_idx, column=col_offset + 4, value=enq.get("department", "")).border = thin_border
         ws.cell(row=row_idx, column=col_offset + 5, value=enq.get("created_at", "")).border = thin_border
-        ws.cell(row=row_idx, column=col_offset + 6, value=enq.get("notes", "")).border = thin_border
+        ws.cell(row=row_idx, column=col_offset + 6, value=enq.get("fabric_received", "")).border = thin_border
+        ws.cell(row=row_idx, column=col_offset + 7, value=enq.get("qty_received", "")).border = thin_border
+        ws.cell(row=row_idx, column=col_offset + 8, value=enq.get("notes", "")).border = thin_border
 
     # Auto-width
     for col in ws.columns:

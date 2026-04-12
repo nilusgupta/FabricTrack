@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { Button } from '../components/ui/button';
@@ -16,6 +17,7 @@ import { toast } from 'sonner';
 function EnquiryThumbnail({ imagePath }) {
   const [blobUrl, setBlobUrl] = useState(null);
   const [hovered, setHovered] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
   const ref = useRef(null);
 
   useEffect(() => {
@@ -31,13 +33,21 @@ function EnquiryThumbnail({ imagePath }) {
     return () => { if (revoke) URL.revokeObjectURL(revoke); };
   }, [imagePath]);
 
+  const handleMouseEnter = () => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 8, left: rect.left });
+    }
+    setHovered(true);
+  };
+
   if (!blobUrl) return <span className="text-zinc-300">—</span>;
 
   return (
     <div
       ref={ref}
       className="relative"
-      onMouseEnter={() => setHovered(true)}
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={() => setHovered(false)}
       onClick={e => e.stopPropagation()}
     >
@@ -47,18 +57,16 @@ function EnquiryThumbnail({ imagePath }) {
         className="w-8 h-8 object-cover rounded-sm border border-zinc-200 cursor-pointer"
         data-testid="enquiry-thumb"
       />
-      {hovered && (
-        <div className="fixed z-[100] pointer-events-none" style={{
-          top: ref.current ? ref.current.getBoundingClientRect().bottom + 8 : 0,
-          left: ref.current ? ref.current.getBoundingClientRect().left : 0,
-        }}>
+      {hovered && ReactDOM.createPortal(
+        <div className="pointer-events-none" style={{ position: 'fixed', zIndex: 9999, top: pos.top, left: pos.left }} data-testid="enquiry-thumb-preview-wrap">
           <img
             src={blobUrl}
             alt="Fabric preview"
             className="w-64 h-64 object-contain rounded-md border border-zinc-300 shadow-xl bg-white"
             data-testid="enquiry-thumb-preview"
           />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -131,7 +139,7 @@ export default function EnquiriesPage() {
       }
       toast.success('Enquiry created');
       setDialogOpen(false);
-      setForm({ customer_name: '', fabric_type: '', quantity: '', style_no: '', department: '', notes: '', rate: '', po_no: '', po_del_date: '' });
+      setForm({ customer_name: '', fabric_type: '', quantity: '', style_no: '', department: '', notes: '', rate: '', po_no: '', po_del_date: '', fabric_received: 'no', qty_received: '' });
       setImageFile(null);
       fetchData();
     } catch (err) {
@@ -201,9 +209,27 @@ export default function EnquiriesPage() {
                   <Input value={form.po_no} onChange={e => setForm({ ...form, po_no: e.target.value })} data-testid="enquiry-po-no-input" className="border-zinc-200" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">PO Del Date</Label>
+                  <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">PO Received Date</Label>
                   <Input type="date" value={form.po_del_date} onChange={e => setForm({ ...form, po_del_date: e.target.value })} data-testid="enquiry-po-del-date-input" className="border-zinc-200" />
                 </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Fabric Received</Label>
+                  <Select value={form.fabric_received || 'no'} onValueChange={v => setForm({ ...form, fabric_received: v, qty_received: v === 'no' ? '' : form.qty_received })}>
+                    <SelectTrigger data-testid="enquiry-fabric-received-select" className="border-zinc-200"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no">No</SelectItem>
+                      <SelectItem value="yes">Yes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {form.fabric_received === 'yes' && (
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Qty Received</Label>
+                    <Input value={form.qty_received} onChange={e => setForm({ ...form, qty_received: e.target.value })} data-testid="enquiry-qty-received-input" placeholder="Enter qty received" className="border-zinc-200" />
+                  </div>
+                )}
               </div>
 
               {/* Image upload - supports camera, gallery, file */}
