@@ -264,68 +264,66 @@ export default function EnquiriesPage() {
       </Card>
 
       {/* Table */}
-      <Card className="bg-white border-zinc-200 rounded-sm overflow-hidden">
-        <div className="overflow-x-auto" data-testid="enquiries-table">
-          <Table className="min-w-[1200px]">
-            <TableHeader>
-              <TableRow className="bg-zinc-50 hover:bg-zinc-50">
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky left-0 bg-zinc-50 z-10 min-w-[40px]">SR</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky left-[40px] bg-zinc-50 z-10 min-w-[48px]">Img</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky left-[88px] bg-zinc-50 z-10 min-w-[100px]">Style No.</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky left-[188px] bg-zinc-50 z-10 min-w-[130px]">Customer</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky left-[318px] bg-zinc-50 z-10 min-w-[120px] after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-[3px] after:bg-gradient-to-r after:from-zinc-200 after:to-transparent">Fabric</TableHead>
+      <Card className="bg-white border-zinc-200 rounded-sm" style={{ overflow: 'hidden', maxWidth: '100%' }}>
+        <div className="overflow-x-scroll" data-testid="enquiries-table" style={{ scrollbarGutter: 'stable' }}>
+          <table className="caption-bottom text-sm border-collapse" style={{ tableLayout: 'fixed', width: `${438 + stages.length * 180 + 500}px` }}>
+            <thead>
+              <tr className="border-b bg-zinc-50">
+                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky left-0 bg-zinc-50 z-20" style={{ width: 40 }}>SR</th>
+                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 48, left: 40 }}>Img</th>
+                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 110, left: 88 }}>Style No.</th>
+                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 130, left: 198 }}>Customer</th>
+                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky bg-zinc-50 z-20 border-r-2 border-zinc-300" style={{ width: 110, left: 328 }}>Fabric</th>
                 {stages.map(s => (
-                  <TableHead key={s.id} className="text-xs font-semibold uppercase tracking-wide text-zinc-500 min-w-[110px]">{s.name}</TableHead>
+                  <th key={s.id} className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500" style={{ width: 180 }}>{s.name}</th>
                 ))}
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500 min-w-[70px]">Rate</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500 min-w-[90px]">Dept</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500 min-w-[90px]">Created</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500" style={{ width: 100 }}>Rate</th>
+                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500" style={{ width: 100 }}>Dept</th>
+                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500" style={{ width: 120 }}>Created</th>
+              </tr>
+            </thead>
+            <tbody>
               {loading ? (
                 [...Array(5)].map((_, i) => (
-                  <TableRow key={i}>{[...Array(8 + stages.length)].map((_, j) => <TableCell key={j}><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></TableCell>)}</TableRow>
+                  <tr key={i} className="border-b">{[...Array(8 + stages.length)].map((_, j) => <td key={j} className="p-2"><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></td>)}</tr>
                 ))
               ) : enquiries.length === 0 ? (
-                <TableRow><TableCell colSpan={8 + stages.length} className="text-center py-12 text-zinc-400">No enquiries found. Create your first enquiry.</TableCell></TableRow>
+                <tr><td colSpan={8 + stages.length} className="text-center py-12 text-zinc-400">No enquiries found. Create your first enquiry.</td></tr>
               ) : (
-                enquiries.map((enq, idx) => {
-                  return (
-                    <TableRow key={enq.id} className="cursor-pointer hover:bg-zinc-50 transition-colors group" onClick={() => navigate(`/enquiries/${enq.id}`)} data-testid={`enquiry-row-${enq.id}`}>
-                      <TableCell className="text-zinc-500 text-xs font-mono sticky left-0 bg-white group-hover:bg-zinc-50 z-10">{(page - 1) * pageSize + idx + 1}</TableCell>
-                      <TableCell className="sticky left-[40px] bg-white group-hover:bg-zinc-50 z-10">{enq.image_path ? <EnquiryThumbnail imagePath={enq.image_path} /> : <span className="text-zinc-300">—</span>}</TableCell>
-                      <TableCell className="text-zinc-600 text-sm sticky left-[88px] bg-white group-hover:bg-zinc-50 z-10">{enq.style_no || '—'}</TableCell>
-                      <TableCell className="font-medium text-zinc-900 sticky left-[188px] bg-white group-hover:bg-zinc-50 z-10">{enq.customer_name}</TableCell>
-                      <TableCell className="text-zinc-600 sticky left-[318px] bg-white group-hover:bg-zinc-50 z-10 after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-[3px] after:bg-gradient-to-r after:from-zinc-200 after:to-transparent">{enq.fabric_type}</TableCell>
-                      {stages.map(s => {
-                        const val = getStageDisplay(enq, s.id);
-                        const delayStatus = enq.delay_status?.[s.id];
-                        const isDelayed = delayStatus === 'delayed' || delayStatus === 'completed_late';
-                        const isEarly = delayStatus === 'completed_early';
-                        return (
-                          <TableCell key={s.id} className="text-xs">
-                            <div className="flex flex-col gap-0.5">
-                              {val ? (
-                                <Badge className="rounded-sm text-xs font-normal" style={{ backgroundColor: s.color + '15', color: s.color, border: `1px solid ${s.color}30` }}>
-                                  {val}
-                                </Badge>
-                              ) : <span className="text-zinc-300">—</span>}
-                              {isDelayed && <span className="text-[10px] font-semibold text-red-600" data-testid={`delay-badge-${enq.id}-${s.id}`}>DELAYED</span>}
-                              {isEarly && <span className="text-[10px] font-semibold text-green-600" data-testid={`early-badge-${enq.id}-${s.id}`}>ON TIME</span>}
-                            </div>
-                          </TableCell>
-                        );
-                      })}
-                      <TableCell className="text-zinc-600 text-sm">{enq.rate || '—'}</TableCell>
-                      <TableCell className="text-zinc-600 text-xs">{enq.department || '—'}</TableCell>
-                      <TableCell className="text-zinc-400 text-xs">{new Date(enq.created_at).toLocaleDateString()}</TableCell>
-                    </TableRow>
-                  );
-                })
+                enquiries.map((enq, idx) => (
+                  <tr key={enq.id} className="border-b cursor-pointer hover:bg-zinc-50 transition-colors group" onClick={() => navigate(`/enquiries/${enq.id}`)} data-testid={`enquiry-row-${enq.id}`}>
+                    <td className="p-2 text-zinc-500 text-xs font-mono sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 0 }}>{(page - 1) * pageSize + idx + 1}</td>
+                    <td className="p-2 sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 40 }}>{enq.image_path ? <EnquiryThumbnail imagePath={enq.image_path} /> : <span className="text-zinc-300">—</span>}</td>
+                    <td className="p-2 text-zinc-600 text-sm sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 88 }}>{enq.style_no || '—'}</td>
+                    <td className="p-2 font-medium text-zinc-900 sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 198 }}>{enq.customer_name}</td>
+                    <td className="p-2 text-zinc-600 sticky bg-white group-hover:bg-zinc-50 z-10 border-r-2 border-zinc-300" style={{ left: 328 }}>{enq.fabric_type}</td>
+                    {stages.map(s => {
+                      const val = getStageDisplay(enq, s.id);
+                      const delayStatus = enq.delay_status?.[s.id];
+                      const isDelayed = delayStatus === 'delayed' || delayStatus === 'completed_late';
+                      const isEarly = delayStatus === 'completed_early';
+                      return (
+                        <td key={s.id} className="p-2 text-xs">
+                          <div className="flex flex-col gap-0.5">
+                            {val ? (
+                              <Badge className="rounded-sm text-xs font-normal" style={{ backgroundColor: s.color + '15', color: s.color, border: `1px solid ${s.color}30` }}>
+                                {val}
+                              </Badge>
+                            ) : <span className="text-zinc-300">—</span>}
+                            {isDelayed && <span className="text-[10px] font-semibold text-red-600" data-testid={`delay-badge-${enq.id}-${s.id}`}>DELAYED</span>}
+                            {isEarly && <span className="text-[10px] font-semibold text-green-600" data-testid={`early-badge-${enq.id}-${s.id}`}>ON TIME</span>}
+                          </div>
+                        </td>
+                      );
+                    })}
+                    <td className="p-2 text-zinc-600 text-sm">{enq.rate || '—'}</td>
+                    <td className="p-2 text-zinc-600 text-xs">{enq.department || '—'}</td>
+                    <td className="p-2 text-zinc-400 text-xs">{new Date(enq.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))
               )}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
         {/* Pagination */}
         {totalPages > 1 && (

@@ -181,7 +181,7 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
         </CardContent>
       </Card>
 
-      <Card className="bg-white border-zinc-200 rounded-sm">
+      <Card className="bg-white border-zinc-200 rounded-sm" style={{ overflow: 'hidden', maxWidth: '100%' }}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-semibold text-zinc-900">Results</CardTitle>
@@ -189,52 +189,52 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table className="min-w-[1200px]">
-              <TableHeader>
-                <TableRow className="bg-zinc-50">
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 sticky left-0 bg-zinc-50 z-10 min-w-[40px]">SR</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 sticky left-[40px] bg-zinc-50 z-10 min-w-[48px]">Img</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 sticky left-[88px] bg-zinc-50 z-10 min-w-[100px]">Style No.</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 sticky left-[188px] bg-zinc-50 z-10 min-w-[130px]">Customer</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 sticky left-[318px] bg-zinc-50 z-10 min-w-[120px] after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-[3px] after:bg-gradient-to-r after:from-zinc-200 after:to-transparent">Fabric</TableHead>
-                  {stages.map(s => <TableHead key={s.id} className="text-xs font-semibold uppercase text-zinc-500 min-w-[110px]">{s.name}</TableHead>)}
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 min-w-[70px]">Rate</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 min-w-[80px]">PO No.</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 min-w-[80px]">PO Del</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 min-w-[90px]">Dept</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 min-w-[90px]">Created</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase text-zinc-500 min-w-[150px]">Comment</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          <div className="overflow-x-scroll" style={{ scrollbarGutter: 'stable' }}>
+            <table className="caption-bottom text-sm border-collapse" style={{ tableLayout: 'fixed', width: `${438 + stages.length * 180 + 820}px` }}>
+              <thead>
+                <tr className="border-b bg-zinc-50">
+                  <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 40, left: 0 }}>SR</th>
+                  <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 48, left: 40 }}>Img</th>
+                  <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 110, left: 88 }}>Style No.</th>
+                  <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 130, left: 198 }}>Customer</th>
+                  <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500 sticky bg-zinc-50 z-20 border-r-2 border-zinc-300" style={{ width: 110, left: 328 }}>Fabric</th>
+                  {stages.map(s => <th key={s.id} className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 180 }}>{s.name}</th>)}
+                  <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 100 }}>Rate</th>
+                  <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 100 }}>PO No.</th>
+                  <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 100 }}>PO Del</th>
+                  <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 100 }}>Dept</th>
+                  <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 120 }}>Created</th>
+                  <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 200 }}>Comment</th>
+                </tr>
+              </thead>
+              <tbody>
                 {loading ? (
-                  [...Array(3)].map((_, i) => <TableRow key={i}>{[...Array(10 + stages.length)].map((_, j) => <TableCell key={j}><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></TableCell>)}</TableRow>)
+                  [...Array(3)].map((_, i) => <tr key={i} className="border-b">{[...Array(10 + stages.length)].map((_, j) => <td key={j} className="p-2"><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></td>)}</tr>)
                 ) : !data?.enquiries?.length ? (
-                  <TableRow><TableCell colSpan={12 + stages.length} className="text-center py-8 text-zinc-400">No data</TableCell></TableRow>
+                  <tr><td colSpan={12 + stages.length} className="text-center py-8 text-zinc-400">No data</td></tr>
                 ) : (
                   data.enquiries.map((e, idx) => (
-                    <TableRow key={e.id} className="hover:bg-zinc-50 group" data-testid={`report-row-${e.id}`}>
-                      <TableCell className="text-zinc-500 text-xs font-mono sticky left-0 bg-white group-hover:bg-zinc-50 z-10">{idx + 1}</TableCell>
-                      <TableCell className="sticky left-[40px] bg-white group-hover:bg-zinc-50 z-10">{e.image_path ? <ReportThumbnail imagePath={e.image_path} /> : <span className="text-zinc-300">—</span>}</TableCell>
-                      <TableCell className="text-zinc-600 text-xs sticky left-[88px] bg-white group-hover:bg-zinc-50 z-10">{e.style_no || '—'}</TableCell>
-                      <TableCell className="font-medium text-zinc-900 text-sm sticky left-[188px] bg-white group-hover:bg-zinc-50 z-10">{e.customer_name}</TableCell>
-                      <TableCell className="text-zinc-600 text-sm sticky left-[318px] bg-white group-hover:bg-zinc-50 z-10 after:content-[''] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-[3px] after:bg-gradient-to-r after:from-zinc-200 after:to-transparent">{e.fabric_type}</TableCell>
+                    <tr key={e.id} className="border-b hover:bg-zinc-50 group" data-testid={`report-row-${e.id}`}>
+                      <td className="p-2 text-zinc-500 text-xs font-mono sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 0 }}>{idx + 1}</td>
+                      <td className="p-2 sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 40 }}>{e.image_path ? <ReportThumbnail imagePath={e.image_path} /> : <span className="text-zinc-300">—</span>}</td>
+                      <td className="p-2 text-zinc-600 text-xs sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 88 }}>{e.style_no || '—'}</td>
+                      <td className="p-2 font-medium text-zinc-900 text-sm sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 198 }}>{e.customer_name}</td>
+                      <td className="p-2 text-zinc-600 text-sm sticky bg-white group-hover:bg-zinc-50 z-10 border-r-2 border-zinc-300" style={{ left: 328 }}>{e.fabric_type}</td>
                       {stages.map(s => {
                         const val = getStageDisplay(e, s.id);
-                        return <TableCell key={s.id} className="text-xs text-zinc-600">{val || '—'}</TableCell>;
+                        return <td key={s.id} className="p-2 text-xs text-zinc-600">{val || '—'}</td>;
                       })}
-                      <TableCell className="text-zinc-600 text-xs">{e.rate || '—'}</TableCell>
-                      <TableCell className="text-zinc-600 text-xs">{e.po_no || '—'}</TableCell>
-                      <TableCell className="text-zinc-600 text-xs">{e.po_del_date || '—'}</TableCell>
-                      <TableCell className="text-zinc-600 text-xs">{e.department || '—'}</TableCell>
-                      <TableCell className="text-zinc-400 text-xs">{e.created_at ? new Date(e.created_at).toLocaleDateString() : '—'}</TableCell>
-                      <TableCell className="text-zinc-500 text-xs max-w-[200px] truncate">{e.notes || '—'}</TableCell>
-                    </TableRow>
+                      <td className="p-2 text-zinc-600 text-xs">{e.rate || '—'}</td>
+                      <td className="p-2 text-zinc-600 text-xs">{e.po_no || '—'}</td>
+                      <td className="p-2 text-zinc-600 text-xs">{e.po_del_date || '—'}</td>
+                      <td className="p-2 text-zinc-600 text-xs">{e.department || '—'}</td>
+                      <td className="p-2 text-zinc-400 text-xs">{e.created_at ? new Date(e.created_at).toLocaleDateString() : '—'}</td>
+                      <td className="p-2 text-zinc-500 text-xs max-w-[200px] truncate">{e.notes || '—'}</td>
+                    </tr>
                   ))
                 )}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
           </div>
         </CardContent>
       </Card>
