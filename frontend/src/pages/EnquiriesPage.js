@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { Button } from '../components/ui/button';
@@ -12,6 +12,57 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Textarea } from '../components/ui/textarea';
 import { Plus, Search, Filter, X, Image as ImageIcon, Camera } from 'lucide-react';
 import { toast } from 'sonner';
+
+function EnquiryThumbnail({ imagePath }) {
+  const [blobUrl, setBlobUrl] = useState(null);
+  const [hovered, setHovered] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!imagePath) return;
+    let revoke = null;
+    api.get(`/files/${imagePath}`, { responseType: 'blob' })
+      .then(res => {
+        const url = URL.createObjectURL(res.data);
+        revoke = url;
+        setBlobUrl(url);
+      })
+      .catch(() => {});
+    return () => { if (revoke) URL.revokeObjectURL(revoke); };
+  }, [imagePath]);
+
+  if (!blobUrl) return <span className="text-zinc-300">—</span>;
+
+  return (
+    <div
+      ref={ref}
+      className="relative"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={e => e.stopPropagation()}
+    >
+      <img
+        src={blobUrl}
+        alt="Fabric"
+        className="w-8 h-8 object-cover rounded-sm border border-zinc-200 cursor-pointer"
+        data-testid="enquiry-thumb"
+      />
+      {hovered && (
+        <div className="fixed z-[100] pointer-events-none" style={{
+          top: ref.current ? ref.current.getBoundingClientRect().bottom + 8 : 0,
+          left: ref.current ? ref.current.getBoundingClientRect().left : 0,
+        }}>
+          <img
+            src={blobUrl}
+            alt="Fabric preview"
+            className="w-64 h-64 object-contain rounded-md border border-zinc-300 shadow-xl bg-white"
+            data-testid="enquiry-thumb-preview"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function EnquiriesPage() {
   const [enquiries, setEnquiries] = useState([]);
@@ -234,7 +285,7 @@ export default function EnquiriesPage() {
                   return (
                     <TableRow key={enq.id} className="cursor-pointer hover:bg-zinc-50 transition-colors" onClick={() => navigate(`/enquiries/${enq.id}`)} data-testid={`enquiry-row-${enq.id}`}>
                       <TableCell className="text-zinc-500 text-xs font-mono">{idx + 1}</TableCell>
-                      <TableCell>{enq.image_path ? <ImageIcon className="w-4 h-4 text-zinc-400" /> : <span className="text-zinc-300">—</span>}</TableCell>
+                      <TableCell>{enq.image_path ? <EnquiryThumbnail imagePath={enq.image_path} /> : <span className="text-zinc-300">—</span>}</TableCell>
                       <TableCell className="text-zinc-600 text-sm">{enq.style_no || '—'}</TableCell>
                       <TableCell className="font-medium text-zinc-900">{enq.customer_name}</TableCell>
                       <TableCell className="text-zinc-600">{enq.fabric_type}</TableCell>
