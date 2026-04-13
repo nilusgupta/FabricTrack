@@ -93,9 +93,10 @@ export default function ReportsPage() {
 function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState({ start_date: '', end_date: '', department: '', assigned_to: '', customer_name: '', fabric_type: '', style_no: '' });
+  const [filters, setFilters] = useState({ start_date: '', end_date: '', department: '', customer_name: '', fabric_type: '', style_no: '', rate: '', po_no: '', po_del_date: '', fabric_received: '', qty_received: '', created_by: '' });
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
+  const [showMore, setShowMore] = useState(false);
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
@@ -115,9 +116,7 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
   const exportExcel = async () => {
     try {
       const params = {};
-      if (filters.department) params.department = filters.department;
-      if (filters.customer_name) params.customer_name = filters.customer_name;
-      if (filters.fabric_type) params.fabric_type = filters.fabric_type;
+      Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v; });
       const res = await api.get('/reports/export-excel', { params, responseType: 'blob' });
       const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
@@ -144,11 +143,19 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
     return typeof val === 'object' ? val.value || '' : String(val);
   };
 
+  const clearFilters = () => {
+    setFilters({ start_date: '', end_date: '', department: '', customer_name: '', fabric_type: '', style_no: '', rate: '', po_no: '', po_del_date: '', fabric_received: '', qty_received: '', created_by: '' });
+    setStartDate(null);
+    setEndDate(null);
+  };
+
+  const activeFilterCount = Object.values(filters).filter(v => v).length;
+
   return (
     <div className="space-y-4" data-testid="enquiry-report">
       <Card className="bg-white border-zinc-200 rounded-sm">
-        <CardContent className="p-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 items-end">
+        <CardContent className="p-4 space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 items-end">
             <div className="space-y-1">
               <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">From</Label>
               <Popover>
@@ -190,9 +197,58 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
                 <SelectContent>{departments.map(d => <SelectItem key={d.id || d.name} value={d.name}>{d.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <Button variant="outline" size="sm" onClick={exportExcel} data-testid="export-excel-button" className="border-zinc-200 self-end">
-              <Download className="w-3 h-3 mr-1.5" /> Export Excel
+          </div>
+          {showMore && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 items-end">
+              <div className="space-y-1">
+                <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Rate</Label>
+                <Input value={filters.rate} onChange={e => setFilters({ ...filters, rate: e.target.value })} placeholder="Filter..." className="border-zinc-200" data-testid="report-rate-filter" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">PO No.</Label>
+                <Input value={filters.po_no} onChange={e => setFilters({ ...filters, po_no: e.target.value })} placeholder="Filter..." className="border-zinc-200" data-testid="report-po-filter" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">PO Received Date</Label>
+                <Input value={filters.po_del_date} onChange={e => setFilters({ ...filters, po_del_date: e.target.value })} placeholder="Filter..." className="border-zinc-200" data-testid="report-po-date-filter" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Fabric Received</Label>
+                <Select value={filters.fabric_received} onValueChange={v => setFilters({ ...filters, fabric_received: v })}>
+                  <SelectTrigger className="border-zinc-200" data-testid="report-fabric-received-filter"><SelectValue placeholder="All" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="yes">Yes</SelectItem>
+                    <SelectItem value="no">No</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Qty Received</Label>
+                <Input value={filters.qty_received} onChange={e => setFilters({ ...filters, qty_received: e.target.value })} placeholder="Filter..." className="border-zinc-200" data-testid="report-qty-received-filter" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Created By</Label>
+                <Select value={filters.created_by} onValueChange={v => setFilters({ ...filters, created_by: v })}>
+                  <SelectTrigger className="border-zinc-200" data-testid="report-created-by-filter"><SelectValue placeholder="All" /></SelectTrigger>
+                  <SelectContent>{users.map(u => <SelectItem key={u._id} value={u._id}>{u.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setShowMore(!showMore)} className="text-xs text-zinc-500" data-testid="toggle-more-filters">
+              {showMore ? 'Less Filters' : 'More Filters'}{!showMore && activeFilterCount > 6 ? ` (${activeFilterCount - 6} active)` : ''}
             </Button>
+            {activeFilterCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs text-red-500" data-testid="clear-filters">
+                Clear All ({activeFilterCount})
+              </Button>
+            )}
+            <div className="ml-auto">
+              <Button variant="outline" size="sm" onClick={exportExcel} data-testid="export-excel-button" className="border-zinc-200">
+                <Download className="w-3 h-3 mr-1.5" /> Export Excel
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

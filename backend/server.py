@@ -776,7 +776,7 @@ async def get_dashboard(request: Request):
 
 # ─── Reports ───
 @api_router.get("/reports/enquiries")
-async def report_enquiries(request: Request, start_date: Optional[str] = None, end_date: Optional[str] = None, department: Optional[str] = None, assigned_to: Optional[str] = None, customer_name: Optional[str] = None, fabric_type: Optional[str] = None, style_no: Optional[str] = None):
+async def report_enquiries(request: Request, start_date: Optional[str] = None, end_date: Optional[str] = None, department: Optional[str] = None, assigned_to: Optional[str] = None, customer_name: Optional[str] = None, fabric_type: Optional[str] = None, style_no: Optional[str] = None, rate: Optional[str] = None, po_no: Optional[str] = None, po_del_date: Optional[str] = None, fabric_received: Optional[str] = None, qty_received: Optional[str] = None, created_by: Optional[str] = None):
     await get_current_user(request)
     query = {}
     if start_date:
@@ -793,6 +793,18 @@ async def report_enquiries(request: Request, start_date: Optional[str] = None, e
         query["fabric_type"] = {"$regex": fabric_type, "$options": "i"}
     if style_no:
         query["style_no"] = {"$regex": style_no, "$options": "i"}
+    if rate:
+        query["rate"] = {"$regex": rate, "$options": "i"}
+    if po_no:
+        query["po_no"] = {"$regex": po_no, "$options": "i"}
+    if po_del_date:
+        query["po_del_date"] = {"$regex": po_del_date, "$options": "i"}
+    if fabric_received:
+        query["fabric_received"] = fabric_received
+    if qty_received:
+        query["qty_received"] = {"$regex": qty_received, "$options": "i"}
+    if created_by:
+        query["created_by"] = created_by
     enquiries = await db.enquiries.find(query, {"_id": 0}).sort("created_at", -1).to_list(5000)
     return {"total": len(enquiries), "enquiries": enquiries}
 
@@ -850,7 +862,7 @@ async def report_department(request: Request):
 
 # ─── Excel Export ───
 @api_router.get("/reports/export-excel")
-async def export_excel(request: Request, department: Optional[str] = None, customer_name: Optional[str] = None, fabric_type: Optional[str] = None):
+async def export_excel(request: Request, department: Optional[str] = None, customer_name: Optional[str] = None, fabric_type: Optional[str] = None, style_no: Optional[str] = None, rate: Optional[str] = None, po_no: Optional[str] = None, po_del_date: Optional[str] = None, fabric_received: Optional[str] = None, qty_received: Optional[str] = None, created_by: Optional[str] = None, start_date: Optional[str] = None, end_date: Optional[str] = None):
     await get_current_user(request)
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -862,12 +874,30 @@ async def export_excel(request: Request, department: Optional[str] = None, custo
     user_map = {str(u["_id"]): u["name"] for u in users_list}
 
     query = {}
+    if start_date:
+        query["created_at"] = {"$gte": start_date}
+    if end_date:
+        query.setdefault("created_at", {})["$lte"] = end_date
     if department:
         query["department"] = department
     if customer_name:
         query["customer_name"] = {"$regex": customer_name, "$options": "i"}
     if fabric_type:
         query["fabric_type"] = {"$regex": fabric_type, "$options": "i"}
+    if style_no:
+        query["style_no"] = {"$regex": style_no, "$options": "i"}
+    if rate:
+        query["rate"] = {"$regex": rate, "$options": "i"}
+    if po_no:
+        query["po_no"] = {"$regex": po_no, "$options": "i"}
+    if po_del_date:
+        query["po_del_date"] = {"$regex": po_del_date, "$options": "i"}
+    if fabric_received:
+        query["fabric_received"] = fabric_received
+    if qty_received:
+        query["qty_received"] = {"$regex": qty_received, "$options": "i"}
+    if created_by:
+        query["created_by"] = created_by
     enquiries = await db.enquiries.find(query, {"_id": 0}).sort("created_at", -1).to_list(5000)
 
     wb = openpyxl.Workbook()
