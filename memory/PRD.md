@@ -1,57 +1,51 @@
-# FabricTrack - Fabric Enquiry Tracking System
+# Fabric Enquiry Tracking System - PRD
 
-## Problem Statement
-Build a fabric enquiry tracking system with overview of status of enquiry at various stages assigned to users. Mobile and web interfaces, dynamic stage master, per-stage lead times, image uploads, per-stage comments and history, department master, reports with Excel export, and stage-level user permissions.
+## Original Problem Statement
+Build a fabric enquiry tracking system with overview of status of enquiry at various stages assigned to users.
+
+## Core Requirements
+- Mobile and web app interfaces
+- Dynamic stage master (admin-defined workflow stages) with input types, mandatory/non-mandatory flags, and date input modes
+- Per-stage lead times calculation to highlight delayed/early stages
+- Ability to upload images (camera/gallery/file folder) per enquiry
+- Per-stage comments and detailed history logs (user, date, time)
+- Department, Customer, and Fabric Type master screens
+- Reports with multi-field filtering and comprehensive data Export to Excel
+- Stage-level permissions (only assigned users can complete or comment on a specific stage)
 
 ## Architecture
-- **Frontend**: React + TailwindCSS + Shadcn UI (port 3000)
-- **Backend**: FastAPI + Motor (async MongoDB) + PyJWT (port 8001)
-- **Storage**: Emergent Object Storage for images
-- **Database**: MongoDB
+- Frontend: React + TailwindCSS + Shadcn UI
+- Backend: FastAPI + Motor (Async MongoDB) + PyJWT
+- Storage: Emergent Object Storage for images
+- Excel: openpyxl + Pillow for embedded images
 
-## Completed Features
-- [x] Auth system (Admin/Sales/Production/Quality roles, JWT cookies, brute-force protection)
-- [x] Stage Master CRUD (input_type, is_mandatory, lead_time_days, date_input_mode, assigned_users)
-- [x] Enquiry Pipeline UI with delay/early status tracking
-- [x] Image uploads via Emergent Object Storage (camera/gallery/file)
-- [x] Per-stage commenting and audit history
-- [x] Excel export via openpyxl (with Created By, Department, Created Date columns)
-- [x] Dashboard with stats and recent enquiries
-- [x] Department Master CRUD (seeded: Sales, Production, Quality, Admin, Design, Logistics)
-- [x] Removed "Assigned To" from enquiries (replaced with Department-based assignment)
-- [x] Stage-level user permissions (assigned_users on stages, UI gating + backend enforcement)
-- [x] Reports: stage summary, user performance, department breakdown
+## Key Files
+- `/app/backend/server.py` - All backend routes, DB queries, Excel export
+- `/app/frontend/src/pages/ReportsPage.js` - Reports with filters + grid
+- `/app/frontend/src/pages/EnquiriesPage.js` - Enquiry pipeline
+- `/app/frontend/src/pages/EnquiryDetailPage.js` - Enquiry detail with stages
+- `/app/frontend/src/pages/CustomerMasterPage.js` - Customer master
+- `/app/frontend/src/pages/FabricTypeMasterPage.js` - Fabric type master
+- `/app/frontend/src/lib/api.js` - Axios instance (relative /api paths)
 
-- [x] Enquiry list pagination (server-side, 20 per page, page controls with first/prev/next/last)
-- [x] Customer Master CRUD (name field)
-- [x] Fabric Type Master CRUD (name, gsm, width, composition, construction)
-- [x] Master-based dropdowns in enquiry forms with "+" quick-create buttons
-- [x] Fabric Received yes/no field with conditional Qty Received
-- [x] PO Del Date renamed to PO Received Date
-- [x] Image thumbnails in enquiry list with hover preview
+## What's Been Implemented
+- Auth system (JWT cookies, brute force protection, admin seeding)
+- Stage Master CRUD with lead times, date input modes, assigned user permissions
+- Enquiries CRUD with pagination, frozen columns, image upload
+- Per-stage commenting and audit history
+- Department, Customer, Fabric Type master screens with quick-create buttons
+- Reports with 12+ standard filters + dynamic stage filters + inline grid column filters
+- Excel export with all fields, embedded images, and stage filter support
+- React Portal image hover previews
+- CORS/cookie handling for cross-domain deployment
 
-## Key Pages
-- `/login` - Authentication
-- `/` - Dashboard
-- `/enquiries` - Enquiry list with filters
-- `/enquiries/:id` - Enquiry detail with stage values, comments, history
-- `/stages` - Stage Master (admin)
-- `/customers` - Customer Master (admin)
-- `/fabric-types` - Fabric Type Master (admin)
-- `/departments` - Department Master (admin)
-- `/users` - User Management (admin)
-- `/reports` - Reports with Excel export
-
-## Key API Endpoints
-- `POST /api/auth/login`, `GET /api/auth/me`
-- `GET/POST /api/stages`, `PUT/DELETE /api/stages/:id`
-- `GET/POST /api/customers`, `PUT/DELETE /api/customers/:id`
-- `GET/POST /api/fabric-types`, `PUT/DELETE /api/fabric-types/:id`
-- `GET/POST /api/departments`, `PUT/DELETE /api/departments/:id`
-- `GET/POST /api/enquiries`, `PUT/DELETE /api/enquiries/:id`
-- `POST /api/enquiries/:id/comments` (permission enforced)
-- `GET /api/reports/export-excel`
-- `POST /api/upload`, `GET /api/files/:path`
+## Completed Features (Latest)
+- Dynamic stage filters in Reports filter bar (server-side, sent as JSON to backend)
+- Inline grid column filters on Reports result table (client-side, instant filtering)
+- Stage filters support both text inputs and dropdown selects based on stage input_type
+- Grid filter count indicator ("Grid: X of Y")
+- Clear All resets both stage and grid filters
+- Excel export respects stage filters
 
 ## Backlog
-- No pending items
+- P2: Mobile-responsive styling for frozen-column grids
