@@ -776,7 +776,8 @@ async def get_dashboard(request: Request):
 
 # ─── Reports ───
 @api_router.get("/reports/enquiries")
-async def report_enquiries(request: Request, start_date: Optional[str] = None, end_date: Optional[str] = None, department: Optional[str] = None, assigned_to: Optional[str] = None, customer_name: Optional[str] = None, fabric_type: Optional[str] = None, style_no: Optional[str] = None, rate: Optional[str] = None, po_no: Optional[str] = None, po_del_date: Optional[str] = None, fabric_received: Optional[str] = None, qty_received: Optional[str] = None, created_by: Optional[str] = None):
+async def report_enquiries(request: Request, start_date: Optional[str] = None, end_date: Optional[str] = None, department: Optional[str] = None, assigned_to: Optional[str] = None, customer_name: Optional[str] = None, fabric_type: Optional[str] = None, style_no: Optional[str] = None, rate: Optional[str] = None, po_no: Optional[str] = None, po_del_date: Optional[str] = None, fabric_received: Optional[str] = None, qty_received: Optional[str] = None, created_by: Optional[str] = None, stage_filters: Optional[str] = None):
+    import json as _json
     await get_current_user(request)
     query = {}
     if start_date:
@@ -805,6 +806,15 @@ async def report_enquiries(request: Request, start_date: Optional[str] = None, e
         query["qty_received"] = {"$regex": qty_received, "$options": "i"}
     if created_by:
         query["created_by"] = created_by
+    # Dynamic stage filters
+    if stage_filters:
+        try:
+            sf = _json.loads(stage_filters)
+            for stage_id, val in sf.items():
+                if val:
+                    query[f"stage_values.{stage_id}.value"] = {"$regex": val, "$options": "i"}
+        except (_json.JSONDecodeError, TypeError):
+            pass
     enquiries = await db.enquiries.find(query, {"_id": 0}).sort("created_at", -1).to_list(5000)
     return {"total": len(enquiries), "enquiries": enquiries}
 
@@ -862,7 +872,8 @@ async def report_department(request: Request):
 
 # ─── Excel Export ───
 @api_router.get("/reports/export-excel")
-async def export_excel(request: Request, department: Optional[str] = None, customer_name: Optional[str] = None, fabric_type: Optional[str] = None, style_no: Optional[str] = None, rate: Optional[str] = None, po_no: Optional[str] = None, po_del_date: Optional[str] = None, fabric_received: Optional[str] = None, qty_received: Optional[str] = None, created_by: Optional[str] = None, start_date: Optional[str] = None, end_date: Optional[str] = None):
+async def export_excel(request: Request, department: Optional[str] = None, customer_name: Optional[str] = None, fabric_type: Optional[str] = None, style_no: Optional[str] = None, rate: Optional[str] = None, po_no: Optional[str] = None, po_del_date: Optional[str] = None, fabric_received: Optional[str] = None, qty_received: Optional[str] = None, created_by: Optional[str] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, stage_filters: Optional[str] = None):
+    import json as _json
     await get_current_user(request)
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -898,6 +909,15 @@ async def export_excel(request: Request, department: Optional[str] = None, custo
         query["qty_received"] = {"$regex": qty_received, "$options": "i"}
     if created_by:
         query["created_by"] = created_by
+    # Dynamic stage filters
+    if stage_filters:
+        try:
+            sf = _json.loads(stage_filters)
+            for stage_id, val in sf.items():
+                if val:
+                    query[f"stage_values.{stage_id}.value"] = {"$regex": val, "$options": "i"}
+        except (_json.JSONDecodeError, TypeError):
+            pass
     enquiries = await db.enquiries.find(query, {"_id": 0}).sort("created_at", -1).to_list(5000)
 
     wb = openpyxl.Workbook()

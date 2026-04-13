@@ -94,6 +94,8 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ start_date: '', end_date: '', department: '', customer_name: '', fabric_type: '', style_no: '', rate: '', po_no: '', po_del_date: '', fabric_received: '', qty_received: '', created_by: '' });
+  const [stageFilters, setStageFilters] = useState({});
+  const [gridFilters, setGridFilters] = useState({});
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [showMore, setShowMore] = useState(false);
@@ -103,10 +105,15 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
     try {
       const params = {};
       Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v; });
+      const activeStageFilters = {};
+      Object.entries(stageFilters).forEach(([k, v]) => { if (v) activeStageFilters[k] = v; });
+      if (Object.keys(activeStageFilters).length > 0) {
+        params.stage_filters = JSON.stringify(activeStageFilters);
+      }
       const res = await api.get('/reports/enquiries', { params });
       setData(res.data);
     } catch (err) { console.error(err); } finally { setLoading(false); }
-  }, [filters]);
+  }, [filters, stageFilters]);
 
   useEffect(() => { fetchReport(); }, [fetchReport]);
 
@@ -117,6 +124,11 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
     try {
       const params = {};
       Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v; });
+      const activeStageFilters = {};
+      Object.entries(stageFilters).forEach(([k, v]) => { if (v) activeStageFilters[k] = v; });
+      if (Object.keys(activeStageFilters).length > 0) {
+        params.stage_filters = JSON.stringify(activeStageFilters);
+      }
       const res = await api.get('/reports/export-excel', { params, responseType: 'blob' });
       const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
@@ -145,11 +157,45 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
 
   const clearFilters = () => {
     setFilters({ start_date: '', end_date: '', department: '', customer_name: '', fabric_type: '', style_no: '', rate: '', po_no: '', po_del_date: '', fabric_received: '', qty_received: '', created_by: '' });
+    setStageFilters({});
+    setGridFilters({});
     setStartDate(null);
     setEndDate(null);
   };
 
-  const activeFilterCount = Object.values(filters).filter(v => v).length;
+  const activeFilterCount = Object.values(filters).filter(v => v).length + Object.values(stageFilters).filter(v => v).length;
+  const gridFilterCount = Object.values(gridFilters).filter(v => v).length;
+
+  // Client-side grid filtering on fetched data
+  const filteredEnquiries = React.useMemo(() => {
+    if (!data?.enquiries) return [];
+    if (gridFilterCount === 0) return data.enquiries;
+    return data.enquiries.filter(enq => {
+      for (const [key, val] of Object.entries(gridFilters)) {
+        if (!val) continue;
+        const lower = val.toLowerCase();
+        if (key === 'style_no') { if (!(enq.style_no || '').toLowerCase().includes(lower)) return false; }
+        else if (key === 'customer_name') { if (!(enq.customer_name || '').toLowerCase().includes(lower)) return false; }
+        else if (key === 'fabric_type') { if (!(enq.fabric_type || '').toLowerCase().includes(lower)) return false; }
+        else if (key === 'rate') { if (!(enq.rate || '').toLowerCase().includes(lower)) return false; }
+        else if (key === 'po_no') { if (!(enq.po_no || '').toLowerCase().includes(lower)) return false; }
+        else if (key === 'po_del_date') { if (!(enq.po_del_date || '').toLowerCase().includes(lower)) return false; }
+        else if (key === 'department') { if (!(enq.department || '').toLowerCase().includes(lower)) return false; }
+        else if (key === 'created_at') { if (!(enq.created_at || '').toLowerCase().includes(lower)) return false; }
+        else if (key === 'notes') { if (!(enq.notes || '').toLowerCase().includes(lower)) return false; }
+        else if (key.startsWith('stage_')) {
+          const stageId = key.replace('stage_', '');
+          const stageVal = getStageDisplay(enq, stageId);
+          if (!stageVal.toLowerCase().includes(lower)) return false;
+        }
+      }
+      return true;
+    });
+  }, [data, gridFilters, gridFilterCount]);
+
+  const updateGridFilter = (key, value) => {
+    setGridFilters(prev => ({ ...prev, [key]: value }));
+  };
 
   return (
     <div className="space-y-4" data-testid="enquiry-report">
@@ -235,16 +281,37 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
               </div>
             </div>
           )}
+          {showMore && stages.length > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wide font-semibold text-amber-600">Stage Filters</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 items-end">
+                {stages.map(s => (
+                  <div key={s.id} className="space-y-1">
+                    <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">{s.name}</Label>
+                    {s.input_type === 'select' && s.select_options?.length > 0 ? (
+                      <Select value={stageFilters[s.id] || ''} onValueChange={v => setStageFilters(prev => ({ ...prev, [s.id]: v }))}>
+                        <SelectTrigger className="border-zinc-200" data-testid={`report-stage-filter-${s.id}`}><SelectValue placeholder="All" /></SelectTrigger>
+                        <SelectContent>{s.select_options.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
+                      </Select>
+                    ) : (
+                      <Input value={stageFilters[s.id] || ''} onChange={e => setStageFilters(prev => ({ ...prev, [s.id]: e.target.value }))} placeholder="Filter..." className="border-zinc-200" data-testid={`report-stage-filter-${s.id}`} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => setShowMore(!showMore)} className="text-xs text-zinc-500" data-testid="toggle-more-filters">
               {showMore ? 'Less Filters' : 'More Filters'}{!showMore && activeFilterCount > 6 ? ` (${activeFilterCount - 6} active)` : ''}
             </Button>
-            {activeFilterCount > 0 && (
+            {(activeFilterCount > 0 || gridFilterCount > 0) && (
               <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs text-red-500" data-testid="clear-filters">
-                Clear All ({activeFilterCount})
+                Clear All ({activeFilterCount + gridFilterCount})
               </Button>
             )}
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
+              {gridFilterCount > 0 && <span className="text-xs text-amber-600 font-medium" data-testid="grid-filter-count">Grid: {filteredEnquiries.length}/{data?.enquiries?.length || 0}</span>}
               <Button variant="outline" size="sm" onClick={exportExcel} data-testid="export-excel-button" className="border-zinc-200">
                 <Download className="w-3 h-3 mr-1.5" /> Export Excel
               </Button>
@@ -257,7 +324,7 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-semibold text-zinc-900">Results</CardTitle>
-            {data && <span className="text-xs text-zinc-500">{data.total} enquiries</span>}
+            {data && <span className="text-xs text-zinc-500">{gridFilterCount > 0 ? `${filteredEnquiries.length} of ${data.total}` : `${data.total}`} enquiries</span>}
           </div>
         </CardHeader>
         <CardContent>
@@ -278,14 +345,50 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
                   <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 120 }}>Created</th>
                   <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 200 }}>Comment</th>
                 </tr>
+                <tr className="border-b bg-zinc-50/50">
+                  <th className="px-1 py-1 sticky bg-zinc-50/50 z-20" style={{ width: 40, left: 0 }}></th>
+                  <th className="px-1 py-1 sticky bg-zinc-50/50 z-20" style={{ width: 48, left: 40 }}></th>
+                  <th className="px-1 py-1 sticky bg-zinc-50/50 z-20" style={{ width: 110, left: 88 }}>
+                    <input type="text" value={gridFilters.style_no || ''} onChange={e => updateGridFilter('style_no', e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid="grid-filter-style" />
+                  </th>
+                  <th className="px-1 py-1 sticky bg-zinc-50/50 z-20" style={{ width: 130, left: 198 }}>
+                    <input type="text" value={gridFilters.customer_name || ''} onChange={e => updateGridFilter('customer_name', e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid="grid-filter-customer" />
+                  </th>
+                  <th className="px-1 py-1 sticky bg-zinc-50/50 z-20 border-r-2 border-zinc-300" style={{ width: 110, left: 328 }}>
+                    <input type="text" value={gridFilters.fabric_type || ''} onChange={e => updateGridFilter('fabric_type', e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid="grid-filter-fabric" />
+                  </th>
+                  {stages.map(s => (
+                    <th key={`gf-${s.id}`} className="px-1 py-1" style={{ width: 180 }}>
+                      <input type="text" value={gridFilters[`stage_${s.id}`] || ''} onChange={e => updateGridFilter(`stage_${s.id}`, e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid={`grid-filter-stage-${s.id}`} />
+                    </th>
+                  ))}
+                  <th className="px-1 py-1" style={{ width: 100 }}>
+                    <input type="text" value={gridFilters.rate || ''} onChange={e => updateGridFilter('rate', e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid="grid-filter-rate" />
+                  </th>
+                  <th className="px-1 py-1" style={{ width: 100 }}>
+                    <input type="text" value={gridFilters.po_no || ''} onChange={e => updateGridFilter('po_no', e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid="grid-filter-po" />
+                  </th>
+                  <th className="px-1 py-1" style={{ width: 100 }}>
+                    <input type="text" value={gridFilters.po_del_date || ''} onChange={e => updateGridFilter('po_del_date', e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid="grid-filter-po-date" />
+                  </th>
+                  <th className="px-1 py-1" style={{ width: 100 }}>
+                    <input type="text" value={gridFilters.department || ''} onChange={e => updateGridFilter('department', e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid="grid-filter-dept" />
+                  </th>
+                  <th className="px-1 py-1" style={{ width: 120 }}>
+                    <input type="text" value={gridFilters.created_at || ''} onChange={e => updateGridFilter('created_at', e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid="grid-filter-created" />
+                  </th>
+                  <th className="px-1 py-1" style={{ width: 200 }}>
+                    <input type="text" value={gridFilters.notes || ''} onChange={e => updateGridFilter('notes', e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid="grid-filter-notes" />
+                  </th>
+                </tr>
               </thead>
               <tbody>
                 {loading ? (
                   [...Array(3)].map((_, i) => <tr key={i} className="border-b">{[...Array(10 + stages.length)].map((_, j) => <td key={j} className="p-2"><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></td>)}</tr>)
-                ) : !data?.enquiries?.length ? (
+                ) : !filteredEnquiries.length ? (
                   <tr><td colSpan={12 + stages.length} className="text-center py-8 text-zinc-400">No data</td></tr>
                 ) : (
-                  data.enquiries.map((e, idx) => (
+                  filteredEnquiries.map((e, idx) => (
                     <tr key={e.id} className="border-b hover:bg-zinc-50 group" data-testid={`report-row-${e.id}`}>
                       <td className="p-2 text-zinc-500 text-xs font-mono sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 0 }}>{idx + 1}</td>
                       <td className="p-2 sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 40 }}>{e.image_path ? <ReportThumbnail imagePath={e.image_path} /> : <span className="text-zinc-300">—</span>}</td>
