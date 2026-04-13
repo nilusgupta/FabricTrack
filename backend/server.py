@@ -811,7 +811,17 @@ async def report_enquiries(request: Request, start_date: Optional[str] = None, e
         try:
             sf = _json.loads(stage_filters)
             for stage_id, val in sf.items():
-                if val:
+                if not val:
+                    continue
+                if val == "__blank__":
+                    query["$and"] = query.get("$and", [])
+                    query["$and"].append({"$or": [
+                        {f"stage_values.{stage_id}": {"$exists": False}},
+                        {f"stage_values.{stage_id}.value": {"$in": [None, ""]}},
+                    ]})
+                elif val == "__filled__":
+                    query[f"stage_values.{stage_id}.value"] = {"$exists": True, "$nin": [None, ""]}
+                else:
                     query[f"stage_values.{stage_id}.value"] = {"$regex": val, "$options": "i"}
         except (_json.JSONDecodeError, TypeError):
             pass
@@ -914,7 +924,17 @@ async def export_excel(request: Request, department: Optional[str] = None, custo
         try:
             sf = _json.loads(stage_filters)
             for stage_id, val in sf.items():
-                if val:
+                if not val:
+                    continue
+                if val == "__blank__":
+                    query["$and"] = query.get("$and", [])
+                    query["$and"].append({"$or": [
+                        {f"stage_values.{stage_id}": {"$exists": False}},
+                        {f"stage_values.{stage_id}.value": {"$in": [None, ""]}},
+                    ]})
+                elif val == "__filled__":
+                    query[f"stage_values.{stage_id}.value"] = {"$exists": True, "$nin": [None, ""]}
+                else:
                     query[f"stage_values.{stage_id}.value"] = {"$regex": val, "$options": "i"}
         except (_json.JSONDecodeError, TypeError):
             pass

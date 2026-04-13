@@ -52,6 +52,36 @@ function ReportThumbnail({ imagePath }) {
 
 const departments_placeholder = []; // Fetched dynamically in components
 
+function GridFilterCell({ filterKey, gridFilters, gridModes, updateGridFilter, toggleGridMode }) {
+  const mode = gridModes[filterKey];
+  const textVal = gridFilters[filterKey] || '';
+  const modeLabel = mode === 'blank' ? 'B' : mode === 'filled' ? 'F' : null;
+  const modeColor = mode === 'blank' ? 'bg-red-100 text-red-700 border-red-300' : mode === 'filled' ? 'bg-green-100 text-green-700 border-green-300' : '';
+  const modeTitle = mode === 'blank' ? 'Showing Blank only (click to switch to Filled)' : mode === 'filled' ? 'Showing Filled only (click to clear)' : 'Click to filter Blank';
+  return (
+    <div className="flex items-center gap-0.5">
+      <input
+        type="text"
+        value={textVal}
+        onChange={e => updateGridFilter(filterKey, e.target.value)}
+        placeholder={mode ? (mode === 'blank' ? 'Blank' : 'Filled') : 'Filter...'}
+        disabled={!!mode}
+        className={`flex-1 min-w-0 text-xs px-1.5 py-1 border rounded focus:outline-none focus:border-zinc-400 ${mode ? 'bg-zinc-100 text-zinc-400 border-zinc-200' : 'bg-white border-zinc-200'}`}
+        data-testid={`grid-filter-${filterKey}`}
+      />
+      <button
+        type="button"
+        onClick={() => toggleGridMode(filterKey)}
+        title={modeTitle}
+        className={`shrink-0 w-5 h-5 text-[9px] font-bold rounded border flex items-center justify-center transition-colors ${modeLabel ? modeColor : 'bg-zinc-50 text-zinc-400 border-zinc-200 hover:bg-zinc-100'}`}
+        data-testid={`grid-mode-${filterKey}`}
+      >
+        {modeLabel || 'BF'}
+      </button>
+    </div>
+  );
+}
+
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState('enquiries');
   const [stages, setStages] = useState([]);
@@ -96,6 +126,7 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
   const [filters, setFilters] = useState({ start_date: '', end_date: '', department: '', customer_name: '', fabric_type: '', style_no: '', rate: '', po_no: '', po_del_date: '', fabric_received: '', qty_received: '', created_by: '' });
   const [stageFilters, setStageFilters] = useState({});
   const [gridFilters, setGridFilters] = useState({});
+  const [gridModes, setGridModes] = useState({}); // 'blank' | 'filled' | undefined per column key
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [showMore, setShowMore] = useState(false);
@@ -159,42 +190,56 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
     setFilters({ start_date: '', end_date: '', department: '', customer_name: '', fabric_type: '', style_no: '', rate: '', po_no: '', po_del_date: '', fabric_received: '', qty_received: '', created_by: '' });
     setStageFilters({});
     setGridFilters({});
+    setGridModes({});
     setStartDate(null);
     setEndDate(null);
   };
 
   const activeFilterCount = Object.values(filters).filter(v => v).length + Object.values(stageFilters).filter(v => v).length;
-  const gridFilterCount = Object.values(gridFilters).filter(v => v).length;
+  const gridFilterCount = Object.values(gridFilters).filter(v => v).length + Object.values(gridModes).filter(v => v).length;
+
+  // Helper to get a field value as string for filtering
+  const getFieldValue = (enq, key) => {
+    if (key.startsWith('stage_')) {
+      return getStageDisplay(enq, key.replace('stage_', ''));
+    }
+    if (key === 'created_at') return enq.created_at || '';
+    return enq[key] || '';
+  };
 
   // Client-side grid filtering on fetched data
   const filteredEnquiries = React.useMemo(() => {
     if (!data?.enquiries) return [];
     if (gridFilterCount === 0) return data.enquiries;
     return data.enquiries.filter(enq => {
+      // Check modes first (blank/filled)
+      for (const [key, mode] of Object.entries(gridModes)) {
+        if (!mode) continue;
+        const val = getFieldValue(enq, key).trim();
+        if (mode === 'blank' && val !== '') return false;
+        if (mode === 'filled' && val === '') return false;
+      }
+      // Then check text filters
       for (const [key, val] of Object.entries(gridFilters)) {
         if (!val) continue;
         const lower = val.toLowerCase();
-        if (key === 'style_no') { if (!(enq.style_no || '').toLowerCase().includes(lower)) return false; }
-        else if (key === 'customer_name') { if (!(enq.customer_name || '').toLowerCase().includes(lower)) return false; }
-        else if (key === 'fabric_type') { if (!(enq.fabric_type || '').toLowerCase().includes(lower)) return false; }
-        else if (key === 'rate') { if (!(enq.rate || '').toLowerCase().includes(lower)) return false; }
-        else if (key === 'po_no') { if (!(enq.po_no || '').toLowerCase().includes(lower)) return false; }
-        else if (key === 'po_del_date') { if (!(enq.po_del_date || '').toLowerCase().includes(lower)) return false; }
-        else if (key === 'department') { if (!(enq.department || '').toLowerCase().includes(lower)) return false; }
-        else if (key === 'created_at') { if (!(enq.created_at || '').toLowerCase().includes(lower)) return false; }
-        else if (key === 'notes') { if (!(enq.notes || '').toLowerCase().includes(lower)) return false; }
-        else if (key.startsWith('stage_')) {
-          const stageId = key.replace('stage_', '');
-          const stageVal = getStageDisplay(enq, stageId);
-          if (!stageVal.toLowerCase().includes(lower)) return false;
-        }
+        const fieldVal = getFieldValue(enq, key);
+        if (!fieldVal.toLowerCase().includes(lower)) return false;
       }
       return true;
     });
-  }, [data, gridFilters, gridFilterCount]);
+  }, [data, gridFilters, gridModes, gridFilterCount]);
 
   const updateGridFilter = (key, value) => {
     setGridFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const toggleGridMode = (key) => {
+    setGridModes(prev => {
+      const current = prev[key];
+      const next = !current ? 'blank' : current === 'blank' ? 'filled' : undefined;
+      return { ...prev, [key]: next };
+    });
   };
 
   return (
@@ -291,10 +336,25 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
                     {s.input_type === 'select' && s.select_options?.length > 0 ? (
                       <Select value={stageFilters[s.id] || ''} onValueChange={v => setStageFilters(prev => ({ ...prev, [s.id]: v }))}>
                         <SelectTrigger className="border-zinc-200" data-testid={`report-stage-filter-${s.id}`}><SelectValue placeholder="All" /></SelectTrigger>
-                        <SelectContent>{s.select_options.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
+                        <SelectContent>
+                          <SelectItem value="__blank__">Blank</SelectItem>
+                          <SelectItem value="__filled__">Filled</SelectItem>
+                          {s.select_options.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                        </SelectContent>
                       </Select>
                     ) : (
-                      <Input value={stageFilters[s.id] || ''} onChange={e => setStageFilters(prev => ({ ...prev, [s.id]: e.target.value }))} placeholder="Filter..." className="border-zinc-200" data-testid={`report-stage-filter-${s.id}`} />
+                      <div className="flex items-center gap-1">
+                        <Input value={stageFilters[s.id] || ''} onChange={e => setStageFilters(prev => ({ ...prev, [s.id]: e.target.value }))} placeholder={stageFilters[s.id] === '__blank__' ? 'Blank' : stageFilters[s.id] === '__filled__' ? 'Filled' : 'Filter...'} disabled={stageFilters[s.id] === '__blank__' || stageFilters[s.id] === '__filled__'} className="border-zinc-200 flex-1" data-testid={`report-stage-filter-${s.id}`} />
+                        <button type="button" onClick={() => {
+                          setStageFilters(prev => {
+                            const cur = prev[s.id];
+                            const next = !cur || (cur !== '__blank__' && cur !== '__filled__') ? '__blank__' : cur === '__blank__' ? '__filled__' : '';
+                            return { ...prev, [s.id]: next };
+                          });
+                        }} title={stageFilters[s.id] === '__blank__' ? 'Blank (click for Filled)' : stageFilters[s.id] === '__filled__' ? 'Filled (click to clear)' : 'Filter Blank/Filled'} className={`shrink-0 h-9 px-2 text-[10px] font-bold rounded border transition-colors ${stageFilters[s.id] === '__blank__' ? 'bg-red-100 text-red-700 border-red-300' : stageFilters[s.id] === '__filled__' ? 'bg-green-100 text-green-700 border-green-300' : 'bg-zinc-50 text-zinc-400 border-zinc-200 hover:bg-zinc-100'}`} data-testid={`report-stage-mode-${s.id}`}>
+                          {stageFilters[s.id] === '__blank__' ? 'B' : stageFilters[s.id] === '__filled__' ? 'F' : 'BF'}
+                        </button>
+                      </div>
                     )}
                   </div>
                 ))}
@@ -349,36 +409,36 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
                   <th className="px-1 py-1 sticky bg-zinc-50/50 z-20" style={{ width: 40, left: 0 }}></th>
                   <th className="px-1 py-1 sticky bg-zinc-50/50 z-20" style={{ width: 48, left: 40 }}></th>
                   <th className="px-1 py-1 sticky bg-zinc-50/50 z-20" style={{ width: 110, left: 88 }}>
-                    <input type="text" value={gridFilters.style_no || ''} onChange={e => updateGridFilter('style_no', e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid="grid-filter-style" />
+                    <GridFilterCell filterKey="style_no" gridFilters={gridFilters} gridModes={gridModes} updateGridFilter={updateGridFilter} toggleGridMode={toggleGridMode} />
                   </th>
                   <th className="px-1 py-1 sticky bg-zinc-50/50 z-20" style={{ width: 130, left: 198 }}>
-                    <input type="text" value={gridFilters.customer_name || ''} onChange={e => updateGridFilter('customer_name', e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid="grid-filter-customer" />
+                    <GridFilterCell filterKey="customer_name" gridFilters={gridFilters} gridModes={gridModes} updateGridFilter={updateGridFilter} toggleGridMode={toggleGridMode} />
                   </th>
                   <th className="px-1 py-1 sticky bg-zinc-50/50 z-20 border-r-2 border-zinc-300" style={{ width: 110, left: 328 }}>
-                    <input type="text" value={gridFilters.fabric_type || ''} onChange={e => updateGridFilter('fabric_type', e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid="grid-filter-fabric" />
+                    <GridFilterCell filterKey="fabric_type" gridFilters={gridFilters} gridModes={gridModes} updateGridFilter={updateGridFilter} toggleGridMode={toggleGridMode} />
                   </th>
                   {stages.map(s => (
                     <th key={`gf-${s.id}`} className="px-1 py-1" style={{ width: 180 }}>
-                      <input type="text" value={gridFilters[`stage_${s.id}`] || ''} onChange={e => updateGridFilter(`stage_${s.id}`, e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid={`grid-filter-stage-${s.id}`} />
+                      <GridFilterCell filterKey={`stage_${s.id}`} gridFilters={gridFilters} gridModes={gridModes} updateGridFilter={updateGridFilter} toggleGridMode={toggleGridMode} />
                     </th>
                   ))}
                   <th className="px-1 py-1" style={{ width: 100 }}>
-                    <input type="text" value={gridFilters.rate || ''} onChange={e => updateGridFilter('rate', e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid="grid-filter-rate" />
+                    <GridFilterCell filterKey="rate" gridFilters={gridFilters} gridModes={gridModes} updateGridFilter={updateGridFilter} toggleGridMode={toggleGridMode} />
                   </th>
                   <th className="px-1 py-1" style={{ width: 100 }}>
-                    <input type="text" value={gridFilters.po_no || ''} onChange={e => updateGridFilter('po_no', e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid="grid-filter-po" />
+                    <GridFilterCell filterKey="po_no" gridFilters={gridFilters} gridModes={gridModes} updateGridFilter={updateGridFilter} toggleGridMode={toggleGridMode} />
                   </th>
                   <th className="px-1 py-1" style={{ width: 100 }}>
-                    <input type="text" value={gridFilters.po_del_date || ''} onChange={e => updateGridFilter('po_del_date', e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid="grid-filter-po-date" />
+                    <GridFilterCell filterKey="po_del_date" gridFilters={gridFilters} gridModes={gridModes} updateGridFilter={updateGridFilter} toggleGridMode={toggleGridMode} />
                   </th>
                   <th className="px-1 py-1" style={{ width: 100 }}>
-                    <input type="text" value={gridFilters.department || ''} onChange={e => updateGridFilter('department', e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid="grid-filter-dept" />
+                    <GridFilterCell filterKey="department" gridFilters={gridFilters} gridModes={gridModes} updateGridFilter={updateGridFilter} toggleGridMode={toggleGridMode} />
                   </th>
                   <th className="px-1 py-1" style={{ width: 120 }}>
-                    <input type="text" value={gridFilters.created_at || ''} onChange={e => updateGridFilter('created_at', e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid="grid-filter-created" />
+                    <GridFilterCell filterKey="created_at" gridFilters={gridFilters} gridModes={gridModes} updateGridFilter={updateGridFilter} toggleGridMode={toggleGridMode} />
                   </th>
                   <th className="px-1 py-1" style={{ width: 200 }}>
-                    <input type="text" value={gridFilters.notes || ''} onChange={e => updateGridFilter('notes', e.target.value)} placeholder="Filter..." className="w-full text-xs px-1.5 py-1 border border-zinc-200 rounded bg-white focus:outline-none focus:border-zinc-400" data-testid="grid-filter-notes" />
+                    <GridFilterCell filterKey="notes" gridFilters={gridFilters} gridModes={gridModes} updateGridFilter={updateGridFilter} toggleGridMode={toggleGridMode} />
                   </th>
                 </tr>
               </thead>
