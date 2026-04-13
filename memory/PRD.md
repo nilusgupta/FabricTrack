@@ -35,17 +35,12 @@ Build a fabric enquiry tracking system with overview of status of enquiry at var
 - Per-stage commenting and audit history
 - Department, Customer, Fabric Type master screens with quick-create buttons
 - Reports with 12+ standard filters + dynamic stage filters + inline grid column filters
-- Excel export with all fields, embedded images, and stage filter support
+- Blank/Filled filter toggle on ALL grid columns (stages + standard fields)
+- Stage filter bar with Blank/Filled support (BF toggles for text stages, dropdown options for select stages)
+- Backend __blank__/__filled__ MongoDB queries for stage filters
+- Excel export with all fields, embedded images, and full filter support
 - React Portal image hover previews
 - CORS/cookie handling for cross-domain deployment
-
-## Completed Features (Latest)
-- Dynamic stage filters in Reports filter bar (server-side, sent as JSON to backend)
-- Inline grid column filters on Reports result table (client-side, instant filtering)
-- Stage filters support both text inputs and dropdown selects based on stage input_type
-- Grid filter count indicator ("Grid: X of Y")
-- Clear All resets both stage and grid filters
-- Excel export respects stage filters
 
 ## Backlog
 - P2: Mobile-responsive styling for frozen-column grids
