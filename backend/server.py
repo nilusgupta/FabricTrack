@@ -854,6 +854,8 @@ async def export_excel(request: Request, department: Optional[str] = None, custo
     await get_current_user(request)
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.drawing.image import Image as XlImage
+    from PIL import Image as PILImage
 
     stages = await db.stages.find({}, {"_id": 0}).sort("order", 1).to_list(100)
     users_list = await db.users.find({}, {"password_hash": 0}).to_list(1000)
@@ -879,8 +881,8 @@ async def export_excel(request: Request, department: Optional[str] = None, custo
         top=Side(style='thin'), bottom=Side(style='thin')
     )
 
-    # Build headers: SR NO, IMAGE, STYLE NO., FABRIC, [stage columns], RATE, PO No., PO DEL DATE, Created By, Department, Created Date, Comment
-    headers = ["SR NO", "IMAGE", "STYLE NO.", "FABRIC"]
+    # Build headers
+    headers = ["SR NO", "IMAGE", "STYLE NO.", "CUSTOMER NAME", "FABRIC TYPE", "QUANTITY"]
     for s in stages:
         headers.append(s["name"])
     headers.extend(["RATE", "PO No.", "PO Received Date", "Created By", "Department", "Created Date", "Fabric Received", "Qty Received", "Comment"])
@@ -892,19 +894,47 @@ async def export_excel(request: Request, department: Optional[str] = None, custo
         cell.alignment = Alignment(horizontal='center', wrap_text=True)
         cell.border = thin_border
 
+    # Set image column width and row heights
+    ws.column_dimensions['B'].width = 12
+    IMG_HEIGHT = 50
+
     for row_idx, enq in enumerate(enquiries, 2):
         ws.cell(row=row_idx, column=1, value=row_idx - 1).border = thin_border
-        ws.cell(row=row_idx, column=2, value="Yes" if enq.get("image_path") else "").border = thin_border
+
+        # Embed image
+        img_cell = ws.cell(row=row_idx, column=2, value="")
+        img_cell.border = thin_border
+        image_path = enq.get("image_path", "")
+        if image_path:
+            try:
+                img_content, img_ct = get_object(image_path)
+                img_data = io.BytesIO(img_content)
+                pil_img = PILImage.open(img_data)
+                pil_img.thumbnail((70, 70))
+                thumb_buf = io.BytesIO()
+                pil_img.save(thumb_buf, format='PNG')
+                thumb_buf.seek(0)
+                xl_img = XlImage(thumb_buf)
+                xl_img.width = 60
+                xl_img.height = 60
+                ws.add_image(xl_img, f"B{row_idx}")
+                ws.row_dimensions[row_idx].height = IMG_HEIGHT
+            except Exception as img_err:
+                logger.warning(f"Failed to embed image {image_path}: {img_err}")
+                ws.cell(row=row_idx, column=2, value="Yes").border = thin_border
+        
         ws.cell(row=row_idx, column=3, value=enq.get("style_no", "")).border = thin_border
-        ws.cell(row=row_idx, column=4, value=enq.get("fabric_type", "")).border = thin_border
+        ws.cell(row=row_idx, column=4, value=enq.get("customer_name", "")).border = thin_border
+        ws.cell(row=row_idx, column=5, value=enq.get("fabric_type", "")).border = thin_border
+        ws.cell(row=row_idx, column=6, value=enq.get("quantity", "")).border = thin_border
 
         sv = enq.get("stage_values", {})
         for s_idx, s in enumerate(stages):
             val = sv.get(s["id"], {})
             display = val.get("value", "") if isinstance(val, dict) else str(val) if val else ""
-            ws.cell(row=row_idx, column=5 + s_idx, value=display).border = thin_border
+            ws.cell(row=row_idx, column=7 + s_idx, value=display).border = thin_border
 
-        col_offset = 5 + len(stages)
+        col_offset = 7 + len(stages)
         ws.cell(row=row_idx, column=col_offset, value=enq.get("rate", "")).border = thin_border
         ws.cell(row=row_idx, column=col_offset + 1, value=enq.get("po_no", "")).border = thin_border
         ws.cell(row=row_idx, column=col_offset + 2, value=enq.get("po_del_date", "")).border = thin_border
