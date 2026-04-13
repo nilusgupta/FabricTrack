@@ -119,12 +119,18 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
       if (filters.customer_name) params.customer_name = filters.customer_name;
       if (filters.fabric_type) params.fabric_type = filters.fabric_type;
       const res = await api.get('/reports/export-excel', { params, responseType: 'blob' });
-      const url = URL.createObjectURL(res.data);
+      const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
+      a.style.display = 'none';
       a.href = url;
       a.download = 'enquiry_report.xlsx';
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 200);
       toast.success('Excel exported');
     } catch (err) {
       toast.error('Export failed');
