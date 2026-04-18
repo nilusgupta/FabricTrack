@@ -186,6 +186,15 @@ export default function EnquiryDetailPage() {
   const stageMap = {};
   stages.forEach(s => { stageMap[s.id] = s; });
 
+  // Filter and order stages based on department hierarchy
+  const visibleStages = React.useMemo(() => {
+    if (deptHierarchy.length > 0) {
+      const sorted = [...deptHierarchy].sort((a, b) => a.order - b.order);
+      return sorted.map(h => stageMap[h.stage_id]).filter(Boolean);
+    }
+    return stages;
+  }, [deptHierarchy, stages, stageMap]);
+
   const setStageValue = (stageId, value) => {
     setForm(prev => ({
       ...prev,
@@ -483,7 +492,7 @@ export default function EnquiryDetailPage() {
         <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold text-zinc-900">Stage Values</CardTitle></CardHeader>
         <CardContent data-testid="enquiry-stage-values">
           <div className="space-y-4">
-            {stages.map(s => {
+            {visibleStages.map(s => {
               const ds = enquiry.delay_status?.[s.id];
               const isDelayed = ds?.status === 'delayed' || ds?.status === 'completed_late';
               const isEarly = ds?.status === 'completed_early';
@@ -606,7 +615,7 @@ export default function EnquiryDetailPage() {
               );
             })}
           </div>
-          {stages.length === 0 && <div className="py-6 text-center text-zinc-400 text-sm">No stages defined. Go to Stage Master to create stages.</div>}
+          {visibleStages.length === 0 && <div className="py-6 text-center text-zinc-400 text-sm">{deptHierarchy.length === 0 ? 'No stages assigned to this department. Go to Departments to set up stage hierarchy.' : 'No stages defined. Go to Stage Master to create stages.'}</div>}
         </CardContent>
       </Card>
 

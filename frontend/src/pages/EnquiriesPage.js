@@ -130,6 +130,21 @@ export default function EnquiriesPage() {
   const stageMap = {};
   stages.forEach(s => { stageMap[s.id] = s; });
 
+  // When a department filter is active, show only that department's hierarchy stages
+  const visibleStages = React.useMemo(() => {
+    if (filterDept) {
+      const dept = departments.find(d => d.name === filterDept);
+      if (dept && dept.stage_hierarchy && dept.stage_hierarchy.length > 0) {
+        const sMap = {};
+        stages.forEach(s => { sMap[s.id] = s; });
+        const sorted = [...dept.stage_hierarchy].sort((a, b) => a.order - b.order);
+        const result = sorted.map(h => sMap[h.stage_id]).filter(Boolean);
+        return result;
+      }
+    }
+    return stages;
+  }, [filterDept, departments, stages]);
+
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
@@ -348,7 +363,7 @@ export default function EnquiriesPage() {
       {/* Table */}
       <Card className="bg-white border-zinc-200 rounded-sm" style={{ overflow: 'hidden', maxWidth: '100%' }}>
         <div className="overflow-x-scroll" data-testid="enquiries-table" style={{ scrollbarGutter: 'stable' }}>
-          <table className="caption-bottom text-sm border-collapse" style={{ tableLayout: 'fixed', width: `${438 + stages.length * 180 + 500}px` }}>
+          <table className="caption-bottom text-sm border-collapse" style={{ tableLayout: 'fixed', width: `${438 + visibleStages.length * 180 + 500}px` }}>
             <thead>
               <tr className="border-b bg-zinc-50">
                 <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky left-0 bg-zinc-50 z-20" style={{ width: 40 }}>SR</th>
@@ -356,7 +371,7 @@ export default function EnquiriesPage() {
                 <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 110, left: 88 }}>Style No.</th>
                 <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 130, left: 198 }}>Customer</th>
                 <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky bg-zinc-50 z-20 border-r-2 border-zinc-300" style={{ width: 110, left: 328 }}>Fabric</th>
-                {stages.map(s => (
+                {visibleStages.map(s => (
                   <th key={s.id} className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500" style={{ width: 180 }}>{s.name}</th>
                 ))}
                 <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500" style={{ width: 100 }}>Rate</th>
@@ -368,10 +383,10 @@ export default function EnquiriesPage() {
             <tbody>
               {loading ? (
                 [...Array(5)].map((_, i) => (
-                  <tr key={i} className="border-b">{[...Array(8 + stages.length)].map((_, j) => <td key={j} className="p-2"><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></td>)}</tr>
+                  <tr key={i} className="border-b">{[...Array(8 + visibleStages.length)].map((_, j) => <td key={j} className="p-2"><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></td>)}</tr>
                 ))
               ) : enquiries.length === 0 ? (
-                <tr><td colSpan={8 + stages.length} className="text-center py-12 text-zinc-400">No enquiries found. Create your first enquiry.</td></tr>
+                <tr><td colSpan={8 + visibleStages.length} className="text-center py-12 text-zinc-400">No enquiries found. Create your first enquiry.</td></tr>
               ) : (
                 enquiries.map((enq, idx) => (
                   <tr key={enq.id} className="border-b cursor-pointer hover:bg-zinc-50 transition-colors group" onClick={() => navigate(`/enquiries/${enq.id}`)} data-testid={`enquiry-row-${enq.id}`}>
@@ -380,7 +395,7 @@ export default function EnquiriesPage() {
                     <td className="p-2 text-zinc-600 text-sm sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 88 }}>{enq.style_no || '—'}</td>
                     <td className="p-2 font-medium text-zinc-900 sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 198 }}>{enq.customer_name}</td>
                     <td className="p-2 text-zinc-600 sticky bg-white group-hover:bg-zinc-50 z-10 border-r-2 border-zinc-300" style={{ left: 328 }}>{enq.fabric_type}</td>
-                    {stages.map(s => {
+                    {visibleStages.map(s => {
                       const val = getStageDisplay(enq, s.id);
                       const delayStatus = enq.delay_status?.[s.id];
                       const isDelayed = delayStatus === 'delayed' || delayStatus === 'completed_late';
