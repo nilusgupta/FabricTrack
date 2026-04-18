@@ -9,9 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Switch } from '../components/ui/switch';
 import { Badge } from '../components/ui/badge';
-import { Plus, Edit2, Trash2, GripVertical, X, UserCheck } from 'lucide-react';
+import { Plus, Edit2, Trash2, GripVertical, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { Checkbox } from '../components/ui/checkbox';
 
 const PRESET_COLORS = [
   '#EF4444', '#F97316', '#EAB308', '#22C55E', '#06B6D4',
@@ -30,7 +29,7 @@ export default function StageMasterPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editStage, setEditStage] = useState(null);
-  const [form, setForm] = useState({ name: '', order: 0, color: '#3B82F6', description: '', input_type: 'text', is_mandatory: false, select_options: [], lead_time_days: 0, date_input_mode: 'manual', assigned_users: [] });
+  const [form, setForm] = useState({ name: '', order: 0, color: '#3B82F6', description: '', input_type: 'text', is_mandatory: false, select_options: [], lead_time_days: 0, date_input_mode: 'manual' });
   const [newOption, setNewOption] = useState('');
 
   const fetchStages = useCallback(async () => {
@@ -49,7 +48,7 @@ export default function StageMasterPage() {
 
   const openCreate = () => {
     setEditStage(null);
-    setForm({ name: '', order: stages.length + 1, color: '#3B82F6', description: '', input_type: 'text', is_mandatory: false, select_options: [], lead_time_days: 0, date_input_mode: 'manual', assigned_users: [] });
+    setForm({ name: '', order: stages.length + 1, color: '#3B82F6', description: '', input_type: 'text', is_mandatory: false, select_options: [], lead_time_days: 0, date_input_mode: 'manual' });
     setNewOption('');
     setDialogOpen(true);
   };
@@ -62,8 +61,7 @@ export default function StageMasterPage() {
       is_mandatory: stage.is_mandatory || false,
       select_options: stage.select_options || [],
       lead_time_days: stage.lead_time_days || 0,
-      date_input_mode: stage.date_input_mode || 'manual',
-      assigned_users: stage.assigned_users || []
+      date_input_mode: stage.date_input_mode || 'manual'
     });
     setNewOption('');
     setDialogOpen(true);
@@ -212,45 +210,6 @@ export default function StageMasterPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Assigned Users</Label>
-                <p className="text-xs text-zinc-400 mb-2">Only selected users (and admins) can update this stage's value or add comments. Leave empty for all users.</p>
-                <div className="max-h-40 overflow-y-auto border border-zinc-200 rounded-sm p-2 space-y-1">
-                  {users.map(u => (
-                    <label key={u._id} className="flex items-center gap-2 py-1 px-2 hover:bg-zinc-50 rounded-sm cursor-pointer" data-testid={`assign-user-${u._id}`}>
-                      <Checkbox
-                        checked={form.assigned_users.includes(u._id)}
-                        onCheckedChange={(checked) => {
-                          setForm(prev => ({
-                            ...prev,
-                            assigned_users: checked
-                              ? [...prev.assigned_users, u._id]
-                              : prev.assigned_users.filter(id => id !== u._id)
-                          }));
-                        }}
-                      />
-                      <span className="text-sm text-zinc-700">{u.name}</span>
-                      <span className="text-xs text-zinc-400 ml-auto">{u.department} · {u.role}</span>
-                    </label>
-                  ))}
-                </div>
-                {form.assigned_users.length > 0 && (
-                  <div className="flex gap-1 flex-wrap mt-1">
-                    {form.assigned_users.map(uid => {
-                      const u = users.find(x => x._id === uid);
-                      return u ? (
-                        <Badge key={uid} className="rounded-sm bg-zinc-100 text-zinc-700 gap-1 pr-1 text-xs">
-                          {u.name}
-                          <button type="button" onClick={() => setForm(prev => ({ ...prev, assigned_users: prev.assigned_users.filter(id => id !== uid) }))} className="hover:text-red-500">
-                            <X className="w-3 h-3" />
-                          </button>
-                        </Badge>
-                      ) : null;
-                    })}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Color</Label>
                 <div className="flex gap-2 flex-wrap">
                   {PRESET_COLORS.map(c => (
@@ -313,16 +272,15 @@ export default function StageMasterPage() {
                 <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Input Type</TableHead>
                 <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Mandatory</TableHead>
                 <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Lead Time</TableHead>
-                <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Assigned Users</TableHead>
                 <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Options / Mode</TableHead>
                 <TableHead className="text-xs font-semibold uppercase tracking-wide text-zinc-500 w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                [...Array(3)].map((_, i) => <TableRow key={i}>{[...Array(9)].map((_, j) => <TableCell key={j}><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></TableCell>)}</TableRow>)
+                [...Array(3)].map((_, i) => <TableRow key={i}>{[...Array(8)].map((_, j) => <TableCell key={j}><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></TableCell>)}</TableRow>)
               ) : stages.length === 0 ? (
-                <TableRow><TableCell colSpan={9} className="text-center py-12 text-zinc-400">No stages yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-12 text-zinc-400">No stages yet</TableCell></TableRow>
               ) : (
                 stages.map(s => (
                   <TableRow key={s.id} className="hover:bg-zinc-50 transition-colors" data-testid={`stage-row-${s.id}`}>
@@ -332,9 +290,6 @@ export default function StageMasterPage() {
                     <TableCell><Badge className="rounded-sm text-xs bg-zinc-100 text-zinc-700">{inputTypeLabel(s.input_type || 'text')}</Badge></TableCell>
                     <TableCell><Badge className={`rounded-sm text-xs ${s.is_mandatory ? 'bg-red-50 text-red-700' : 'bg-zinc-50 text-zinc-400'}`}>{s.is_mandatory ? 'Required' : 'Optional'}</Badge></TableCell>
                     <TableCell className="text-zinc-600 text-sm font-mono">{s.lead_time_days ? `${s.lead_time_days}d` : '—'}</TableCell>
-                    <TableCell className="text-xs">{(s.assigned_users || []).length > 0 ? (
-                      <div className="flex gap-1 flex-wrap">{(s.assigned_users || []).map(uid => { const u = users.find(x => x._id === uid); return u ? <Badge key={uid} className="rounded-sm text-[10px] bg-blue-50 text-blue-700">{u.name}</Badge> : null; })}</div>
-                    ) : <span className="text-zinc-400">All users</span>}</TableCell>
                     <TableCell className="text-zinc-500 text-xs">{s.input_type === 'select' ? (s.select_options || []).join(', ') : s.input_type === 'date' ? (s.date_input_mode === 'auto' ? 'Auto capture' : 'Manual pick') : '—'}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">

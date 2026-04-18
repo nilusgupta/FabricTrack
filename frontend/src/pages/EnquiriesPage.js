@@ -90,7 +90,7 @@ export default function EnquiriesPage() {
 
   const [form, setForm] = useState({
     customer_name: '', fabric_type: '', quantity: '', style_no: '',
-    department: '', notes: '', rate: '', fabric_received: 'no'
+    department: '', notes: '', rate: '', po_no: '', po_del_date: '', fabric_received: 'no', qty_received: ''
   });
   const [imageFile, setImageFile] = useState(null);
   const [quickCustomer, setQuickCustomer] = useState({ open: false, name: '' });
@@ -147,7 +147,7 @@ export default function EnquiriesPage() {
       }
       toast.success('Enquiry created');
       setDialogOpen(false);
-      setForm({ customer_name: '', fabric_type: '', quantity: '', style_no: '', department: '', notes: '', rate: '', fabric_received: 'no' });
+      setForm({ customer_name: '', fabric_type: '', quantity: '', style_no: '', department: '', notes: '', rate: '', po_no: '', po_del_date: '', fabric_received: 'no', qty_received: '' });
       setImageFile(null);
       fetchData();
     } catch (err) {
@@ -281,8 +281,18 @@ export default function EnquiriesPage() {
                   <Input value={form.rate} onChange={e => setForm({ ...form, rate: e.target.value })} data-testid="enquiry-rate-input" className="border-zinc-200" />
                 </div>
                 <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">PO No.</Label>
+                  <Input value={form.po_no} onChange={e => setForm({ ...form, po_no: e.target.value })} data-testid="enquiry-po-no-input" className="border-zinc-200" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">PO Received Date</Label>
+                  <Input type="date" value={form.po_del_date} onChange={e => setForm({ ...form, po_del_date: e.target.value })} data-testid="enquiry-po-del-date-input" className="border-zinc-200" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-2">
                   <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Fabric Received</Label>
-                  <Select value={form.fabric_received || 'no'} onValueChange={v => setForm({ ...form, fabric_received: v })}>
+                  <Select value={form.fabric_received || 'no'} onValueChange={v => setForm({ ...form, fabric_received: v, qty_received: v === 'no' ? '' : form.qty_received })}>
                     <SelectTrigger data-testid="enquiry-fabric-received-select" className="border-zinc-200"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="no">No</SelectItem>
@@ -290,6 +300,12 @@ export default function EnquiriesPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                {form.fabric_received === 'yes' && (
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Qty Received</Label>
+                    <Input value={form.qty_received} onChange={e => setForm({ ...form, qty_received: e.target.value })} data-testid="enquiry-qty-received-input" placeholder="Enter qty received" className="border-zinc-200" />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Department</Label>
                   <Select value={form.department} onValueChange={v => setForm({ ...form, department: v })}>

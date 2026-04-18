@@ -78,7 +78,10 @@ export default function EnquiryDetailPage() {
         department: enq.department || '',
         notes: enq.notes || '',
         rate: enq.rate || '',
+        po_no: enq.po_no || '',
+        po_del_date: enq.po_del_date || '',
         fabric_received: enq.fabric_received || 'no',
+        qty_received: enq.qty_received || '',
         stage_values: enq.stage_values || {},
         image_path: enq.image_path || ''
       });
@@ -316,8 +319,18 @@ export default function EnquiryDetailPage() {
               <Input value={form.rate || ''} onChange={e => setForm({ ...form, rate: e.target.value })} data-testid="edit-rate" className="border-zinc-200" />
             </div>
             <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">PO No.</Label>
+              <Input value={form.po_no || ''} onChange={e => setForm({ ...form, po_no: e.target.value })} data-testid="edit-po-no" className="border-zinc-200" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">PO Received Date</Label>
+              <Input type="date" value={form.po_del_date || ''} onChange={e => setForm({ ...form, po_del_date: e.target.value })} data-testid="edit-po-del-date" className="border-zinc-200" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Fabric Received</Label>
-              <Select value={form.fabric_received || 'no'} onValueChange={v => setForm({ ...form, fabric_received: v })}>
+              <Select value={form.fabric_received || 'no'} onValueChange={v => setForm({ ...form, fabric_received: v, qty_received: v === 'no' ? '' : form.qty_received })}>
                 <SelectTrigger data-testid="edit-fabric-received" className="border-zinc-200"><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="no">No</SelectItem>
@@ -325,6 +338,12 @@ export default function EnquiryDetailPage() {
                 </SelectContent>
               </Select>
             </div>
+            {form.fabric_received === 'yes' && (
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Qty Received</Label>
+                <Input value={form.qty_received || ''} onChange={e => setForm({ ...form, qty_received: e.target.value })} data-testid="edit-qty-received" placeholder="Enter qty received" className="border-zinc-200" />
+              </div>
+            )}
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Department</Label>
               <Select value={form.department || ''} onValueChange={v => setForm({ ...form, department: v })}>
