@@ -110,13 +110,13 @@ export default function ReportsPage() {
           <TabsTrigger value="stages" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-stages"><Layers className="w-3 h-3 mr-1.5" /> Stage Summary</TabsTrigger>
           <TabsTrigger value="users" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-users"><Users className="w-3 h-3 mr-1.5" /> User Performance</TabsTrigger>
           <TabsTrigger value="departments" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-departments"><Building2 className="w-3 h-3 mr-1.5" /> Department</TabsTrigger>
-          <TabsTrigger value="pending" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-pending"><ClipboardList className="w-3 h-3 mr-1.5" /> Pending Stages</TabsTrigger>
+          <TabsTrigger value="pending" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-pending"><ClipboardList className="w-3 h-3 mr-1.5" /> User Stages</TabsTrigger>
         </TabsList>
         <TabsContent value="enquiries"><EnquiryReport stages={stages} users={users} stageMap={stageMap} userMap={userMap} departments={departments} /></TabsContent>
         <TabsContent value="stages"><StageSummary stageMap={stageMap} /></TabsContent>
         <TabsContent value="users"><UserPerformance /></TabsContent>
         <TabsContent value="departments"><DepartmentReport stageMap={stageMap} /></TabsContent>
-        <TabsContent value="pending"><PendingStagesReport /></TabsContent>
+        <TabsContent value="pending"><UserStagesReport /></TabsContent>
       </Tabs>
     </div>
   );
@@ -631,55 +631,129 @@ function DepartmentReport({ stageMap }) {
   );
 }
 
-function PendingStagesReport() {
+function UserStagesReport() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState('all'); // 'all', 'pending', 'done'
+  const [expandedUser, setExpandedUser] = useState(null);
 
-  useEffect(() => { api.get('/reports/pending-stages').then(res => { setData(res.data); setLoading(false); }).catch(() => setLoading(false)); }, []);
+  useEffect(() => { api.get('/reports/user-stages').then(res => { setData(res.data); setLoading(false); }).catch(() => setLoading(false)); }, []);
 
-  const totalPending = data.reduce((sum, u) => sum + u.items.length, 0);
+  const totalPending = data.reduce((sum, u) => sum + u.pending_count, 0);
+  const totalDone = data.reduce((sum, u) => sum + u.done_count, 0);
 
   return (
-    <div className="space-y-4" data-testid="pending-stages-report">
+    <div className="space-y-4" data-testid="user-stages-report">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card className={`border-zinc-200 rounded-sm cursor-pointer transition-colors ${viewMode === 'all' ? 'bg-zinc-900 text-white' : 'bg-white hover:bg-zinc-50'}`} onClick={() => setViewMode('all')}>
+          <CardContent className="p-4 text-center">
+            <p className={`text-2xl font-bold ${viewMode === 'all' ? 'text-white' : 'text-zinc-900'}`}>{totalPending + totalDone}</p>
+            <p className={`text-xs ${viewMode === 'all' ? 'text-zinc-300' : 'text-zinc-500'}`}>Total Assignments</p>
+          </CardContent>
+        </Card>
+        <Card className={`border-zinc-200 rounded-sm cursor-pointer transition-colors ${viewMode === 'pending' ? 'bg-amber-500 text-white' : 'bg-white hover:bg-zinc-50'}`} onClick={() => setViewMode('pending')}>
+          <CardContent className="p-4 text-center">
+            <p className={`text-2xl font-bold ${viewMode === 'pending' ? 'text-white' : 'text-amber-600'}`}>{totalPending}</p>
+            <p className={`text-xs ${viewMode === 'pending' ? 'text-amber-100' : 'text-zinc-500'}`}>Pending</p>
+          </CardContent>
+        </Card>
+        <Card className={`border-zinc-200 rounded-sm cursor-pointer transition-colors ${viewMode === 'done' ? 'bg-green-600 text-white' : 'bg-white hover:bg-zinc-50'}`} onClick={() => setViewMode('done')}>
+          <CardContent className="p-4 text-center">
+            <p className={`text-2xl font-bold ${viewMode === 'done' ? 'text-white' : 'text-green-600'}`}>{totalDone}</p>
+            <p className={`text-xs ${viewMode === 'done' ? 'text-green-100' : 'text-zinc-500'}`}>Completed</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* User-wise breakdown */}
       <Card className="bg-white border-zinc-200 rounded-sm">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold text-zinc-900">Pending Stages by User</CardTitle>
-            <span className="text-xs text-zinc-500">{totalPending} pending across {data.length} users</span>
+            <CardTitle className="text-sm font-semibold text-zinc-900">User-wise Stage Status</CardTitle>
+            <span className="text-xs text-zinc-500">{data.length} users</span>
           </div>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="animate-pulse space-y-4">{[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-zinc-100 rounded-sm" />)}</div>
+            <div className="animate-pulse space-y-4">{[...Array(3)].map((_, i) => <div key={i} className="h-20 bg-zinc-100 rounded-sm" />)}</div>
           ) : data.length === 0 ? (
-            <div className="py-12 text-center text-zinc-400 text-sm">No pending stages found. Set up department hierarchies to track pending work.</div>
+            <div className="py-12 text-center text-zinc-400 text-sm">No data. Set up department hierarchies and assign users to stages.</div>
           ) : (
-            <div className="space-y-4">
-              {data.map(u => (
-                <div key={u.user_id} className="border border-zinc-200 rounded-sm p-3" data-testid={`pending-user-${u.user_id}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-sm bg-zinc-900 flex items-center justify-center text-white text-xs font-bold">{u.user_name?.charAt(0)?.toUpperCase()}</div>
-                      <div>
-                        <span className="text-sm font-semibold text-zinc-900">{u.user_name}</span>
-                        <span className="text-xs text-zinc-400 ml-2">{u.department}</span>
+            <div className="space-y-3">
+              {data.map(u => {
+                const isExpanded = expandedUser === u.user_id;
+                const pendingItems = u.pending || [];
+                const doneItems = u.done || [];
+                const showPending = viewMode === 'all' || viewMode === 'pending';
+                const showDone = viewMode === 'all' || viewMode === 'done';
+                const total = u.pending_count + u.done_count;
+                const pct = total > 0 ? Math.round((u.done_count / total) * 100) : 0;
+                return (
+                  <div key={u.user_id} className="border border-zinc-200 rounded-sm overflow-hidden" data-testid={`user-stage-${u.user_id}`}>
+                    <div className="flex items-center gap-3 p-3 cursor-pointer hover:bg-zinc-50" onClick={() => setExpandedUser(isExpanded ? null : u.user_id)}>
+                      <div className="w-8 h-8 rounded-sm bg-zinc-900 flex items-center justify-center text-white text-xs font-bold shrink-0">{u.user_name?.charAt(0)?.toUpperCase()}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-zinc-900">{u.user_name}</span>
+                          <span className="text-[10px] text-zinc-400">{u.department}</span>
+                        </div>
+                        {/* Progress bar */}
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex-1 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-[10px] text-zinc-500 font-mono w-8">{pct}%</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Badge className="rounded-sm text-[10px] bg-amber-50 text-amber-700 border border-amber-200">{u.pending_count} pending</Badge>
+                        <Badge className="rounded-sm text-[10px] bg-green-50 text-green-700 border border-green-200">{u.done_count} done</Badge>
                       </div>
                     </div>
-                    <Badge className="rounded-sm text-xs bg-amber-100 text-amber-700 border border-amber-200">{u.items.length} pending</Badge>
-                  </div>
-                  <div className="ml-9 space-y-1.5">
-                    {u.items.map((item, idx) => (
-                      <div key={idx} className="flex items-center gap-2 text-xs">
-                        <span className="text-zinc-400 font-mono w-4">{idx + 1}.</span>
-                        <Badge className="rounded-sm text-[10px] bg-zinc-100 text-zinc-600">{item.stage_name}</Badge>
-                        <span className="text-zinc-700">{item.customer_name}</span>
-                        {item.style_no && <span className="text-zinc-400">({item.style_no})</span>}
-                        <span className="text-zinc-300 ml-auto">{item.department}</span>
+                    {isExpanded && (
+                      <div className="border-t border-zinc-100 px-3 py-2 bg-zinc-50/50">
+                        {showPending && pendingItems.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-[10px] uppercase font-semibold text-amber-600 mb-1.5">Pending ({pendingItems.length})</p>
+                            <div className="space-y-1">
+                              {pendingItems.map((item, idx) => (
+                                <div key={`p-${idx}`} className="flex items-center gap-2 text-xs py-1 px-2 bg-white rounded-sm border border-zinc-100">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                                  <Badge className="rounded-sm text-[10px] bg-zinc-100 text-zinc-600 shrink-0">{item.stage_name}</Badge>
+                                  <span className="text-zinc-700 truncate">{item.customer_name}</span>
+                                  {item.style_no && <span className="text-zinc-400 shrink-0">({item.style_no})</span>}
+                                  <span className="text-zinc-300 ml-auto shrink-0 text-[10px]">{item.department}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {showDone && doneItems.length > 0 && (
+                          <div>
+                            <p className="text-[10px] uppercase font-semibold text-green-600 mb-1.5">Completed ({doneItems.length})</p>
+                            <div className="space-y-1">
+                              {doneItems.map((item, idx) => (
+                                <div key={`d-${idx}`} className="flex items-center gap-2 text-xs py-1 px-2 bg-white rounded-sm border border-zinc-100">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
+                                  <Badge className="rounded-sm text-[10px] bg-zinc-100 text-zinc-600 shrink-0">{item.stage_name}</Badge>
+                                  <span className="text-zinc-700 truncate">{item.customer_name}</span>
+                                  {item.style_no && <span className="text-zinc-400 shrink-0">({item.style_no})</span>}
+                                  <span className="text-green-600 font-medium shrink-0">{item.value}</span>
+                                  {item.completed_at && <span className="text-zinc-300 ml-auto shrink-0 text-[10px]">{new Date(item.completed_at).toLocaleDateString()}</span>}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {((showPending && pendingItems.length === 0 && !showDone) || (showDone && doneItems.length === 0 && !showPending)) && (
+                          <div className="text-center py-3 text-zinc-400 text-xs">No {viewMode} items for this user</div>
+                        )}
                       </div>
-                    ))}
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

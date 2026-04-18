@@ -1084,19 +1084,16 @@ async def report_department(request: Request):
 @api_router.get("/reports/pending-stages")
 async def report_pending_stages(request: Request):
     await get_current_user(request)
-    # Get all departments with hierarchies
     depts = await db.departments.find({}, {"_id": 0}).to_list(100)
     stages = {s["id"]: s for s in await db.stages.find({}, {"_id": 0}).to_list(100)}
     users_list = await db.users.find({}, {"password_hash": 0}).to_list(1000)
     user_map = {str(u["_id"]): u for u in users_list}
-    # Build result: for each user, list their pending stages across all enquiries
-    user_pending = {}  # user_id -> [{enquiry_id, enquiry_name, stage_id, stage_name, dept}]
+    user_pending = {}
     for dept in depts:
         hierarchy = dept.get("stage_hierarchy", [])
         if not hierarchy:
             continue
         sorted_h = sorted(hierarchy, key=lambda x: x.get("order", 0))
-        # Get open enquiries for this department
         enquiries = await db.enquiries.find({"department": dept["name"], "status": {"$ne": "closed"}}, {"_id": 0}).to_list(5000)
         for enq in enquiries:
             sv = enq.get("stage_values", {})
@@ -1105,15 +1102,14 @@ async def report_pending_stages(request: Request):
                 val = sv.get(sid, {})
                 v = val.get("value", "") if isinstance(val, dict) else str(val) if val else ""
                 if v:
-                    continue  # Stage already filled
-                # Check if previous stage is filled (or this is the first)
+                    continue
                 can_work = True
                 if i > 0:
                     prev_sid = sorted_h[i - 1]["stage_id"]
                     prev_val = sv.get(prev_sid, {})
                     pv = prev_val.get("value", "") if isinstance(prev_val, dict) else str(prev_val) if prev_val else ""
                     if not pv:
-                        can_work = False  # Previous stage not done yet
+                        can_work = False
                 if not can_work:
                     continue
                 stage_def = stages.get(sid)
@@ -1122,15 +1118,68 @@ async def report_pending_stages(request: Request):
                         u = user_map.get(uid)
                         user_pending[uid] = {"user_id": uid, "user_name": u["name"] if u else uid, "department": u.get("department", "") if u else "", "items": []}
                     user_pending[uid]["items"].append({
+                        "enquiry_id": enq["id"], "customer_name": enq.get("customer_name", ""),
+                        "style_no": enq.get("style_no", ""), "stage_id": sid,
+                        "stage_name": stage_def["name"] if stage_def else sid, "department": dept["name"]
+                    })
+                break
+    return list(user_pending.values())
+
+# ─── User Stages Report (Pending + Done) ───
+@api_router.get("/reports/user-stages")
+async def report_user_stages(request: Request):
+    await get_current_user(request)
+    depts = await db.departments.find({}, {"_id": 0}).to_list(100)
+    all_stages = {s["id"]: s for s in await db.stages.find({}, {"_id": 0}).to_list(100)}
+    users_list = await db.users.find({}, {"password_hash": 0}).to_list(1000)
+    user_map = {str(u["_id"]): u for u in users_list}
+    # user_id -> {user info, pending: [], done: [], pending_count, done_count}
+    user_data = {}
+    for dept in depts:
+        hierarchy = dept.get("stage_hierarchy", [])
+        if not hierarchy:
+            continue
+        sorted_h = sorted(hierarchy, key=lambda x: x.get("order", 0))
+        enquiries = await db.enquiries.find({"department": dept["name"]}, {"_id": 0}).to_list(5000)
+        for enq in enquiries:
+            sv = enq.get("stage_values", {})
+            is_closed = enq.get("status") == "closed"
+            for i, h in enumerate(sorted_h):
+                sid = h["stage_id"]
+                val = sv.get(sid, {})
+                v = val.get("value", "") if isinstance(val, dict) else str(val) if val else ""
+                updated_at = val.get("updated_at", "") if isinstance(val, dict) else ""
+                stage_def = all_stages.get(sid)
+                stage_name = stage_def["name"] if stage_def else sid
+                for uid in h.get("assigned_users", []):
+                    if uid not in user_data:
+                        u = user_map.get(uid)
+                        user_data[uid] = {
+                            "user_id": uid,
+                            "user_name": u["name"] if u else uid,
+                            "department": u.get("department", "") if u else "",
+                            "pending": [], "done": [],
+                            "pending_count": 0, "done_count": 0
+                        }
+                    item = {
                         "enquiry_id": enq["id"],
                         "customer_name": enq.get("customer_name", ""),
                         "style_no": enq.get("style_no", ""),
+                        "fabric_type": enq.get("fabric_type", ""),
                         "stage_id": sid,
-                        "stage_name": stage_def["name"] if stage_def else sid,
-                        "department": dept["name"]
-                    })
-                break  # Only show the first pending stage per enquiry
-    return list(user_pending.values())
+                        "stage_name": stage_name,
+                        "department": dept["name"],
+                        "enquiry_status": enq.get("status", "open")
+                    }
+                    if v:
+                        item["value"] = v
+                        item["completed_at"] = updated_at
+                        user_data[uid]["done"].append(item)
+                        user_data[uid]["done_count"] += 1
+                    elif not is_closed:
+                        user_data[uid]["pending"].append(item)
+                        user_data[uid]["pending_count"] += 1
+    return list(user_data.values())
 
 # ─── Excel Export ───
 @api_router.get("/reports/export-excel")
