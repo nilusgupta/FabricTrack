@@ -540,7 +540,40 @@ export default function EnquiryDetailPage() {
                   <div className="mb-3">
                     {editable ? (
                       <>
-                        {s.input_type === 'date' ? (
+                        {s.input_type === 'image' ? (
+                          <div className="space-y-2">
+                            {getStageValue(s.id) ? (
+                              <div className="flex items-center gap-3">
+                                <img src={`/api/files/${getStageValue(s.id)}`} alt={s.name} className="w-20 h-20 object-cover rounded-sm border border-zinc-200" />
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-xs text-green-600 font-medium">Image uploaded</span>
+                                  <Button type="button" variant="outline" size="sm" onClick={() => setStageValue(s.id, '')} className="text-xs border-zinc-200">Remove</Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex gap-2">
+                                <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-zinc-300 rounded-sm cursor-pointer hover:bg-zinc-50 transition-colors">
+                                  <Upload className="w-4 h-4 text-zinc-400" />
+                                  <span className="text-xs text-zinc-500">Upload from Gallery</span>
+                                  <input type="file" accept="image/*" className="hidden" data-testid={`stage-image-gallery-${s.id}`} onChange={async (e) => {
+                                    const file = e.target.files?.[0]; if (!file) return;
+                                    const fd = new FormData(); fd.append('file', file);
+                                    try { const res = await api.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } }); setStageValue(s.id, res.data.path); toast.success('Image uploaded'); } catch { toast.error('Upload failed'); }
+                                  }} />
+                                </label>
+                                <label className="flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-zinc-300 rounded-sm cursor-pointer hover:bg-zinc-50 transition-colors">
+                                  <Camera className="w-4 h-4 text-zinc-400" />
+                                  <span className="text-xs text-zinc-500">Camera</span>
+                                  <input type="file" accept="image/*" capture="environment" className="hidden" data-testid={`stage-image-camera-${s.id}`} onChange={async (e) => {
+                                    const file = e.target.files?.[0]; if (!file) return;
+                                    const fd = new FormData(); fd.append('file', file);
+                                    try { const res = await api.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } }); setStageValue(s.id, res.data.path); toast.success('Image captured'); } catch { toast.error('Upload failed'); }
+                                  }} />
+                                </label>
+                              </div>
+                            )}
+                          </div>
+                        ) : s.input_type === 'date' ? (
                           s.date_input_mode === 'auto' ? (
                             <Button type="button" variant="outline" size="sm"
                               onClick={() => setStageValue(s.id, new Date().toISOString().split('T')[0])}
@@ -566,7 +599,9 @@ export default function EnquiryDetailPage() {
                       </>
                     ) : (
                       <div className="px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-sm text-sm text-zinc-500" data-testid={`stage-value-readonly-${s.id}`}>
-                        {getStageValue(s.id) || <span className="italic text-zinc-400">No value set</span>}
+                        {s.input_type === 'image' && getStageValue(s.id) ? (
+                          <img src={`/api/files/${getStageValue(s.id)}`} alt={s.name} className="w-20 h-20 object-cover rounded-sm" />
+                        ) : getStageValue(s.id) || <span className="italic text-zinc-400">No value set</span>}
                       </div>
                     )}
                   </div>

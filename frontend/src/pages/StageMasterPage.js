@@ -21,6 +21,7 @@ const INPUT_TYPES = [
   { value: 'text', label: 'Text' },
   { value: 'date', label: 'Date' },
   { value: 'select', label: 'Dropdown / Status' },
+  { value: 'image', label: 'Image (Camera / Gallery)' },
 ];
 
 export default function StageMasterPage() {
