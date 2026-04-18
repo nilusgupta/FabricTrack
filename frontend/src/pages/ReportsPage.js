@@ -116,7 +116,7 @@ export default function ReportsPage() {
         <TabsContent value="stages"><StageSummary stageMap={stageMap} /></TabsContent>
         <TabsContent value="users"><UserPerformance /></TabsContent>
         <TabsContent value="departments"><DepartmentReport stageMap={stageMap} /></TabsContent>
-        <TabsContent value="pending"><UserStagesReport /></TabsContent>
+        <TabsContent value="pending"><UserStagesReport stages={stages} users={users} departments={departments} /></TabsContent>
       </Tabs>
     </div>
   );
@@ -631,37 +631,110 @@ function DepartmentReport({ stageMap }) {
   );
 }
 
-function UserStagesReport() {
+function UserStagesReport({ stages, users, departments }) {
   const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState('all'); // 'all', 'pending', 'done'
+  const [loading, setLoading] = useState(false);
+  const [viewMode, setViewMode] = useState('all');
   const [expandedUser, setExpandedUser] = useState(null);
+  const [filterDept, setFilterDept] = useState('');
+  const [filterUser, setFilterUser] = useState('');
+  const [filterStage, setFilterStage] = useState('');
 
-  useEffect(() => { api.get('/reports/user-stages').then(res => { setData(res.data); setLoading(false); }).catch(() => setLoading(false)); }, []);
+  const fetchReport = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = {};
+      if (filterDept) params.filter_department = filterDept;
+      if (filterUser) params.filter_user = filterUser;
+      if (filterStage) params.filter_stage = filterStage;
+      const res = await api.get('/reports/user-stages', { params });
+      setData(res.data);
+    } catch (err) { console.error(err); } finally { setLoading(false); }
+  }, [filterDept, filterUser, filterStage]);
+
+  useEffect(() => { fetchReport(); }, [fetchReport]);
 
   const totalPending = data.reduce((sum, u) => sum + u.pending_count, 0);
   const totalDone = data.reduce((sum, u) => sum + u.done_count, 0);
+  const totalOverdue = data.reduce((sum, u) => sum + (u.pending || []).filter(p => p.is_overdue).length, 0);
+
+  const exportExcel = async () => {
+    try {
+      const params = {};
+      if (filterDept) params.filter_department = filterDept;
+      if (filterUser) params.filter_user = filterUser;
+      if (filterStage) params.filter_stage = filterStage;
+      const res = await api.get('/reports/user-stages/export-excel', { params, responseType: 'blob' });
+      const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'user_stages_report.xlsx'; document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 200);
+      toast.success('Excel exported');
+    } catch { toast.error('Export failed'); }
+  };
+
+  const clearFilters = () => { setFilterDept(''); setFilterUser(''); setFilterStage(''); };
+  const hasFilters = filterDept || filterUser || filterStage;
 
   return (
     <div className="space-y-4" data-testid="user-stages-report">
+      {/* Filters */}
+      <Card className="bg-white border-zinc-200 rounded-sm">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Department</Label>
+              <Select value={filterDept} onValueChange={setFilterDept}>
+                <SelectTrigger className="w-40 border-zinc-200" data-testid="us-filter-dept"><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectContent>{departments.map(d => <SelectItem key={d.id || d.name} value={d.name}>{d.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">User</Label>
+              <Select value={filterUser} onValueChange={setFilterUser}>
+                <SelectTrigger className="w-40 border-zinc-200" data-testid="us-filter-user"><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectContent>{users.map(u => <SelectItem key={u._id} value={u._id}>{u.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Stage</Label>
+              <Select value={filterStage} onValueChange={setFilterStage}>
+                <SelectTrigger className="w-44 border-zinc-200" data-testid="us-filter-stage"><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectContent>{stages.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            {hasFilters && <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs text-red-500" data-testid="us-clear-filters">Clear</Button>}
+            <div className="ml-auto">
+              <Button variant="outline" size="sm" onClick={exportExcel} className="border-zinc-200" data-testid="us-export-excel"><Download className="w-3 h-3 mr-1.5" /> Export Excel</Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className={`border-zinc-200 rounded-sm cursor-pointer transition-colors ${viewMode === 'all' ? 'bg-zinc-900 text-white' : 'bg-white hover:bg-zinc-50'}`} onClick={() => setViewMode('all')}>
-          <CardContent className="p-4 text-center">
-            <p className={`text-2xl font-bold ${viewMode === 'all' ? 'text-white' : 'text-zinc-900'}`}>{totalPending + totalDone}</p>
-            <p className={`text-xs ${viewMode === 'all' ? 'text-zinc-300' : 'text-zinc-500'}`}>Total Assignments</p>
+          <CardContent className="p-3 text-center">
+            <p className={`text-xl font-bold ${viewMode === 'all' ? 'text-white' : 'text-zinc-900'}`}>{totalPending + totalDone}</p>
+            <p className={`text-[10px] uppercase font-semibold ${viewMode === 'all' ? 'text-zinc-300' : 'text-zinc-500'}`}>Total</p>
           </CardContent>
         </Card>
         <Card className={`border-zinc-200 rounded-sm cursor-pointer transition-colors ${viewMode === 'pending' ? 'bg-amber-500 text-white' : 'bg-white hover:bg-zinc-50'}`} onClick={() => setViewMode('pending')}>
-          <CardContent className="p-4 text-center">
-            <p className={`text-2xl font-bold ${viewMode === 'pending' ? 'text-white' : 'text-amber-600'}`}>{totalPending}</p>
-            <p className={`text-xs ${viewMode === 'pending' ? 'text-amber-100' : 'text-zinc-500'}`}>Pending</p>
+          <CardContent className="p-3 text-center">
+            <p className={`text-xl font-bold ${viewMode === 'pending' ? 'text-white' : 'text-amber-600'}`}>{totalPending}</p>
+            <p className={`text-[10px] uppercase font-semibold ${viewMode === 'pending' ? 'text-amber-100' : 'text-zinc-500'}`}>Pending</p>
           </CardContent>
         </Card>
         <Card className={`border-zinc-200 rounded-sm cursor-pointer transition-colors ${viewMode === 'done' ? 'bg-green-600 text-white' : 'bg-white hover:bg-zinc-50'}`} onClick={() => setViewMode('done')}>
-          <CardContent className="p-4 text-center">
-            <p className={`text-2xl font-bold ${viewMode === 'done' ? 'text-white' : 'text-green-600'}`}>{totalDone}</p>
-            <p className={`text-xs ${viewMode === 'done' ? 'text-green-100' : 'text-zinc-500'}`}>Completed</p>
+          <CardContent className="p-3 text-center">
+            <p className={`text-xl font-bold ${viewMode === 'done' ? 'text-white' : 'text-green-600'}`}>{totalDone}</p>
+            <p className={`text-[10px] uppercase font-semibold ${viewMode === 'done' ? 'text-green-100' : 'text-zinc-500'}`}>Done</p>
+          </CardContent>
+        </Card>
+        <Card className={`border-zinc-200 rounded-sm ${totalOverdue > 0 ? 'border-red-200' : ''}`}>
+          <CardContent className="p-3 text-center">
+            <p className={`text-xl font-bold ${totalOverdue > 0 ? 'text-red-600' : 'text-zinc-300'}`}>{totalOverdue}</p>
+            <p className="text-[10px] uppercase font-semibold text-zinc-500">Overdue</p>
           </CardContent>
         </Card>
       </div>
@@ -689,6 +762,7 @@ function UserStagesReport() {
                 const showDone = viewMode === 'all' || viewMode === 'done';
                 const total = u.pending_count + u.done_count;
                 const pct = total > 0 ? Math.round((u.done_count / total) * 100) : 0;
+                const overdueCount = pendingItems.filter(p => p.is_overdue).length;
                 return (
                   <div key={u.user_id} className="border border-zinc-200 rounded-sm overflow-hidden" data-testid={`user-stage-${u.user_id}`}>
                     <div className="flex items-center gap-3 p-3 cursor-pointer hover:bg-zinc-50" onClick={() => setExpandedUser(isExpanded ? null : u.user_id)}>
@@ -697,8 +771,8 @@ function UserStagesReport() {
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-semibold text-zinc-900">{u.user_name}</span>
                           <span className="text-[10px] text-zinc-400">{u.department}</span>
+                          {overdueCount > 0 && <Badge className="rounded-sm text-[10px] bg-red-100 text-red-700 border border-red-200">{overdueCount} overdue</Badge>}
                         </div>
-                        {/* Progress bar */}
                         <div className="flex items-center gap-2 mt-1">
                           <div className="flex-1 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
                             <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
@@ -712,42 +786,93 @@ function UserStagesReport() {
                       </div>
                     </div>
                     {isExpanded && (
-                      <div className="border-t border-zinc-100 px-3 py-2 bg-zinc-50/50">
+                      <div className="border-t border-zinc-100">
                         {showPending && pendingItems.length > 0 && (
-                          <div className="mb-3">
-                            <p className="text-[10px] uppercase font-semibold text-amber-600 mb-1.5">Pending ({pendingItems.length})</p>
-                            <div className="space-y-1">
-                              {pendingItems.map((item, idx) => (
-                                <div key={`p-${idx}`} className="flex items-center gap-2 text-xs py-1 px-2 bg-white rounded-sm border border-zinc-100">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                                  <Badge className="rounded-sm text-[10px] bg-zinc-100 text-zinc-600 shrink-0">{item.stage_name}</Badge>
-                                  <span className="text-zinc-700 truncate">{item.customer_name}</span>
-                                  {item.style_no && <span className="text-zinc-400 shrink-0">({item.style_no})</span>}
-                                  <span className="text-zinc-300 ml-auto shrink-0 text-[10px]">{item.department}</span>
-                                </div>
-                              ))}
+                          <div className="px-3 pt-3 pb-1">
+                            <p className="text-[10px] uppercase font-semibold text-amber-600 mb-2">Pending ({pendingItems.length})</p>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs border-collapse">
+                                <thead>
+                                  <tr className="bg-amber-50/50">
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Stage</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Customer</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Style</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Fabric</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Dept</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Days Pending</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Due Date</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Overdue</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Prev Stage</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Prev By</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Prev At</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Enq Created</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {pendingItems.map((item, idx) => (
+                                    <tr key={idx} className={`border-t border-zinc-100 ${item.is_overdue ? 'bg-red-50/50' : 'hover:bg-zinc-50'}`}>
+                                      <td className="px-2 py-1.5"><Badge className="rounded-sm text-[10px] bg-zinc-100 text-zinc-700">{item.stage_name}</Badge></td>
+                                      <td className="px-2 py-1.5 text-zinc-700 font-medium">{item.customer_name}</td>
+                                      <td className="px-2 py-1.5 text-zinc-500">{item.style_no || '—'}</td>
+                                      <td className="px-2 py-1.5 text-zinc-500">{item.fabric_type || '—'}</td>
+                                      <td className="px-2 py-1.5 text-zinc-400">{item.department}</td>
+                                      <td className="px-2 py-1.5 font-mono font-semibold text-amber-700">{item.days_pending}d</td>
+                                      <td className="px-2 py-1.5 text-zinc-500">{item.due_date ? new Date(item.due_date).toLocaleDateString() : '—'}</td>
+                                      <td className="px-2 py-1.5">{item.is_overdue ? <Badge className="rounded-sm text-[10px] bg-red-100 text-red-700 border border-red-200">OVERDUE</Badge> : <span className="text-zinc-300">—</span>}</td>
+                                      <td className="px-2 py-1.5 text-zinc-500">{item.prev_stage_name || '—'}</td>
+                                      <td className="px-2 py-1.5 text-zinc-500">{item.prev_completed_by || '—'}</td>
+                                      <td className="px-2 py-1.5 text-zinc-400">{item.prev_completed_at ? new Date(item.prev_completed_at).toLocaleDateString() : '—'}</td>
+                                      <td className="px-2 py-1.5 text-zinc-400">{item.enquiry_created_at ? new Date(item.enquiry_created_at).toLocaleDateString() : '—'}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
                             </div>
                           </div>
                         )}
                         {showDone && doneItems.length > 0 && (
-                          <div>
-                            <p className="text-[10px] uppercase font-semibold text-green-600 mb-1.5">Completed ({doneItems.length})</p>
-                            <div className="space-y-1">
-                              {doneItems.map((item, idx) => (
-                                <div key={`d-${idx}`} className="flex items-center gap-2 text-xs py-1 px-2 bg-white rounded-sm border border-zinc-100">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
-                                  <Badge className="rounded-sm text-[10px] bg-zinc-100 text-zinc-600 shrink-0">{item.stage_name}</Badge>
-                                  <span className="text-zinc-700 truncate">{item.customer_name}</span>
-                                  {item.style_no && <span className="text-zinc-400 shrink-0">({item.style_no})</span>}
-                                  <span className="text-green-600 font-medium shrink-0">{item.value}</span>
-                                  {item.completed_at && <span className="text-zinc-300 ml-auto shrink-0 text-[10px]">{new Date(item.completed_at).toLocaleDateString()}</span>}
-                                </div>
-                              ))}
+                          <div className="px-3 pt-3 pb-1">
+                            <p className="text-[10px] uppercase font-semibold text-green-600 mb-2">Completed ({doneItems.length})</p>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs border-collapse">
+                                <thead>
+                                  <tr className="bg-green-50/50">
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Stage</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Customer</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Style</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Fabric</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Dept</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Value</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Days Taken</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Completed</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Prev Stage</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Prev By</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Enq Created</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {doneItems.map((item, idx) => (
+                                    <tr key={idx} className="border-t border-zinc-100 hover:bg-zinc-50">
+                                      <td className="px-2 py-1.5"><Badge className="rounded-sm text-[10px] bg-green-50 text-green-700">{item.stage_name}</Badge></td>
+                                      <td className="px-2 py-1.5 text-zinc-700 font-medium">{item.customer_name}</td>
+                                      <td className="px-2 py-1.5 text-zinc-500">{item.style_no || '—'}</td>
+                                      <td className="px-2 py-1.5 text-zinc-500">{item.fabric_type || '—'}</td>
+                                      <td className="px-2 py-1.5 text-zinc-400">{item.department}</td>
+                                      <td className="px-2 py-1.5 text-green-700 font-medium">{item.value}</td>
+                                      <td className="px-2 py-1.5 font-mono text-zinc-600">{item.days_taken ? `${item.days_taken}d` : '—'}</td>
+                                      <td className="px-2 py-1.5 text-zinc-500">{item.completed_at ? new Date(item.completed_at).toLocaleDateString() : '—'}</td>
+                                      <td className="px-2 py-1.5 text-zinc-500">{item.prev_stage_name || '—'}</td>
+                                      <td className="px-2 py-1.5 text-zinc-500">{item.prev_completed_by || '—'}</td>
+                                      <td className="px-2 py-1.5 text-zinc-400">{item.enquiry_created_at ? new Date(item.enquiry_created_at).toLocaleDateString() : '—'}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
                             </div>
                           </div>
                         )}
-                        {((showPending && pendingItems.length === 0 && !showDone) || (showDone && doneItems.length === 0 && !showPending)) && (
-                          <div className="text-center py-3 text-zinc-400 text-xs">No {viewMode} items for this user</div>
+                        {((showPending && pendingItems.length === 0 && !showDone) || (showDone && doneItems.length === 0 && !showPending) || (pendingItems.length === 0 && doneItems.length === 0)) && (
+                          <div className="text-center py-4 text-zinc-400 text-xs">No items to display</div>
                         )}
                       </div>
                     )}

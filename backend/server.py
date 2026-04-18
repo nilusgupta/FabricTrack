@@ -1127,15 +1127,17 @@ async def report_pending_stages(request: Request):
 
 # ─── User Stages Report (Pending + Done) ───
 @api_router.get("/reports/user-stages")
-async def report_user_stages(request: Request):
+async def report_user_stages(request: Request, filter_department: Optional[str] = None, filter_user: Optional[str] = None, filter_stage: Optional[str] = None):
     await get_current_user(request)
     depts = await db.departments.find({}, {"_id": 0}).to_list(100)
     all_stages = {s["id"]: s for s in await db.stages.find({}, {"_id": 0}).to_list(100)}
     users_list = await db.users.find({}, {"password_hash": 0}).to_list(1000)
     user_map = {str(u["_id"]): u for u in users_list}
-    # user_id -> {user info, pending: [], done: [], pending_count, done_count}
+    now = datetime.now(timezone.utc)
     user_data = {}
     for dept in depts:
+        if filter_department and dept["name"] != filter_department:
+            continue
         hierarchy = dept.get("stage_hierarchy", [])
         if not hierarchy:
             continue
@@ -1144,14 +1146,36 @@ async def report_user_stages(request: Request):
         for enq in enquiries:
             sv = enq.get("stage_values", {})
             is_closed = enq.get("status") == "closed"
+            enq_created = enq.get("created_at", "")
             for i, h in enumerate(sorted_h):
                 sid = h["stage_id"]
+                if filter_stage and sid != filter_stage:
+                    continue
                 val = sv.get(sid, {})
                 v = val.get("value", "") if isinstance(val, dict) else str(val) if val else ""
                 updated_at = val.get("updated_at", "") if isinstance(val, dict) else ""
                 stage_def = all_stages.get(sid)
                 stage_name = stage_def["name"] if stage_def else sid
+                lead_time = stage_def.get("lead_time_days", 0) if stage_def else 0
+                # Previous stage info
+                prev_stage_name = ""
+                prev_completed_by = ""
+                prev_completed_at = ""
+                prev_value = ""
+                if i > 0:
+                    prev_h = sorted_h[i - 1]
+                    prev_sid = prev_h["stage_id"]
+                    prev_s_def = all_stages.get(prev_sid)
+                    prev_stage_name = prev_s_def["name"] if prev_s_def else prev_sid
+                    prev_sv = sv.get(prev_sid, {})
+                    prev_value = prev_sv.get("value", "") if isinstance(prev_sv, dict) else str(prev_sv) if prev_sv else ""
+                    prev_completed_at = prev_sv.get("updated_at", "") if isinstance(prev_sv, dict) else ""
+                    prev_completed_by_id = prev_sv.get("updated_by", "") if isinstance(prev_sv, dict) else ""
+                    if prev_completed_by_id and prev_completed_by_id in user_map:
+                        prev_completed_by = user_map[prev_completed_by_id]["name"]
                 for uid in h.get("assigned_users", []):
+                    if filter_user and uid != filter_user:
+                        continue
                     if uid not in user_data:
                         u = user_map.get(uid)
                         user_data[uid] = {
@@ -1169,17 +1193,171 @@ async def report_user_stages(request: Request):
                         "stage_id": sid,
                         "stage_name": stage_name,
                         "department": dept["name"],
-                        "enquiry_status": enq.get("status", "open")
+                        "enquiry_status": enq.get("status", "open"),
+                        "enquiry_created_at": enq_created,
+                        "lead_time_days": lead_time,
+                        "prev_stage_name": prev_stage_name,
+                        "prev_completed_by": prev_completed_by,
+                        "prev_completed_at": prev_completed_at,
                     }
                     if v:
                         item["value"] = v
                         item["completed_at"] = updated_at
+                        item["days_taken"] = 0
+                        if updated_at and prev_completed_at:
+                            try:
+                                c = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+                                p = datetime.fromisoformat(prev_completed_at.replace("Z", "+00:00"))
+                                item["days_taken"] = round((c - p).total_seconds() / 86400, 1)
+                            except (ValueError, TypeError):
+                                pass
                         user_data[uid]["done"].append(item)
                         user_data[uid]["done_count"] += 1
                     elif not is_closed:
+                        # Calculate days pending
+                        ref_date_str = prev_completed_at or enq_created
+                        days_pending = 0
+                        is_overdue = False
+                        due_date = ""
+                        if ref_date_str:
+                            try:
+                                ref = datetime.fromisoformat(ref_date_str.replace("Z", "+00:00"))
+                                days_pending = round((now - ref).total_seconds() / 86400, 1)
+                                if lead_time > 0:
+                                    dd = ref + timedelta(days=lead_time)
+                                    due_date = dd.isoformat()
+                                    is_overdue = now > dd
+                            except (ValueError, TypeError):
+                                pass
+                        item["days_pending"] = days_pending
+                        item["is_overdue"] = is_overdue
+                        item["due_date"] = due_date
                         user_data[uid]["pending"].append(item)
                         user_data[uid]["pending_count"] += 1
+    # Sort pending by overdue first, then days_pending desc
+    for ud in user_data.values():
+        ud["pending"].sort(key=lambda x: (-int(x.get("is_overdue", False)), -x.get("days_pending", 0)))
     return list(user_data.values())
+
+# ─── User Stages Excel Export ───
+@api_router.get("/reports/user-stages/export-excel")
+async def export_user_stages_excel(request: Request, filter_department: Optional[str] = None, filter_user: Optional[str] = None, filter_stage: Optional[str] = None):
+    await get_current_user(request)
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    # Reuse the user-stages logic
+    from starlette.datastructures import QueryParams
+    # Build a fake request isn't needed — just call the data-gathering inline
+    # Fetch data same as report
+    depts = await db.departments.find({}, {"_id": 0}).to_list(100)
+    all_stages = {s["id"]: s for s in await db.stages.find({}, {"_id": 0}).to_list(100)}
+    users_list = await db.users.find({}, {"password_hash": 0}).to_list(1000)
+    umap = {str(u["_id"]): u for u in users_list}
+    now_dt = datetime.now(timezone.utc)
+    rows = []  # flat rows for Excel
+    for dept in depts:
+        if filter_department and dept["name"] != filter_department:
+            continue
+        hierarchy = dept.get("stage_hierarchy", [])
+        if not hierarchy:
+            continue
+        sorted_h = sorted(hierarchy, key=lambda x: x.get("order", 0))
+        enquiries = await db.enquiries.find({"department": dept["name"]}, {"_id": 0}).to_list(5000)
+        for enq in enquiries:
+            sv = enq.get("stage_values", {})
+            is_closed = enq.get("status") == "closed"
+            enq_created = enq.get("created_at", "")
+            for i, h in enumerate(sorted_h):
+                sid = h["stage_id"]
+                if filter_stage and sid != filter_stage:
+                    continue
+                val = sv.get(sid, {})
+                v = val.get("value", "") if isinstance(val, dict) else str(val) if val else ""
+                updated_at = val.get("updated_at", "") if isinstance(val, dict) else ""
+                stage_def = all_stages.get(sid)
+                stage_name = stage_def["name"] if stage_def else sid
+                lead_time = stage_def.get("lead_time_days", 0) if stage_def else 0
+                prev_stage_name = ""
+                prev_completed_by = ""
+                prev_completed_at = ""
+                if i > 0:
+                    prev_h = sorted_h[i - 1]
+                    prev_s_def = all_stages.get(prev_h["stage_id"])
+                    prev_stage_name = prev_s_def["name"] if prev_s_def else prev_h["stage_id"]
+                    prev_sv = sv.get(prev_h["stage_id"], {})
+                    prev_completed_at = prev_sv.get("updated_at", "") if isinstance(prev_sv, dict) else ""
+                    pby = prev_sv.get("updated_by", "") if isinstance(prev_sv, dict) else ""
+                    if pby and pby in umap:
+                        prev_completed_by = umap[pby]["name"]
+                for uid in h.get("assigned_users", []):
+                    if filter_user and uid != filter_user:
+                        continue
+                    u = umap.get(uid)
+                    user_name = u["name"] if u else uid
+                    status = "Done" if v else ("Closed" if is_closed else "Pending")
+                    days_val = 0
+                    is_overdue = False
+                    due_date_str = ""
+                    if v and updated_at and prev_completed_at:
+                        try:
+                            c = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+                            p = datetime.fromisoformat(prev_completed_at.replace("Z", "+00:00"))
+                            days_val = round((c - p).total_seconds() / 86400, 1)
+                        except: pass
+                    elif not v and not is_closed:
+                        ref = prev_completed_at or enq_created
+                        if ref:
+                            try:
+                                r = datetime.fromisoformat(ref.replace("Z", "+00:00"))
+                                days_val = round((now_dt - r).total_seconds() / 86400, 1)
+                                if lead_time > 0:
+                                    dd = r + timedelta(days=lead_time)
+                                    due_date_str = dd.strftime("%Y-%m-%d")
+                                    is_overdue = now_dt > dd
+                            except: pass
+                    rows.append({
+                        "user": user_name, "department": dept["name"], "stage": stage_name,
+                        "customer": enq.get("customer_name", ""), "style_no": enq.get("style_no", ""),
+                        "fabric_type": enq.get("fabric_type", ""), "status": status,
+                        "value": v, "days": days_val, "overdue": "YES" if is_overdue else "",
+                        "due_date": due_date_str, "lead_time": lead_time,
+                        "prev_stage": prev_stage_name, "prev_by": prev_completed_by,
+                        "prev_at": prev_completed_at[:10] if prev_completed_at else "",
+                        "completed_at": updated_at[:10] if updated_at else "",
+                        "enquiry_created": enq_created[:10] if enq_created else "",
+                        "enquiry_status": enq.get("status", "open")
+                    })
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "User Stages Report"
+    header_fill = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
+    header_font = Font(bold=True, size=10)
+    red_fill = PatternFill(start_color="FDE8E8", end_color="FDE8E8", fill_type="solid")
+    green_fill = PatternFill(start_color="E8FDE8", end_color="E8FDE8", fill_type="solid")
+    thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    headers = ["USER", "DEPARTMENT", "STAGE", "CUSTOMER", "STYLE NO", "FABRIC TYPE", "STATUS", "VALUE", "DAYS PENDING/TAKEN", "OVERDUE", "DUE DATE", "LEAD TIME (DAYS)", "PREV STAGE", "PREV COMPLETED BY", "PREV COMPLETED AT", "COMPLETED AT", "ENQUIRY CREATED", "ENQUIRY STATUS"]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', wrap_text=True)
+        cell.border = thin_border
+    for row_idx, r in enumerate(rows, 2):
+        vals = [r["user"], r["department"], r["stage"], r["customer"], r["style_no"], r["fabric_type"], r["status"], r["value"], r["days"], r["overdue"], r["due_date"], r["lead_time"], r["prev_stage"], r["prev_by"], r["prev_at"], r["completed_at"], r["enquiry_created"], r["enquiry_status"]]
+        for col, val in enumerate(vals, 1):
+            cell = ws.cell(row=row_idx, column=col, value=val)
+            cell.border = thin_border
+            if r["status"] == "Pending" and r["overdue"] == "YES":
+                cell.fill = red_fill
+            elif r["status"] == "Done":
+                cell.fill = green_fill
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 30)
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return StreamingResponse(buffer, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=user_stages_report.xlsx"})
 
 # ─── Excel Export ───
 @api_router.get("/reports/export-excel")
