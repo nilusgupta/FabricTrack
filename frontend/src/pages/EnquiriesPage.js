@@ -90,7 +90,7 @@ export default function EnquiriesPage() {
 
   const [form, setForm] = useState({
     customer_name: '', fabric_type: '', style_no: '',
-    department: '', notes: '', fabric_received: 'no', qty_received: ''
+    department: '', notes: '', fabric_received: 'no', qty_received: '', sample_number: ''
   });
   const [imageFile, setImageFile] = useState(null);
   const [quickCustomer, setQuickCustomer] = useState({ open: false, name: '' });
@@ -162,7 +162,7 @@ export default function EnquiriesPage() {
       }
       toast.success('Enquiry created');
       setDialogOpen(false);
-      setForm({ customer_name: '', fabric_type: '', style_no: '', department: '', notes: '', fabric_received: 'no', qty_received: '' });
+      setForm({ customer_name: '', fabric_type: '', style_no: '', department: '', notes: '', fabric_received: 'no', qty_received: '', sample_number: '' });
       setImageFile(null);
       fetchData();
     } catch (err) {
@@ -287,7 +287,7 @@ export default function EnquiriesPage() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Fabric Received</Label>
-                  <Select value={form.fabric_received || 'no'} onValueChange={v => setForm({ ...form, fabric_received: v, qty_received: v === 'no' ? '' : form.qty_received })}>
+                  <Select value={form.fabric_received || 'no'} onValueChange={v => setForm({ ...form, fabric_received: v, qty_received: v === 'no' ? '' : form.qty_received, sample_number: v === 'no' ? '' : form.sample_number })}>
                     <SelectTrigger data-testid="enquiry-fabric-received-select" className="border-zinc-200"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="no">No</SelectItem>
@@ -295,6 +295,12 @@ export default function EnquiriesPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                {form.fabric_received === 'yes' && (
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Sample No.</Label>
+                    <Input value={form.sample_number} onChange={e => setForm({ ...form, sample_number: e.target.value })} data-testid="enquiry-sample-number-input" placeholder="Enter sample number" className="border-zinc-200" />
+                  </div>
+                )}
                 {form.fabric_received === 'yes' && (
                   <div className="space-y-2">
                     <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Qty Received</Label>

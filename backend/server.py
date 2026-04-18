@@ -172,6 +172,7 @@ class EnquiryCreate(BaseModel):
     po_del_date: str = ""  # Removed from create form but kept for backward compatibility
     fabric_received: str = "no"
     qty_received: str = ""
+    sample_number: str = ""
     stage_values: Dict[str, Any] = {}
 
 class EnquiryUpdate(BaseModel):
@@ -186,6 +187,7 @@ class EnquiryUpdate(BaseModel):
     po_del_date: Optional[str] = None
     fabric_received: Optional[str] = None
     qty_received: Optional[str] = None
+    sample_number: Optional[str] = None
     stage_values: Optional[Dict[str, Any]] = None
     image_path: Optional[str] = None
 
@@ -581,6 +583,7 @@ async def create_enquiry(req: EnquiryCreate, request: Request):
         "po_del_date": req.po_del_date,
         "fabric_received": req.fabric_received,
         "qty_received": req.qty_received,
+        "sample_number": req.sample_number,
         "stage_values": req.stage_values,
         "status": "open",
         "created_by": user["_id"], "created_by_name": user["name"],

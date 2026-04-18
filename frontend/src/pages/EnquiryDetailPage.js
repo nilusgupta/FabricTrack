@@ -162,6 +162,7 @@ export default function EnquiryDetailPage() {
         po_del_date: enq.po_del_date || '',
         fabric_received: enq.fabric_received || 'no',
         qty_received: enq.qty_received || '',
+        sample_number: enq.sample_number || '',
         stage_values: enq.stage_values || {},
         image_path: enq.image_path || ''
       });
@@ -408,7 +409,7 @@ export default function EnquiryDetailPage() {
             </div>
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Fabric Received</Label>
-              <Select value={form.fabric_received || 'no'} onValueChange={v => setForm({ ...form, fabric_received: v, qty_received: v === 'no' ? '' : form.qty_received })}>
+              <Select value={form.fabric_received || 'no'} onValueChange={v => setForm({ ...form, fabric_received: v, qty_received: v === 'no' ? '' : form.qty_received, sample_number: v === 'no' ? '' : form.sample_number })}>
                 <SelectTrigger data-testid="edit-fabric-received" className="border-zinc-200"><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="no">No</SelectItem>
@@ -416,6 +417,12 @@ export default function EnquiryDetailPage() {
                 </SelectContent>
               </Select>
             </div>
+            {form.fabric_received === 'yes' && (
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Sample No.</Label>
+                <Input value={form.sample_number || ''} onChange={e => setForm({ ...form, sample_number: e.target.value })} data-testid="edit-sample-number" placeholder="Enter sample number" className="border-zinc-200" />
+              </div>
+            )}
             {form.fabric_received === 'yes' && (
               <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Qty Received</Label>
