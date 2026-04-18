@@ -225,7 +225,7 @@ export default function EnquiryDetailPage() {
       }
       await api.put(`/enquiries/${id}`, form);
       toast.success('Enquiry updated');
-      fetchData();
+      navigate('/enquiries');
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to update');
     } finally {

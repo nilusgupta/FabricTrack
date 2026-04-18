@@ -673,8 +673,8 @@ function UserStagesReport({ stages, users, departments }) {
     } catch { toast.error('Export failed'); }
   };
 
-  const clearFilters = () => { setFilterDept(''); setFilterUser(''); setFilterStage(''); };
-  const hasFilters = filterDept || filterUser || filterStage;
+  const clearFilters = () => { setFilterDept(''); setFilterUser(''); setFilterStage(''); setViewMode('all'); };
+  const hasFilters = filterDept || filterUser || filterStage || viewMode !== 'all';
 
   return (
     <div className="space-y-4" data-testid="user-stages-report">
@@ -701,6 +701,17 @@ function UserStagesReport({ stages, users, departments }) {
               <Select value={filterStage} onValueChange={setFilterStage}>
                 <SelectTrigger className="w-44 border-zinc-200" data-testid="us-filter-stage"><SelectValue placeholder="All" /></SelectTrigger>
                 <SelectContent>{stages.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Status</Label>
+              <Select value={viewMode} onValueChange={setViewMode}>
+                <SelectTrigger className="w-36 border-zinc-200" data-testid="us-filter-status"><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="done">Completed</SelectItem>
+                </SelectContent>
               </Select>
             </div>
             {hasFilters && <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs text-red-500" data-testid="us-clear-filters">Clear</Button>}
