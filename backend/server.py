@@ -163,13 +163,13 @@ class StageUpdate(BaseModel):
 class EnquiryCreate(BaseModel):
     customer_name: str
     fabric_type: str
-    quantity: str
+    quantity: str = ""  # Made optional - removed from create form
     style_no: str = ""
     department: Optional[str] = None
     notes: str = ""
-    rate: str = ""
-    po_no: str = ""
-    po_del_date: str = ""
+    rate: str = ""  # Removed from create form but kept for backward compatibility
+    po_no: str = ""  # Removed from create form but kept for backward compatibility
+    po_del_date: str = ""  # Removed from create form but kept for backward compatibility
     fabric_received: str = "no"
     qty_received: str = ""
     stage_values: Dict[str, Any] = {}
@@ -412,6 +412,47 @@ async def download_file(path: str, request: Request, auth: Optional[str] = Query
         raise HTTPException(status_code=404, detail="File not found")
     data, ct = get_object(path)
     return Response(content=data, media_type=record.get("content_type", ct))
+
+# ─── Voice Notes ───
+@api_router.post("/enquiries/{enquiry_id}/voice-notes")
+async def add_voice_note(enquiry_id: str, request: Request, file: UploadFile = File(...)):
+    user = await get_current_user(request)
+    existing = await db.enquiries.find_one({"id": enquiry_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Enquiry not found")
+    ext = file.filename.split(".")[-1] if "." in file.filename else "webm"
+    path = f"{APP_NAME}/voice/{enquiry_id}/{uuid_mod.uuid4()}.{ext}"
+    data = await file.read()
+    content_type = file.content_type or "audio/webm"
+    result = put_object(path, data, content_type)
+    # Save file record
+    file_doc = {
+        "id": str(uuid_mod.uuid4()), "storage_path": result["path"],
+        "original_filename": file.filename, "content_type": content_type,
+        "size": result.get("size", len(data)), "is_deleted": False,
+        "uploaded_by": user["_id"],
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.files.insert_one(file_doc)
+    # Add to enquiry voice_notes array
+    note_doc = {
+        "id": str(uuid_mod.uuid4()),
+        "storage_path": result["path"],
+        "content_type": content_type,
+        "recorded_by": user["_id"],
+        "recorded_by_name": user["name"],
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.enquiries.update_one({"id": enquiry_id}, {"$push": {"voice_notes": note_doc}})
+    return note_doc
+
+@api_router.delete("/enquiries/{enquiry_id}/voice-notes/{note_id}")
+async def delete_voice_note(enquiry_id: str, note_id: str, request: Request):
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Only admin can delete voice notes")
+    await db.enquiries.update_one({"id": enquiry_id}, {"$pull": {"voice_notes": {"id": note_id}}})
+    return {"message": "Voice note deleted"}
 
 # ─── Enquiry Routes ───
 @api_router.get("/enquiries")

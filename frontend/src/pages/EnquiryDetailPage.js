@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,9 +9,40 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Label } from '../components/ui/label';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
-import { ArrowLeft, Save, Trash2, Clock, User, Upload, Camera, Image as ImageIcon, Send, MessageSquare, Lock, Plus, XCircle, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, Clock, User, Upload, Camera, Image as ImageIcon, Send, MessageSquare, Lock, Plus, XCircle, CheckCircle2, Mic, Square, Play, Pause } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+
+function VoiceNotePlayer({ storagePath }) {
+  const [blobUrl, setBlobUrl] = useState(null);
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    if (!storagePath) return;
+    let revoke = null;
+    api.get(`/files/${storagePath}`, { responseType: 'blob' })
+      .then(res => { const url = URL.createObjectURL(res.data); revoke = url; setBlobUrl(url); })
+      .catch(() => {});
+    return () => { if (revoke) URL.revokeObjectURL(revoke); };
+  }, [storagePath]);
+
+  const toggle = () => {
+    if (!audioRef.current) return;
+    if (playing) { audioRef.current.pause(); } else { audioRef.current.play(); }
+    setPlaying(!playing);
+  };
+
+  if (!blobUrl) return <span className="text-xs text-zinc-400">Loading...</span>;
+  return (
+    <div className="flex items-center gap-2">
+      <audio ref={audioRef} src={blobUrl} onEnded={() => setPlaying(false)} />
+      <button onClick={toggle} className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${playing ? 'bg-red-100 text-red-600' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`} data-testid="voice-note-play">
+        {playing ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 ml-0.5" />}
+      </button>
+    </div>
+  );
+}
 
 export default function EnquiryDetailPage() {
   const { id } = useParams();
@@ -47,6 +78,55 @@ export default function EnquiryDetailPage() {
     if (!stage.assigned_users || stage.assigned_users.length === 0) return true;
     return stage.assigned_users.includes(user._id);
   };
+
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
+  const timerRef = useRef(null);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+      mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const file = new File([blob], `voice_${Date.now()}.webm`, { type: 'audio/webm' });
+        const fd = new FormData();
+        fd.append('file', file);
+        try {
+          await api.post(`/enquiries/${id}/voice-notes`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+          toast.success('Voice note added');
+          fetchData();
+        } catch (err) { toast.error('Failed to upload voice note'); }
+      };
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      timerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
+    } catch (err) {
+      toast.error('Microphone access denied');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      clearInterval(timerRef.current);
+    }
+  };
+
+  const deleteVoiceNote = async (noteId) => {
+    if (!window.confirm('Delete this voice note?')) return;
+    try { await api.delete(`/enquiries/${id}/voice-notes/${noteId}`); toast.success('Deleted'); fetchData(); } catch { toast.error('Failed'); }
+  };
+
+  const formatTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
   const fetchData = useCallback(async () => {
     try {
@@ -309,25 +389,14 @@ export default function EnquiryDetailPage() {
               <Input value={form.style_no || ''} onChange={e => setForm({ ...form, style_no: e.target.value })} data-testid="edit-style-no" className="border-zinc-200" />
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Quantity</Label>
-              <Input value={form.quantity || ''} onChange={e => setForm({ ...form, quantity: e.target.value })} data-testid="edit-quantity" className="border-zinc-200" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Rate</Label>
-              <Input value={form.rate || ''} onChange={e => setForm({ ...form, rate: e.target.value })} data-testid="edit-rate" className="border-zinc-200" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">PO No.</Label>
-              <Input value={form.po_no || ''} onChange={e => setForm({ ...form, po_no: e.target.value })} data-testid="edit-po-no" className="border-zinc-200" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">PO Received Date</Label>
-              <Input type="date" value={form.po_del_date || ''} onChange={e => setForm({ ...form, po_del_date: e.target.value })} data-testid="edit-po-del-date" className="border-zinc-200" />
-            </div>
-          </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Department</Label>
+              <Select value={form.department || ''} onValueChange={v => setForm({ ...form, department: v })}>
+                <SelectTrigger data-testid="edit-department" className="border-zinc-200"><SelectValue placeholder="Select department" /></SelectTrigger>
+                <SelectContent>{departments.map(d => <SelectItem key={d.id || d.name} value={d.name}>{d.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Fabric Received</Label>
               <Select value={form.fabric_received || 'no'} onValueChange={v => setForm({ ...form, fabric_received: v, qty_received: v === 'no' ? '' : form.qty_received })}>
@@ -344,18 +413,68 @@ export default function EnquiryDetailPage() {
                 <Input value={form.qty_received || ''} onChange={e => setForm({ ...form, qty_received: e.target.value })} data-testid="edit-qty-received" placeholder="Enter qty received" className="border-zinc-200" />
               </div>
             )}
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Department</Label>
-              <Select value={form.department || ''} onValueChange={v => setForm({ ...form, department: v })}>
-                <SelectTrigger data-testid="edit-department" className="border-zinc-200"><SelectValue placeholder="Select department" /></SelectTrigger>
-                <SelectContent>{departments.map(d => <SelectItem key={d.id || d.name} value={d.name}>{d.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
           </div>
           <div className="space-y-2">
             <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Notes / Comment</Label>
             <Textarea value={form.notes || ''} onChange={e => setForm({ ...form, notes: e.target.value })} data-testid="edit-notes" className="border-zinc-200 min-h-[60px]" />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Voice Notes */}
+      <Card className="bg-white border-zinc-200 rounded-sm">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold text-zinc-900">Voice Notes</CardTitle>
+            <Badge className="rounded-sm text-[10px] bg-zinc-100 text-zinc-600">{(enquiry.voice_notes || []).length} notes</Badge>
+          </div>
+        </CardHeader>
+        <CardContent data-testid="enquiry-voice-notes">
+          {/* Recorder */}
+          <div className="flex items-center gap-3 mb-4 p-3 border border-dashed border-zinc-200 rounded-sm bg-zinc-50/50">
+            {isRecording ? (
+              <>
+                <button onClick={stopRecording} className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center text-white animate-pulse shadow-lg" data-testid="stop-recording-btn">
+                  <Square className="w-4 h-4" />
+                </button>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-red-600">Recording...</p>
+                  <p className="text-xs text-zinc-500 font-mono">{formatTime(recordingTime)}</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <button onClick={startRecording} className="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center text-white hover:bg-zinc-700 transition-colors shadow" data-testid="start-recording-btn">
+                  <Mic className="w-4 h-4" />
+                </button>
+                <div className="flex-1">
+                  <p className="text-sm text-zinc-600">Tap to record a voice note</p>
+                  <p className="text-xs text-zinc-400">Hold and release, or tap to start/stop</p>
+                </div>
+              </>
+            )}
+          </div>
+          {/* Voice notes list */}
+          {(enquiry.voice_notes || []).length === 0 ? (
+            <div className="text-center py-4 text-zinc-400 text-xs">No voice notes yet</div>
+          ) : (
+            <div className="space-y-2">
+              {(enquiry.voice_notes || []).map((vn, idx) => (
+                <div key={vn.id} className="flex items-center gap-3 p-2.5 border border-zinc-200 rounded-sm hover:bg-zinc-50" data-testid={`voice-note-${vn.id}`}>
+                  <VoiceNotePlayer storagePath={vn.storage_path} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-zinc-700">Voice Note #{idx + 1}</p>
+                    <p className="text-[10px] text-zinc-400">{vn.recorded_by_name} · {new Date(vn.created_at).toLocaleString()}</p>
+                  </div>
+                  {user?.role === 'admin' && (
+                    <button onClick={() => deleteVoiceNote(vn.id)} className="text-zinc-300 hover:text-red-500 transition-colors" data-testid={`delete-voice-${vn.id}`}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
