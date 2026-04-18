@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Calendar } from '../components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
-import { CalendarIcon, Download, Filter, BarChart3, Users, Layers, Building2 } from 'lucide-react';
+import { CalendarIcon, Download, Filter, BarChart3, Users, Layers, Building2, ClipboardList } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -110,11 +110,13 @@ export default function ReportsPage() {
           <TabsTrigger value="stages" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-stages"><Layers className="w-3 h-3 mr-1.5" /> Stage Summary</TabsTrigger>
           <TabsTrigger value="users" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-users"><Users className="w-3 h-3 mr-1.5" /> User Performance</TabsTrigger>
           <TabsTrigger value="departments" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-departments"><Building2 className="w-3 h-3 mr-1.5" /> Department</TabsTrigger>
+          <TabsTrigger value="pending" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-pending"><ClipboardList className="w-3 h-3 mr-1.5" /> Pending Stages</TabsTrigger>
         </TabsList>
         <TabsContent value="enquiries"><EnquiryReport stages={stages} users={users} stageMap={stageMap} userMap={userMap} departments={departments} /></TabsContent>
         <TabsContent value="stages"><StageSummary stageMap={stageMap} /></TabsContent>
         <TabsContent value="users"><UserPerformance /></TabsContent>
         <TabsContent value="departments"><DepartmentReport stageMap={stageMap} /></TabsContent>
+        <TabsContent value="pending"><PendingStagesReport /></TabsContent>
       </Tabs>
     </div>
   );
@@ -625,6 +627,63 @@ function DepartmentReport({ stageMap }) {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function PendingStagesReport() {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { api.get('/reports/pending-stages').then(res => { setData(res.data); setLoading(false); }).catch(() => setLoading(false)); }, []);
+
+  const totalPending = data.reduce((sum, u) => sum + u.items.length, 0);
+
+  return (
+    <div className="space-y-4" data-testid="pending-stages-report">
+      <Card className="bg-white border-zinc-200 rounded-sm">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold text-zinc-900">Pending Stages by User</CardTitle>
+            <span className="text-xs text-zinc-500">{totalPending} pending across {data.length} users</span>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="animate-pulse space-y-4">{[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-zinc-100 rounded-sm" />)}</div>
+          ) : data.length === 0 ? (
+            <div className="py-12 text-center text-zinc-400 text-sm">No pending stages found. Set up department hierarchies to track pending work.</div>
+          ) : (
+            <div className="space-y-4">
+              {data.map(u => (
+                <div key={u.user_id} className="border border-zinc-200 rounded-sm p-3" data-testid={`pending-user-${u.user_id}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-sm bg-zinc-900 flex items-center justify-center text-white text-xs font-bold">{u.user_name?.charAt(0)?.toUpperCase()}</div>
+                      <div>
+                        <span className="text-sm font-semibold text-zinc-900">{u.user_name}</span>
+                        <span className="text-xs text-zinc-400 ml-2">{u.department}</span>
+                      </div>
+                    </div>
+                    <Badge className="rounded-sm text-xs bg-amber-100 text-amber-700 border border-amber-200">{u.items.length} pending</Badge>
+                  </div>
+                  <div className="ml-9 space-y-1.5">
+                    {u.items.map((item, idx) => (
+                      <div key={idx} className="flex items-center gap-2 text-xs">
+                        <span className="text-zinc-400 font-mono w-4">{idx + 1}.</span>
+                        <Badge className="rounded-sm text-[10px] bg-zinc-100 text-zinc-600">{item.stage_name}</Badge>
+                        <span className="text-zinc-700">{item.customer_name}</span>
+                        {item.style_no && <span className="text-zinc-400">({item.style_no})</span>}
+                        <span className="text-zinc-300 ml-auto">{item.department}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

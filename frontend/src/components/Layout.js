@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
+import api from '../lib/api';
 import {
   LayoutDashboard,
   FileText,
@@ -14,7 +15,9 @@ import {
   ChevronRight,
   Building2,
   UserCircle,
-  Shirt
+  Shirt,
+  Bell,
+  Check
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -33,6 +36,37 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+
+  const fetchUnread = useCallback(async () => {
+    try {
+      const res = await api.get('/notifications/unread-count');
+      setUnreadCount(res.data.count);
+    } catch {}
+  }, []);
+
+  useEffect(() => { fetchUnread(); const iv = setInterval(fetchUnread, 30000); return () => clearInterval(iv); }, [fetchUnread]);
+
+  const openNotifs = async () => {
+    setShowNotifs(!showNotifs);
+    if (!showNotifs) {
+      try { const res = await api.get('/notifications'); setNotifications(res.data); } catch {}
+    }
+  };
+
+  const markRead = async (id) => {
+    await api.put(`/notifications/${id}/read`);
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  };
+
+  const markAllRead = async () => {
+    await api.put('/notifications/read-all');
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    setUnreadCount(0);
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -135,7 +169,38 @@ export default function Layout({ children }) {
             <Menu className="w-5 h-5 text-zinc-600" />
           </button>
           <div className="flex-1" />
-          <div className="flex items-center gap-2 text-sm text-zinc-500">
+          <div className="flex items-center gap-3 text-sm text-zinc-500">
+            <div className="relative">
+              <button onClick={openNotifs} className="relative p-1.5 rounded-sm hover:bg-zinc-100 transition-colors" data-testid="notification-bell">
+                <Bell className="w-5 h-5 text-zinc-600" />
+                {unreadCount > 0 && <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center" data-testid="notif-badge">{unreadCount}</span>}
+              </button>
+              {showNotifs && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowNotifs(false)} />
+                  <div className="absolute right-0 top-10 w-80 bg-white border border-zinc-200 rounded-sm shadow-xl z-50 max-h-96 overflow-hidden" data-testid="notif-dropdown">
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50">
+                      <span className="text-xs font-semibold text-zinc-700">Notifications</span>
+                      {unreadCount > 0 && <button onClick={markAllRead} className="text-[10px] text-blue-600 hover:underline" data-testid="mark-all-read">Mark all read</button>}
+                    </div>
+                    <div className="overflow-y-auto max-h-72">
+                      {notifications.length === 0 ? (
+                        <div className="py-8 text-center text-zinc-400 text-xs">No notifications</div>
+                      ) : notifications.map(n => (
+                        <div key={n.id} className={`px-3 py-2.5 border-b border-zinc-100 cursor-pointer hover:bg-zinc-50 ${n.is_read ? 'opacity-60' : ''}`} onClick={() => { if (!n.is_read) markRead(n.id); if (n.enquiry_id) { navigate(`/enquiries/${n.enquiry_id}`); setShowNotifs(false); } }} data-testid={`notif-item-${n.id}`}>
+                          <p className="text-xs font-semibold text-zinc-900">{n.title}</p>
+                          <p className="text-[11px] text-zinc-500 mt-0.5 line-clamp-2">{n.message}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[10px] text-zinc-400">{new Date(n.created_at).toLocaleString()}</span>
+                            {!n.is_read && <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
             <span className="hidden sm:inline">{user?.email}</span>
           </div>
         </header>

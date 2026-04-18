@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Label } from '../components/ui/label';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
-import { ArrowLeft, Save, Trash2, Clock, User, Upload, Camera, Image as ImageIcon, Send, MessageSquare, Lock, Plus } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, Clock, User, Upload, Camera, Image as ImageIcon, Send, MessageSquare, Lock, Plus, XCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 
@@ -31,11 +31,19 @@ export default function EnquiryDetailPage() {
   const [commentSending, setCommentSending] = useState({});
   const [quickCustomer, setQuickCustomer] = useState({ open: false, name: '' });
   const [quickFabric, setQuickFabric] = useState({ open: false, name: '', gsm: '', width: '', composition: '', construction: '' });
+  const [deptHierarchy, setDeptHierarchy] = useState([]);
 
-  // Check if current user can edit a stage
+  // Check if current user can edit a stage (using dept hierarchy)
   const canEditStage = (stage) => {
     if (!stage || !user) return false;
     if (user.role === 'admin') return true;
+    if (enquiry?.status === 'closed') return false;
+    // Check dept hierarchy first
+    const hItem = deptHierarchy.find(h => h.stage_id === stage.id);
+    if (hItem && hItem.assigned_users && hItem.assigned_users.length > 0) {
+      return hItem.assigned_users.includes(user._id);
+    }
+    // Fallback to stage-level assigned_users
     if (!stage.assigned_users || stage.assigned_users.length === 0) return true;
     return stage.assigned_users.includes(user._id);
   };
@@ -55,6 +63,13 @@ export default function EnquiryDetailPage() {
       setDepartments(deptsRes.data);
       setCustomers(custRes.data);
       setFabricTypes(fabRes.data);
+      // Load department hierarchy
+      if (enq.department) {
+        const dept = deptsRes.data.find(d => d.name === enq.department);
+        if (dept) {
+          try { const hRes = await api.get(`/departments/${dept.id}/hierarchy`); setDeptHierarchy(hRes.data); } catch {}
+        }
+      }
       setForm({
         customer_name: enq.customer_name,
         fabric_type: enq.fabric_type,
@@ -63,10 +78,7 @@ export default function EnquiryDetailPage() {
         department: enq.department || '',
         notes: enq.notes || '',
         rate: enq.rate || '',
-        po_no: enq.po_no || '',
-        po_del_date: enq.po_del_date || '',
         fabric_received: enq.fabric_received || 'no',
-        qty_received: enq.qty_received || '',
         stage_values: enq.stage_values || {},
         image_path: enq.image_path || ''
       });
@@ -166,14 +178,33 @@ export default function EnquiryDetailPage() {
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={() => navigate('/enquiries')} data-testid="back-to-enquiries"><ArrowLeft className="w-4 h-4 mr-1" /> Back</Button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">{enquiry.customer_name}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900">{enquiry.customer_name}</h1>
+            {enquiry.status === 'closed' ? (
+              <Badge className="rounded-sm text-xs bg-green-100 text-green-700 border border-green-200" data-testid="enquiry-status-badge">Closed</Badge>
+            ) : (
+              <Badge className="rounded-sm text-xs bg-blue-50 text-blue-600 border border-blue-200" data-testid="enquiry-status-badge">Open</Badge>
+            )}
+          </div>
           <p className="text-sm text-zinc-500">Style: {enquiry.style_no || '—'} · {enquiry.fabric_type} · Created by {enquiry.created_by_name}</p>
         </div>
-        {user?.role === 'admin' && (
-          <Button variant="outline" size="sm" onClick={handleDelete} data-testid="delete-enquiry-button" className="border-red-200 text-red-600 hover:bg-red-50">
-            <Trash2 className="w-3 h-3 mr-1" /> Delete
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {user?.role === 'admin' && enquiry.status !== 'closed' && (
+            <Button variant="outline" size="sm" onClick={async () => { if (window.confirm('Close this enquiry?')) { try { await api.put(`/enquiries/${id}/close`); toast.success('Enquiry closed'); fetchData(); } catch (err) { toast.error(err.response?.data?.detail || 'Failed'); } } }} data-testid="close-enquiry-button" className="border-amber-200 text-amber-700 hover:bg-amber-50">
+              <XCircle className="w-3 h-3 mr-1" /> Close
+            </Button>
+          )}
+          {user?.role === 'admin' && enquiry.status === 'closed' && (
+            <Button variant="outline" size="sm" onClick={async () => { try { await api.put(`/enquiries/${id}/reopen`); toast.success('Enquiry reopened'); fetchData(); } catch (err) { toast.error(err.response?.data?.detail || 'Failed'); } }} data-testid="reopen-enquiry-button" className="border-green-200 text-green-700 hover:bg-green-50">
+              <CheckCircle2 className="w-3 h-3 mr-1" /> Reopen
+            </Button>
+          )}
+          {user?.role === 'admin' && (
+            <Button variant="outline" size="sm" onClick={handleDelete} data-testid="delete-enquiry-button" className="border-red-200 text-red-600 hover:bg-red-50">
+              <Trash2 className="w-3 h-3 mr-1" /> Delete
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Image */}
@@ -285,18 +316,8 @@ export default function EnquiryDetailPage() {
               <Input value={form.rate || ''} onChange={e => setForm({ ...form, rate: e.target.value })} data-testid="edit-rate" className="border-zinc-200" />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">PO No.</Label>
-              <Input value={form.po_no || ''} onChange={e => setForm({ ...form, po_no: e.target.value })} data-testid="edit-po-no" className="border-zinc-200" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">PO Received Date</Label>
-              <Input type="date" value={form.po_del_date || ''} onChange={e => setForm({ ...form, po_del_date: e.target.value })} data-testid="edit-po-del-date" className="border-zinc-200" />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Fabric Received</Label>
-              <Select value={form.fabric_received || 'no'} onValueChange={v => setForm({ ...form, fabric_received: v, qty_received: v === 'no' ? '' : form.qty_received })}>
+              <Select value={form.fabric_received || 'no'} onValueChange={v => setForm({ ...form, fabric_received: v })}>
                 <SelectTrigger data-testid="edit-fabric-received" className="border-zinc-200"><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="no">No</SelectItem>
@@ -304,19 +325,13 @@ export default function EnquiryDetailPage() {
                 </SelectContent>
               </Select>
             </div>
-            {form.fabric_received === 'yes' && (
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Qty Received</Label>
-                <Input value={form.qty_received || ''} onChange={e => setForm({ ...form, qty_received: e.target.value })} data-testid="edit-qty-received" placeholder="Enter qty received" className="border-zinc-200" />
-              </div>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Department</Label>
-            <Select value={form.department || ''} onValueChange={v => setForm({ ...form, department: v })}>
-              <SelectTrigger data-testid="edit-department" className="border-zinc-200"><SelectValue placeholder="Select department" /></SelectTrigger>
-              <SelectContent>{departments.map(d => <SelectItem key={d.id || d.name} value={d.name}>{d.name}</SelectItem>)}</SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Department</Label>
+              <Select value={form.department || ''} onValueChange={v => setForm({ ...form, department: v })}>
+                <SelectTrigger data-testid="edit-department" className="border-zinc-200"><SelectValue placeholder="Select department" /></SelectTrigger>
+                <SelectContent>{departments.map(d => <SelectItem key={d.id || d.name} value={d.name}>{d.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="space-y-2">
             <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Notes / Comment</Label>

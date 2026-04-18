@@ -90,7 +90,7 @@ export default function EnquiriesPage() {
 
   const [form, setForm] = useState({
     customer_name: '', fabric_type: '', quantity: '', style_no: '',
-    department: '', notes: '', rate: '', po_no: '', po_del_date: '', fabric_received: 'no', qty_received: ''
+    department: '', notes: '', rate: '', fabric_received: 'no'
   });
   const [imageFile, setImageFile] = useState(null);
   const [quickCustomer, setQuickCustomer] = useState({ open: false, name: '' });
@@ -147,7 +147,7 @@ export default function EnquiriesPage() {
       }
       toast.success('Enquiry created');
       setDialogOpen(false);
-      setForm({ customer_name: '', fabric_type: '', quantity: '', style_no: '', department: '', notes: '', rate: '', po_no: '', po_del_date: '', fabric_received: 'no', qty_received: '' });
+      setForm({ customer_name: '', fabric_type: '', quantity: '', style_no: '', department: '', notes: '', rate: '', fabric_received: 'no' });
       setImageFile(null);
       fetchData();
     } catch (err) {
@@ -281,18 +281,8 @@ export default function EnquiriesPage() {
                   <Input value={form.rate} onChange={e => setForm({ ...form, rate: e.target.value })} data-testid="enquiry-rate-input" className="border-zinc-200" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">PO No.</Label>
-                  <Input value={form.po_no} onChange={e => setForm({ ...form, po_no: e.target.value })} data-testid="enquiry-po-no-input" className="border-zinc-200" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">PO Received Date</Label>
-                  <Input type="date" value={form.po_del_date} onChange={e => setForm({ ...form, po_del_date: e.target.value })} data-testid="enquiry-po-del-date-input" className="border-zinc-200" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
                   <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Fabric Received</Label>
-                  <Select value={form.fabric_received || 'no'} onValueChange={v => setForm({ ...form, fabric_received: v, qty_received: v === 'no' ? '' : form.qty_received })}>
+                  <Select value={form.fabric_received || 'no'} onValueChange={v => setForm({ ...form, fabric_received: v })}>
                     <SelectTrigger data-testid="enquiry-fabric-received-select" className="border-zinc-200"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="no">No</SelectItem>
@@ -300,12 +290,13 @@ export default function EnquiriesPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                {form.fabric_received === 'yes' && (
-                  <div className="space-y-2">
-                    <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Qty Received</Label>
-                    <Input value={form.qty_received} onChange={e => setForm({ ...form, qty_received: e.target.value })} data-testid="enquiry-qty-received-input" placeholder="Enter qty received" className="border-zinc-200" />
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Department</Label>
+                  <Select value={form.department} onValueChange={v => setForm({ ...form, department: v })}>
+                    <SelectTrigger data-testid="enquiry-department-select" className="border-zinc-200"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>{departments.map(d => <SelectItem key={d.id || d.name} value={d.name}>{d.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Image upload - supports camera, gallery, file */}
@@ -381,6 +372,7 @@ export default function EnquiriesPage() {
                 ))}
                 <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500" style={{ width: 100 }}>Rate</th>
                 <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500" style={{ width: 100 }}>Dept</th>
+                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500" style={{ width: 80 }}>Status</th>
                 <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500" style={{ width: 120 }}>Created</th>
               </tr>
             </thead>
@@ -420,6 +412,9 @@ export default function EnquiriesPage() {
                     })}
                     <td className="p-2 text-zinc-600 text-sm">{enq.rate || '—'}</td>
                     <td className="p-2 text-zinc-600 text-xs">{enq.department || '—'}</td>
+                    <td className="p-2 text-xs">
+                      {enq.status === 'closed' ? <Badge className="rounded-sm text-[10px] bg-green-100 text-green-700 border border-green-200">Closed</Badge> : <Badge className="rounded-sm text-[10px] bg-blue-50 text-blue-600 border border-blue-200">Open</Badge>}
+                    </td>
                     <td className="p-2 text-zinc-400 text-xs">{new Date(enq.created_at).toLocaleDateString()}</td>
                   </tr>
                 ))

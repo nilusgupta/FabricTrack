@@ -197,6 +197,14 @@ class DepartmentUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
 
+class DepartmentHierarchyItem(BaseModel):
+    stage_id: str
+    order: int
+    assigned_users: List[str] = []
+
+class DepartmentHierarchyUpdate(BaseModel):
+    items: List[DepartmentHierarchyItem]
+
 class CustomerCreate(BaseModel):
     name: str
 
@@ -533,6 +541,7 @@ async def create_enquiry(req: EnquiryCreate, request: Request):
         "fabric_received": req.fabric_received,
         "qty_received": req.qty_received,
         "stage_values": req.stage_values,
+        "status": "open",
         "created_by": user["_id"], "created_by_name": user["name"],
         "created_at": now, "updated_at": now
     }
@@ -554,25 +563,38 @@ async def update_enquiry(enquiry_id: str, req: EnquiryUpdate, request: Request):
     existing = await db.enquiries.find_one({"id": enquiry_id})
     if not existing:
         raise HTTPException(status_code=404, detail="Enquiry not found")
+    if existing.get("status") == "closed" and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Enquiry is closed")
     update_data = {}
     req_dict = req.model_dump(exclude_unset=True)
     now = datetime.now(timezone.utc).isoformat()
+    changed_stage_ids = []
     # Handle stage_values separately for history tracking
     if "stage_values" in req_dict and req_dict["stage_values"] is not None:
         new_sv = req_dict.pop("stage_values")
         old_sv = existing.get("stage_values", {})
-        # Load stages for permission check
+        # Load department hierarchy for permission check
+        dept_name = existing.get("department", "")
+        dept = await db.departments.find_one({"name": dept_name}, {"_id": 0}) if dept_name else None
+        hierarchy_map = {}
+        if dept and dept.get("stage_hierarchy"):
+            for h in dept["stage_hierarchy"]:
+                hierarchy_map[h["stage_id"]] = h.get("assigned_users", [])
         all_stages = {s["id"]: s for s in await db.stages.find({}, {"_id": 0}).to_list(100)}
         for stage_id, new_val in new_sv.items():
-            # Check if user is assigned to this stage
-            stage_def = all_stages.get(stage_id)
-            if stage_def and stage_def.get("assigned_users") and len(stage_def["assigned_users"]) > 0:
-                if user["_id"] not in stage_def["assigned_users"] and user.get("role") != "admin":
+            # Check permissions: use department hierarchy first, then fall back to stage-level
+            assigned = hierarchy_map.get(stage_id)
+            if assigned is None:
+                stage_def = all_stages.get(stage_id)
+                assigned = stage_def.get("assigned_users", []) if stage_def else []
+            if assigned and len(assigned) > 0:
+                if user["_id"] not in assigned and user.get("role") != "admin":
                     continue  # Skip stages the user isn't assigned to
             new_value_str = new_val.get("value", "") if isinstance(new_val, dict) else str(new_val)
             old_val = old_sv.get(stage_id, {})
             old_value_str = old_val.get("value", "") if isinstance(old_val, dict) else str(old_val) if old_val else ""
             if new_value_str != old_value_str:
+                changed_stage_ids.append(stage_id)
                 history_doc = {
                     "id": secrets.token_hex(12), "enquiry_id": enquiry_id,
                     "stage_id": stage_id, "type": "value_change",
@@ -594,6 +616,10 @@ async def update_enquiry(enquiry_id: str, req: EnquiryUpdate, request: Request):
             update_data[k] = v
     update_data["updated_at"] = now
     await db.enquiries.update_one({"id": enquiry_id}, {"$set": update_data})
+    # Auto-close and notify for each changed stage
+    dept_name = existing.get("department") or update_data.get("department", "")
+    for sid in changed_stage_ids:
+        await check_auto_close_and_notify(enquiry_id, dept_name, sid, user)
     enquiry = await db.enquiries.find_one({"id": enquiry_id}, {"_id": 0})
     return enquiry
 
@@ -639,6 +665,117 @@ async def add_stage_comment(enquiry_id: str, req: StageCommentCreate, request: R
     await db.enquiry_history.insert_one(comment_doc)
     return {k: v for k, v in comment_doc.items() if k != "_id"}
 
+# ─── Enquiry Close ───
+@api_router.put("/enquiries/{enquiry_id}/close")
+async def close_enquiry(enquiry_id: str, request: Request):
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Only admin can close enquiries")
+    existing = await db.enquiries.find_one({"id": enquiry_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Enquiry not found")
+    now = datetime.now(timezone.utc).isoformat()
+    await db.enquiries.update_one({"id": enquiry_id}, {"$set": {"status": "closed", "closed_at": now, "closed_by": user["_id"]}})
+    await db.enquiry_history.insert_one({
+        "id": secrets.token_hex(12), "enquiry_id": enquiry_id, "stage_id": "",
+        "type": "status_change", "old_value": "open", "new_value": "closed",
+        "changed_by": user["_id"], "changed_by_name": user["name"],
+        "changed_at": now, "notes": "Enquiry closed by admin"
+    })
+    return {"message": "Enquiry closed", "status": "closed"}
+
+@api_router.put("/enquiries/{enquiry_id}/reopen")
+async def reopen_enquiry(enquiry_id: str, request: Request):
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Only admin can reopen enquiries")
+    existing = await db.enquiries.find_one({"id": enquiry_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Enquiry not found")
+    await db.enquiries.update_one({"id": enquiry_id}, {"$set": {"status": "open", "closed_at": None, "closed_by": None}})
+    return {"message": "Enquiry reopened", "status": "open"}
+
+# Helper: check auto-close and create notifications
+async def check_auto_close_and_notify(enquiry_id: str, dept_name: str, changed_stage_id: str, changed_by_user: dict):
+    """After a stage is updated, check if enquiry should auto-close and notify next stage users."""
+    dept = await db.departments.find_one({"name": dept_name}, {"_id": 0})
+    if not dept or not dept.get("stage_hierarchy"):
+        return
+    hierarchy = sorted(dept["stage_hierarchy"], key=lambda x: x.get("order", 0))
+    enq = await db.enquiries.find_one({"id": enquiry_id}, {"_id": 0})
+    if not enq or enq.get("status") == "closed":
+        return
+    sv = enq.get("stage_values", {})
+
+    # Check auto-close: all hierarchy stages must have a value
+    all_filled = True
+    for h in hierarchy:
+        val = sv.get(h["stage_id"], {})
+        v = val.get("value", "") if isinstance(val, dict) else str(val) if val else ""
+        if not v:
+            all_filled = False
+            break
+    if all_filled and len(hierarchy) > 0:
+        now = datetime.now(timezone.utc).isoformat()
+        await db.enquiries.update_one({"id": enquiry_id}, {"$set": {"status": "closed", "closed_at": now, "closed_by": "auto"}})
+        await db.enquiry_history.insert_one({
+            "id": secrets.token_hex(12), "enquiry_id": enquiry_id, "stage_id": "",
+            "type": "status_change", "old_value": "open", "new_value": "closed",
+            "changed_by": "system", "changed_by_name": "System",
+            "changed_at": now, "notes": "Auto-closed: all stages completed"
+        })
+
+    # Notify next stage users
+    current_idx = -1
+    for i, h in enumerate(hierarchy):
+        if h["stage_id"] == changed_stage_id:
+            current_idx = i
+            break
+    if current_idx >= 0 and current_idx + 1 < len(hierarchy):
+        next_stage = hierarchy[current_idx + 1]
+        next_stage_def = await db.stages.find_one({"id": next_stage["stage_id"]}, {"_id": 0})
+        next_stage_name = next_stage_def["name"] if next_stage_def else next_stage["stage_id"]
+        current_stage_def = await db.stages.find_one({"id": changed_stage_id}, {"_id": 0})
+        current_stage_name = current_stage_def["name"] if current_stage_def else changed_stage_id
+        for uid in next_stage.get("assigned_users", []):
+            notif_doc = {
+                "id": secrets.token_hex(12),
+                "user_id": uid,
+                "type": "stage_reminder",
+                "title": f"Stage '{next_stage_name}' is ready",
+                "message": f"Stage '{current_stage_name}' has been completed by {changed_by_user.get('name', 'a user')} for enquiry {enq.get('customer_name', '')} ({enq.get('style_no', '')}). Your stage '{next_stage_name}' is now pending.",
+                "enquiry_id": enquiry_id,
+                "stage_id": next_stage["stage_id"],
+                "is_read": False,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.notifications.insert_one(notif_doc)
+
+# ─── Notifications ───
+@api_router.get("/notifications")
+async def get_notifications(request: Request):
+    user = await get_current_user(request)
+    notifs = await db.notifications.find({"user_id": user["_id"]}, {"_id": 0}).sort("created_at", -1).limit(50).to_list(50)
+    return notifs
+
+@api_router.get("/notifications/unread-count")
+async def get_unread_count(request: Request):
+    user = await get_current_user(request)
+    count = await db.notifications.count_documents({"user_id": user["_id"], "is_read": False})
+    return {"count": count}
+
+@api_router.put("/notifications/{notif_id}/read")
+async def mark_notification_read(notif_id: str, request: Request):
+    user = await get_current_user(request)
+    await db.notifications.update_one({"id": notif_id, "user_id": user["_id"]}, {"$set": {"is_read": True}})
+    return {"message": "Marked as read"}
+
+@api_router.put("/notifications/read-all")
+async def mark_all_read(request: Request):
+    user = await get_current_user(request)
+    await db.notifications.update_many({"user_id": user["_id"], "is_read": False}, {"$set": {"is_read": True}})
+    return {"message": "All marked as read"}
+
 # ─── Department Master ───
 @api_router.get("/departments")
 async def get_departments(request: Request):
@@ -676,6 +813,25 @@ async def delete_department(dept_id: str, request: Request):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Department not found")
     return {"message": "Department deleted"}
+
+# ─── Department Stage Hierarchy ───
+@api_router.get("/departments/{dept_id}/hierarchy")
+async def get_department_hierarchy(dept_id: str, request: Request):
+    await get_current_user(request)
+    dept = await db.departments.find_one({"id": dept_id}, {"_id": 0})
+    if not dept:
+        raise HTTPException(status_code=404, detail="Department not found")
+    return dept.get("stage_hierarchy", [])
+
+@api_router.put("/departments/{dept_id}/hierarchy")
+async def update_department_hierarchy(dept_id: str, req: DepartmentHierarchyUpdate, request: Request):
+    await require_admin(request)
+    dept = await db.departments.find_one({"id": dept_id})
+    if not dept:
+        raise HTTPException(status_code=404, detail="Department not found")
+    hierarchy = [item.model_dump() for item in req.items]
+    await db.departments.update_one({"id": dept_id}, {"$set": {"stage_hierarchy": hierarchy}})
+    return hierarchy
 
 # ─── Customer Master ───
 @api_router.get("/customers")
@@ -880,6 +1036,58 @@ async def report_department(request: Request):
         result.append({"department": dept_name, "total": dept["total"], "stage_breakdown": stage_breakdown})
     return result
 
+# ─── Pending Stages Report ───
+@api_router.get("/reports/pending-stages")
+async def report_pending_stages(request: Request):
+    await get_current_user(request)
+    # Get all departments with hierarchies
+    depts = await db.departments.find({}, {"_id": 0}).to_list(100)
+    stages = {s["id"]: s for s in await db.stages.find({}, {"_id": 0}).to_list(100)}
+    users_list = await db.users.find({}, {"password_hash": 0}).to_list(1000)
+    user_map = {str(u["_id"]): u for u in users_list}
+    # Build result: for each user, list their pending stages across all enquiries
+    user_pending = {}  # user_id -> [{enquiry_id, enquiry_name, stage_id, stage_name, dept}]
+    for dept in depts:
+        hierarchy = dept.get("stage_hierarchy", [])
+        if not hierarchy:
+            continue
+        sorted_h = sorted(hierarchy, key=lambda x: x.get("order", 0))
+        # Get open enquiries for this department
+        enquiries = await db.enquiries.find({"department": dept["name"], "status": {"$ne": "closed"}}, {"_id": 0}).to_list(5000)
+        for enq in enquiries:
+            sv = enq.get("stage_values", {})
+            for i, h in enumerate(sorted_h):
+                sid = h["stage_id"]
+                val = sv.get(sid, {})
+                v = val.get("value", "") if isinstance(val, dict) else str(val) if val else ""
+                if v:
+                    continue  # Stage already filled
+                # Check if previous stage is filled (or this is the first)
+                can_work = True
+                if i > 0:
+                    prev_sid = sorted_h[i - 1]["stage_id"]
+                    prev_val = sv.get(prev_sid, {})
+                    pv = prev_val.get("value", "") if isinstance(prev_val, dict) else str(prev_val) if prev_val else ""
+                    if not pv:
+                        can_work = False  # Previous stage not done yet
+                if not can_work:
+                    continue
+                stage_def = stages.get(sid)
+                for uid in h.get("assigned_users", []):
+                    if uid not in user_pending:
+                        u = user_map.get(uid)
+                        user_pending[uid] = {"user_id": uid, "user_name": u["name"] if u else uid, "department": u.get("department", "") if u else "", "items": []}
+                    user_pending[uid]["items"].append({
+                        "enquiry_id": enq["id"],
+                        "customer_name": enq.get("customer_name", ""),
+                        "style_no": enq.get("style_no", ""),
+                        "stage_id": sid,
+                        "stage_name": stage_def["name"] if stage_def else sid,
+                        "department": dept["name"]
+                    })
+                break  # Only show the first pending stage per enquiry
+    return list(user_pending.values())
+
 # ─── Excel Export ───
 @api_router.get("/reports/export-excel")
 async def export_excel(request: Request, department: Optional[str] = None, customer_name: Optional[str] = None, fabric_type: Optional[str] = None, style_no: Optional[str] = None, rate: Optional[str] = None, po_no: Optional[str] = None, po_del_date: Optional[str] = None, fabric_received: Optional[str] = None, qty_received: Optional[str] = None, created_by: Optional[str] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, stage_filters: Optional[str] = None):
@@ -1054,6 +1262,8 @@ async def startup():
     await db.enquiries.create_index("id", unique=True)
     await db.departments.create_index("id", unique=True)
     await db.departments.create_index("name", unique=True)
+    await db.notifications.create_index("user_id")
+    await db.notifications.create_index("id", unique=True)
     # Seed default departments
     default_depts = ["Sales", "Production", "Quality", "Admin", "Design", "Logistics"]
     for dept_name in default_depts:
