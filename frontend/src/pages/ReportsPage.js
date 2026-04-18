@@ -794,6 +794,7 @@ function UserStagesReport({ stages, users, departments }) {
                               <table className="w-full text-xs border-collapse">
                                 <thead>
                                   <tr className="bg-amber-50/50">
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase w-10">Img</th>
                                     <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Stage</th>
                                     <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Customer</th>
                                     <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Style</th>
@@ -811,6 +812,7 @@ function UserStagesReport({ stages, users, departments }) {
                                 <tbody>
                                   {pendingItems.map((item, idx) => (
                                     <tr key={idx} className={`border-t border-zinc-100 ${item.is_overdue ? 'bg-red-50/50' : 'hover:bg-zinc-50'}`}>
+                                      <td className="px-2 py-1.5">{item.image_path ? <ReportThumbnail imagePath={item.image_path} /> : <span className="text-zinc-300">—</span>}</td>
                                       <td className="px-2 py-1.5"><Badge className="rounded-sm text-[10px] bg-zinc-100 text-zinc-700">{item.stage_name}</Badge></td>
                                       <td className="px-2 py-1.5 text-zinc-700 font-medium">{item.customer_name}</td>
                                       <td className="px-2 py-1.5 text-zinc-500">{item.style_no || '—'}</td>
@@ -837,6 +839,7 @@ function UserStagesReport({ stages, users, departments }) {
                               <table className="w-full text-xs border-collapse">
                                 <thead>
                                   <tr className="bg-green-50/50">
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase w-10">Img</th>
                                     <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Stage</th>
                                     <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Customer</th>
                                     <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Style</th>
@@ -853,6 +856,7 @@ function UserStagesReport({ stages, users, departments }) {
                                 <tbody>
                                   {doneItems.map((item, idx) => (
                                     <tr key={idx} className="border-t border-zinc-100 hover:bg-zinc-50">
+                                      <td className="px-2 py-1.5">{item.image_path ? <ReportThumbnail imagePath={item.image_path} /> : <span className="text-zinc-300">—</span>}</td>
                                       <td className="px-2 py-1.5"><Badge className="rounded-sm text-[10px] bg-green-50 text-green-700">{item.stage_name}</Badge></td>
                                       <td className="px-2 py-1.5 text-zinc-700 font-medium">{item.customer_name}</td>
                                       <td className="px-2 py-1.5 text-zinc-500">{item.style_no || '—'}</td>

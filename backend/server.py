@@ -1147,6 +1147,8 @@ async def report_user_stages(request: Request, filter_department: Optional[str] 
             sv = enq.get("stage_values", {})
             is_closed = enq.get("status") == "closed"
             enq_created = enq.get("created_at", "")
+            enq_image = enq.get("image_path", "")
+            first_pending_found = False  # Track if we already found the first pending stage for this enquiry
             for i, h in enumerate(sorted_h):
                 sid = h["stage_id"]
                 if filter_stage and sid != filter_stage:
@@ -1190,6 +1192,7 @@ async def report_user_stages(request: Request, filter_department: Optional[str] 
                         "customer_name": enq.get("customer_name", ""),
                         "style_no": enq.get("style_no", ""),
                         "fabric_type": enq.get("fabric_type", ""),
+                        "image_path": enq_image,
                         "stage_id": sid,
                         "stage_name": stage_name,
                         "department": dept["name"],
@@ -1213,7 +1216,7 @@ async def report_user_stages(request: Request, filter_department: Optional[str] 
                                 pass
                         user_data[uid]["done"].append(item)
                         user_data[uid]["done_count"] += 1
-                    elif not is_closed:
+                    elif not is_closed and not first_pending_found:
                         # Calculate days pending
                         ref_date_str = prev_completed_at or enq_created
                         days_pending = 0
@@ -1234,6 +1237,9 @@ async def report_user_stages(request: Request, filter_department: Optional[str] 
                         item["due_date"] = due_date
                         user_data[uid]["pending"].append(item)
                         user_data[uid]["pending_count"] += 1
+                if not v and not is_closed and not filter_stage:
+                    first_pending_found = True  # Only show first pending stage per enquiry
+                    break  # Stop checking further stages for this enquiry
     # Sort pending by overdue first, then days_pending desc
     for ud in user_data.values():
         ud["pending"].sort(key=lambda x: (-int(x.get("is_overdue", False)), -x.get("days_pending", 0)))
