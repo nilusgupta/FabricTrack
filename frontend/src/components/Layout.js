@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import api from '../lib/api';
+import { startRegistration } from '@simplewebauthn/browser';
 import {
   LayoutDashboard,
   FileText,
@@ -17,7 +18,8 @@ import {
   UserCircle,
   Shirt,
   Bell,
-  Check
+  Check,
+  Fingerprint
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -66,6 +68,32 @@ export default function Layout({ children }) {
     await api.put('/notifications/read-all');
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     setUnreadCount(0);
+  };
+
+  const [biometricStatus, setBiometricStatus] = useState(null);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+
+  useEffect(() => {
+    if (window.PublicKeyCredential) {
+      api.get('/auth/biometric/status').then(res => setBiometricStatus(res.data)).catch(() => {});
+    }
+  }, []);
+
+  const setupBiometric = async () => {
+    setBiometricLoading(true);
+    try {
+      const optRes = await api.post('/auth/biometric/register-options');
+      const options = optRes.data;
+      const regResp = await startRegistration({ optionsJSON: options });
+      await api.post('/auth/biometric/register-complete', regResp);
+      setBiometricStatus({ registered: true, count: (biometricStatus?.count || 0) + 1 });
+      localStorage.setItem('fabrictrack_biometric_email', user?.email);
+      alert('Biometric registered! You can now use fingerprint/Face ID to login.');
+    } catch (err) {
+      alert(err.response?.data?.detail || err.message || 'Failed to register biometric');
+    } finally {
+      setBiometricLoading(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -154,6 +182,19 @@ export default function Layout({ children }) {
             <LogOut className="w-3 h-3 mr-2" />
             Sign Out
           </Button>
+          {window.PublicKeyCredential && (
+            <Button
+              variant={biometricStatus?.registered ? "ghost" : "outline"}
+              size="sm"
+              onClick={setupBiometric}
+              disabled={biometricLoading}
+              data-testid="biometric-setup-button"
+              className={`w-full mt-1.5 ${biometricStatus?.registered ? 'text-green-600 hover:text-green-700' : 'border-zinc-200 text-zinc-600'}`}
+            >
+              <Fingerprint className="w-3 h-3 mr-2" />
+              {biometricLoading ? 'Setting up...' : biometricStatus?.registered ? 'Biometric Active' : 'Setup Fingerprint'}
+            </Button>
+          )}
         </div>
       </aside>
 

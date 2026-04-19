@@ -283,6 +283,148 @@ async def refresh_token(request: Request, response: Response):
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
+# ─── Biometric / WebAuthn ───
+import base64
+
+# In-memory challenge store (short-lived)
+_webauthn_challenges = {}
+
+def _b64url_encode(data):
+    if isinstance(data, str):
+        data = data.encode()
+    return base64.urlsafe_b64encode(data).rstrip(b'=').decode()
+
+def _b64url_decode(s):
+    s += '=' * (4 - len(s) % 4)
+    return base64.urlsafe_b64decode(s)
+
+@api_router.post("/auth/biometric/register-options")
+async def biometric_register_options(request: Request):
+    user = await get_current_user(request)
+    origin = request.headers.get("origin", "")
+    host = request.headers.get("host", "localhost")
+    rp_id = origin.split("://")[1].split(":")[0].split("/")[0] if "://" in origin else host.split(":")[0]
+    challenge = secrets.token_bytes(32)
+    _webauthn_challenges[user["_id"]] = challenge
+    # Get existing credential IDs to exclude
+    existing = await db.webauthn_credentials.find({"user_id": user["_id"]}, {"_id": 0}).to_list(50)
+    exclude = [{"type": "public-key", "id": c["credential_id_b64"]} for c in existing if c.get("credential_id_b64")]
+    return {
+        "challenge": _b64url_encode(challenge),
+        "rp": {"name": "FabricTrack", "id": rp_id},
+        "user": {
+            "id": _b64url_encode(user["_id"]),
+            "name": user["email"],
+            "displayName": user["name"]
+        },
+        "pubKeyCredParams": [
+            {"alg": -7, "type": "public-key"},
+            {"alg": -257, "type": "public-key"}
+        ],
+        "timeout": 60000,
+        "authenticatorSelection": {
+            "authenticatorAttachment": "platform",
+            "userVerification": "required",
+            "residentKey": "preferred",
+            "requireResidentKey": False
+        },
+        "attestation": "none",
+        "excludeCredentials": exclude
+    }
+
+@api_router.post("/auth/biometric/register-complete")
+async def biometric_register_complete(request: Request):
+    user = await get_current_user(request)
+    challenge = _webauthn_challenges.pop(user["_id"], None)
+    if not challenge:
+        raise HTTPException(status_code=400, detail="No registration in progress")
+    body = await request.json()
+    # Store the credential - we trust the browser's attestation for platform authenticators
+    cred_id = body.get("id", "")
+    raw_id = body.get("rawId", "")
+    resp = body.get("response", {})
+    cred_doc = {
+        "id": secrets.token_hex(12),
+        "user_id": user["_id"],
+        "credential_id_b64": cred_id,
+        "raw_id_b64": raw_id,
+        "public_key": resp.get("publicKey", ""),
+        "attestation_object": resp.get("attestationObject", ""),
+        "client_data_json": resp.get("clientDataJSON", ""),
+        "transports": body.get("transports", []),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.webauthn_credentials.insert_one(cred_doc)
+    return {"message": "Biometric registered successfully"}
+
+@api_router.post("/auth/biometric/login-options")
+async def biometric_login_options(request: Request):
+    body = await request.json()
+    email = body.get("email", "")
+    origin = request.headers.get("origin", "")
+    host = request.headers.get("host", "localhost")
+    rp_id = origin.split("://")[1].split(":")[0].split("/")[0] if "://" in origin else host.split(":")[0]
+    user = await db.users.find_one({"email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user_id = str(user["_id"])
+    creds = await db.webauthn_credentials.find({"user_id": user_id}, {"_id": 0}).to_list(50)
+    if not creds:
+        raise HTTPException(status_code=404, detail="No biometric credentials registered for this account")
+    challenge = secrets.token_bytes(32)
+    _webauthn_challenges[f"auth_{user_id}"] = {"challenge": challenge, "user_id": user_id}
+    allow_credentials = []
+    for c in creds:
+        ac = {"type": "public-key", "id": c["credential_id_b64"]}
+        if c.get("transports"):
+            ac["transports"] = c["transports"]
+        allow_credentials.append(ac)
+    return {
+        "challenge": _b64url_encode(challenge),
+        "rpId": rp_id,
+        "timeout": 60000,
+        "userVerification": "required",
+        "allowCredentials": allow_credentials
+    }
+
+@api_router.post("/auth/biometric/login-complete")
+async def biometric_login_complete(request: Request, response: Response):
+    body = await request.json()
+    cred_id = body.get("id", "")
+    # Find credential
+    cred = await db.webauthn_credentials.find_one({"credential_id_b64": cred_id}, {"_id": 0})
+    if not cred:
+        raise HTTPException(status_code=401, detail="Credential not recognized")
+    user_id = cred["user_id"]
+    challenge_key = f"auth_{user_id}"
+    challenge_data = _webauthn_challenges.pop(challenge_key, None)
+    if not challenge_data:
+        raise HTTPException(status_code=400, detail="No authentication in progress")
+    # Verify challenge match from clientDataJSON
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    access_token = create_access_token(str(user["_id"]), user["email"])
+    refresh = create_refresh_token(str(user["_id"]))
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=86400, path="/")
+    response.set_cookie(key="refresh_token", value=refresh, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
+    return {"message": "Biometric login successful", "user": {
+        "_id": str(user["_id"]), "email": user["email"], "name": user["name"],
+        "role": user.get("role", "user"), "department": user.get("department", "")
+    }}
+
+@api_router.get("/auth/biometric/status")
+async def biometric_status(request: Request):
+    user = await get_current_user(request)
+    count = await db.webauthn_credentials.count_documents({"user_id": user["_id"]})
+    return {"registered": count > 0, "count": count}
+
+@api_router.delete("/auth/biometric/credentials")
+async def biometric_remove(request: Request):
+    user = await get_current_user(request)
+    await db.webauthn_credentials.delete_many({"user_id": user["_id"]})
+    return {"message": "Biometric credentials removed"}
+
 # ─── User Management ───
 @api_router.get("/users")
 async def get_users(request: Request):

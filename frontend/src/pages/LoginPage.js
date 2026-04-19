@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { LogIn } from 'lucide-react';
+import { LogIn, Fingerprint } from 'lucide-react';
+import { startAuthentication } from '@simplewebauthn/browser';
+import api from '../lib/api';
 
 function formatApiError(detail) {
   if (detail == null) return "Something went wrong.";
@@ -19,8 +21,22 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const { login } = useAuth();
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+  const { login, setUser } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if WebAuthn is available on this device
+    if (window.PublicKeyCredential) {
+      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable?.()
+        .then(available => setBiometricAvailable(available))
+        .catch(() => {});
+    }
+    // Restore saved email for biometric
+    const savedEmail = localStorage.getItem('fabrictrack_biometric_email');
+    if (savedEmail) setEmail(savedEmail);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,6 +49,35 @@ export default function LoginPage() {
       setError(formatApiError(err.response?.data?.detail) || err.message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    if (!email) { setError('Enter your email first'); return; }
+    setError('');
+    setBiometricLoading(true);
+    try {
+      // Get authentication options
+      const optRes = await api.post('/auth/biometric/login-options', { email });
+      const options = optRes.data;
+      // Start biometric authentication
+      const authResp = await startAuthentication({ optionsJSON: options });
+      // Complete authentication
+      const completeRes = await api.post('/auth/biometric/login-complete', authResp);
+      if (completeRes.data.user) {
+        setUser(completeRes.data.user);
+        localStorage.setItem('fabrictrack_biometric_email', email);
+        navigate('/');
+      }
+    } catch (err) {
+      const msg = err.response?.data?.detail || err.message || 'Biometric login failed';
+      if (msg.includes('No biometric credentials')) {
+        setError('No biometric set up for this account. Login with password first, then set up biometric in settings.');
+      } else {
+        setError(typeof msg === 'string' ? msg : 'Biometric login failed');
+      }
+    } finally {
+      setBiometricLoading(false);
     }
   };
 
@@ -97,6 +142,27 @@ export default function LoginPage() {
               {submitting ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
+
+          {biometricAvailable && (
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-zinc-200" /></div>
+              <div className="relative flex justify-center text-xs"><span className="bg-white px-3 text-zinc-400">or</span></div>
+            </div>
+          )}
+
+          {biometricAvailable && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleBiometricLogin}
+              disabled={biometricLoading}
+              data-testid="biometric-login-button"
+              className="w-full border-zinc-200 hover:bg-zinc-50 text-zinc-700"
+            >
+              <Fingerprint className="w-5 h-5 mr-2" />
+              {biometricLoading ? 'Verifying...' : 'Sign in with Fingerprint / Face ID'}
+            </Button>
+          )}
         </div>
       </div>
     </div>
