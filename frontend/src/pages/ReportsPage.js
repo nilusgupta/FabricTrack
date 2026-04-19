@@ -105,13 +105,15 @@ export default function ReportsPage() {
     <div className="space-y-6" data-testid="reports-page">
       <div><h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">Reports</h1><p className="text-sm text-zinc-500 mt-1">Analytics and insights</p></div>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-zinc-100 border border-zinc-200 rounded-sm" data-testid="report-tabs">
-          <TabsTrigger value="enquiries" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-enquiries"><Filter className="w-3 h-3 mr-1.5" /> Enquiry Report</TabsTrigger>
-          <TabsTrigger value="stages" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-stages"><Layers className="w-3 h-3 mr-1.5" /> Stage Summary</TabsTrigger>
-          <TabsTrigger value="users" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-users"><Users className="w-3 h-3 mr-1.5" /> User Performance</TabsTrigger>
-          <TabsTrigger value="departments" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-departments"><Building2 className="w-3 h-3 mr-1.5" /> Department</TabsTrigger>
-          <TabsTrigger value="pending" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-pending"><ClipboardList className="w-3 h-3 mr-1.5" /> User Stages</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-1 px-1">
+          <TabsList className="bg-zinc-100 border border-zinc-200 rounded-sm inline-flex min-w-max" data-testid="report-tabs">
+            <TabsTrigger value="enquiries" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-enquiries"><Filter className="w-3 h-3 mr-1.5 hidden sm:block" /> Enquiries</TabsTrigger>
+            <TabsTrigger value="stages" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-stages"><Layers className="w-3 h-3 mr-1.5 hidden sm:block" /> Stages</TabsTrigger>
+            <TabsTrigger value="users" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-users"><Users className="w-3 h-3 mr-1.5 hidden sm:block" /> Users</TabsTrigger>
+            <TabsTrigger value="departments" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-departments"><Building2 className="w-3 h-3 mr-1.5 hidden sm:block" /> Dept</TabsTrigger>
+            <TabsTrigger value="pending" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-pending"><ClipboardList className="w-3 h-3 mr-1.5 hidden sm:block" /> User Stages</TabsTrigger>
+          </TabsList>
+        </div>
         <TabsContent value="enquiries"><EnquiryReport stages={stages} users={users} stageMap={stageMap} userMap={userMap} departments={departments} /></TabsContent>
         <TabsContent value="stages"><StageSummary stageMap={stageMap} /></TabsContent>
         <TabsContent value="users"><UserPerformance /></TabsContent>

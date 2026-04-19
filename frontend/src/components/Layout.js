@@ -201,9 +201,9 @@ export default function Layout({ children }) {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-h-screen min-w-0 overflow-hidden">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-zinc-200 px-6 py-3 flex items-center gap-4" data-testid="top-header">
+        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-zinc-200 px-4 sm:px-6 py-3 flex items-center gap-3" data-testid="top-header">
           <button
-            className="lg:hidden"
+            className="md:hidden"
             onClick={() => setSidebarOpen(true)}
             data-testid="mobile-menu-button"
           >
@@ -219,7 +219,7 @@ export default function Layout({ children }) {
               {showNotifs && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowNotifs(false)} />
-                  <div className="absolute right-0 top-10 w-80 bg-white border border-zinc-200 rounded-sm shadow-xl z-50 max-h-96 overflow-hidden" data-testid="notif-dropdown">
+                  <div className="absolute right-0 sm:right-0 top-10 w-[calc(100vw-2rem)] sm:w-80 max-w-80 bg-white border border-zinc-200 rounded-sm shadow-xl z-50 max-h-96 overflow-hidden" data-testid="notif-dropdown">
                     <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50">
                       <span className="text-xs font-semibold text-zinc-700">Notifications</span>
                       {unreadCount > 0 && <button onClick={markAllRead} className="text-[10px] text-blue-600 hover:underline" data-testid="mark-all-read">Mark all read</button>}

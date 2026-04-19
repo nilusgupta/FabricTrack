@@ -366,8 +366,40 @@ export default function EnquiriesPage() {
         </CardContent>
       </Card>
 
-      {/* Table */}
-      <Card className="bg-white border-zinc-200 rounded-sm" style={{ overflow: 'hidden', maxWidth: '100%' }}>
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-2" data-testid="enquiries-cards">
+        {loading ? (
+          [...Array(3)].map((_, i) => <div key={i} className="h-24 bg-white border border-zinc-200 rounded-sm animate-pulse" />)
+        ) : enquiries.length === 0 ? (
+          <div className="text-center py-12 text-zinc-400 text-sm">No enquiries found.</div>
+        ) : enquiries.map((enq, idx) => (
+          <Card key={enq.id} className="bg-white border-zinc-200 rounded-sm cursor-pointer hover:shadow-sm transition-shadow" onClick={() => navigate(`/enquiries/${enq.id}`)} data-testid={`enquiry-card-${enq.id}`}>
+            <CardContent className="p-3">
+              <div className="flex items-start gap-3">
+                {enq.image_path ? <EnquiryThumbnail imagePath={enq.image_path} /> : <div className="w-10 h-10 bg-zinc-100 rounded-sm flex items-center justify-center text-zinc-300 text-xs shrink-0">No img</div>}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-zinc-900 truncate">{enq.customer_name}</span>
+                    {enq.status === 'closed' ? <Badge className="rounded-sm text-[9px] bg-green-100 text-green-700 shrink-0">Closed</Badge> : <Badge className="rounded-sm text-[9px] bg-blue-50 text-blue-600 shrink-0">Open</Badge>}
+                  </div>
+                  <p className="text-xs text-zinc-500 truncate">{enq.fabric_type} · {enq.style_no || 'No style'}</p>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    {enq.department && <Badge className="rounded-sm text-[9px] bg-zinc-100 text-zinc-600">{enq.department}</Badge>}
+                    {visibleStages.slice(0, 2).map(s => {
+                      const val = getStageDisplay(enq, s.id);
+                      return val ? <Badge key={s.id} className="rounded-sm text-[9px]" style={{ backgroundColor: s.color + '15', color: s.color, border: `1px solid ${s.color}30` }}>{s.name}: {val}</Badge> : null;
+                    })}
+                  </div>
+                </div>
+                <span className="text-[10px] text-zinc-400 shrink-0">{new Date(enq.created_at).toLocaleDateString()}</span>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Desktop Table */}
+      <Card className="bg-white border-zinc-200 rounded-sm hidden md:block" style={{ overflow: 'hidden', maxWidth: '100%' }}>
         <div className="overflow-x-scroll" data-testid="enquiries-table" style={{ scrollbarGutter: 'stable' }}>
           <table className="caption-bottom text-sm border-collapse" style={{ tableLayout: 'fixed', width: `${438 + visibleStages.length * 180 + 500}px` }}>
             <thead>

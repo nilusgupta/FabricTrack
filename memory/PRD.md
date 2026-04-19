@@ -4,7 +4,7 @@
 Build a fabric enquiry tracking system with overview of status of enquiry at various stages assigned to users.
 
 ## Architecture
-- Frontend: React + TailwindCSS + Shadcn UI (PWA)
+- Frontend: React + TailwindCSS + Shadcn UI (PWA - installable)
 - Backend: FastAPI + Motor (Async MongoDB) + PyJWT + WebAuthn
 - Storage: Emergent Object Storage for images and voice notes
 - Excel: openpyxl + Pillow for embedded images
@@ -12,6 +12,7 @@ Build a fabric enquiry tracking system with overview of status of enquiry at var
 ## What's Been Implemented
 - **PWA**: manifest.json, service worker, installable on Android/iOS home screens
 - **Biometric Login (WebAuthn)**: Fingerprint/Face ID registration and authentication
+- **Mobile-responsive layout**: Sidebar drawer, card view for enquiries, stacked forms, sticky save button
 - Auth system (JWT cookies, brute force protection, admin seeding)
 - Stage Master CRUD with Text, Date, Dropdown, Image input types
 - Department-Stage Hierarchy with per-stage user assignment
@@ -24,6 +25,13 @@ Build a fabric enquiry tracking system with overview of status of enquiry at var
 - Reports: Enquiry Report, User Stages (pending+done), Excel export
 - Blank/Filled grid filters, stage filters
 
+## Mobile-Responsive Changes
+- Sidebar: drawer with overlay on mobile (<768px), static on desktop
+- Enquiries: card-based list on mobile, table on desktop
+- Detail page: stacked forms, sticky save button at bottom on mobile
+- Reports: scrollable tabs with compact labels on mobile
+- Header: hamburger menu + notification bell, no email on small screens
+- All filter/form grids stack to single column on mobile
+
 ## Backlog
 - P1: Email notifications (awaiting Resend API key)
-- P2: Mobile-responsive layout refinements

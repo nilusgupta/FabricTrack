@@ -268,20 +268,20 @@ export default function EnquiryDetailPage() {
   return (
     <div className="space-y-6 max-w-5xl" data-testid="enquiry-detail-page">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <Button variant="ghost" size="sm" onClick={() => navigate('/enquiries')} data-testid="back-to-enquiries"><ArrowLeft className="w-4 h-4 mr-1" /> Back</Button>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-900">{enquiry.customer_name}</h1>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 truncate">{enquiry.customer_name}</h1>
             {enquiry.status === 'closed' ? (
-              <Badge className="rounded-sm text-xs bg-green-100 text-green-700 border border-green-200" data-testid="enquiry-status-badge">Closed</Badge>
+              <Badge className="rounded-sm text-xs bg-green-100 text-green-700 border border-green-200 shrink-0" data-testid="enquiry-status-badge">Closed</Badge>
             ) : (
-              <Badge className="rounded-sm text-xs bg-blue-50 text-blue-600 border border-blue-200" data-testid="enquiry-status-badge">Open</Badge>
+              <Badge className="rounded-sm text-xs bg-blue-50 text-blue-600 border border-blue-200 shrink-0" data-testid="enquiry-status-badge">Open</Badge>
             )}
           </div>
-          <p className="text-sm text-zinc-500">Style: {enquiry.style_no || '—'} · {enquiry.fabric_type} · Created by {enquiry.created_by_name}</p>
+          <p className="text-xs sm:text-sm text-zinc-500 truncate">Style: {enquiry.style_no || '—'} · {enquiry.fabric_type} · Created by {enquiry.created_by_name}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {user?.role === 'admin' && enquiry.status !== 'closed' && (
             <Button variant="outline" size="sm" onClick={async () => { if (window.confirm('Close this enquiry?')) { try { await api.put(`/enquiries/${id}/close`); toast.success('Enquiry closed'); fetchData(); } catch (err) { toast.error(err.response?.data?.detail || 'Failed'); } } }} data-testid="close-enquiry-button" className="border-amber-200 text-amber-700 hover:bg-amber-50">
               <XCircle className="w-3 h-3 mr-1" /> Close
@@ -706,6 +706,13 @@ export default function EnquiryDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Mobile sticky save button */}
+      <div className="sticky bottom-0 md:hidden bg-white border-t border-zinc-200 p-3 -mx-4 sm:-mx-6 mt-4" data-testid="mobile-save-bar">
+        <Button onClick={handleSave} disabled={saving} className="w-full bg-zinc-900 hover:bg-zinc-800 text-white" data-testid="mobile-save-button">
+          <Save className="w-4 h-4 mr-2" />{saving ? 'Saving...' : 'Save Changes'}
+        </Button>
+      </div>
     </div>
   );
 }
