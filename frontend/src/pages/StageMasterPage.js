@@ -22,6 +22,7 @@ const INPUT_TYPES = [
   { value: 'date', label: 'Date' },
   { value: 'select', label: 'Dropdown / Status' },
   { value: 'image', label: 'Image (Camera / Gallery)' },
+  { value: 'qrcode', label: 'QR Code Scanner' },
 ];
 
 export default function StageMasterPage() {

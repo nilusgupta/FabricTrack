@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Label } from '../components/ui/label';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
-import { ArrowLeft, Save, Trash2, Clock, User, Upload, Camera, Image as ImageIcon, Send, MessageSquare, Lock, Plus, XCircle, CheckCircle2, Mic, Square, Play, Pause } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, Clock, User, Upload, Camera, Image as ImageIcon, Send, MessageSquare, Lock, Plus, XCircle, CheckCircle2, Mic, Square, Play, Pause, ScanLine } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 
@@ -40,6 +40,41 @@ function VoiceNotePlayer({ storagePath }) {
       <button onClick={toggle} className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${playing ? 'bg-red-100 text-red-600' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`} data-testid="voice-note-play">
         {playing ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 ml-0.5" />}
       </button>
+    </div>
+  );
+}
+
+function QRCodeScanner({ onScan, onClose }) {
+  const scannerRef = useRef(null);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    let scanner = null;
+    const initScanner = async () => {
+      try {
+        const { Html5Qrcode } = await import('html5-qrcode');
+        scanner = new Html5Qrcode("qr-reader");
+        scannerRef.current = scanner;
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText) => { onScan(decodedText); scanner.stop().catch(() => {}); },
+          () => {}
+        );
+      } catch (err) {
+        console.error('QR Scanner error:', err);
+      }
+    };
+    initScanner();
+    return () => { if (scannerRef.current) { scannerRef.current.stop().catch(() => {}); } };
+  }, [onScan]);
+
+  return (
+    <div className="space-y-3">
+      <div id="qr-reader" ref={containerRef} className="w-full rounded-sm overflow-hidden" />
+      <div className="flex justify-end">
+        <Button type="button" variant="outline" size="sm" onClick={onClose} className="border-zinc-200">Cancel</Button>
+      </div>
     </div>
   );
 }
@@ -573,6 +608,32 @@ export default function EnquiryDetailPage() {
                               </div>
                             )}
                           </div>
+                        ) : s.input_type === 'qrcode' ? (
+                          <div className="space-y-2">
+                            {getStageValue(s.id) ? (
+                              <div className="flex items-center gap-3">
+                                <div className="px-3 py-2 bg-green-50 border border-green-200 rounded-sm flex-1">
+                                  <p className="text-xs text-green-700 font-mono break-all">{getStageValue(s.id)}</p>
+                                </div>
+                                <Button type="button" variant="outline" size="sm" onClick={() => setStageValue(s.id, '')} className="text-xs border-zinc-200 shrink-0">Clear</Button>
+                              </div>
+                            ) : (
+                              <div>
+                                <div className="flex gap-2 mb-2">
+                                  <Button type="button" variant="outline" size="sm" onClick={() => setForm(prev => ({ ...prev, [`_qr_scanning_${s.id}`]: !prev[`_qr_scanning_${s.id}`] }))} className="flex-1 border-zinc-200" data-testid={`stage-qr-scan-${s.id}`}>
+                                    <ScanLine className="w-4 h-4 mr-1.5" /> {form[`_qr_scanning_${s.id}`] ? 'Stop Scanner' : 'Scan QR Code'}
+                                  </Button>
+                                  <Input placeholder="Or type manually..." className="flex-1 border-zinc-200 text-xs" value="" onChange={e => { if (e.target.value) setStageValue(s.id, e.target.value); }} data-testid={`stage-qr-manual-${s.id}`} />
+                                </div>
+                                {form[`_qr_scanning_${s.id}`] && (
+                                  <QRCodeScanner
+                                    onScan={(text) => { setStageValue(s.id, text); setForm(prev => ({ ...prev, [`_qr_scanning_${s.id}`]: false })); toast.success(`Scanned: ${text}`); }}
+                                    onClose={() => setForm(prev => ({ ...prev, [`_qr_scanning_${s.id}`]: false }))}
+                                  />
+                                )}
+                              </div>
+                            )}
+                          </div>
                         ) : s.input_type === 'date' ? (
                           s.date_input_mode === 'auto' ? (
                             <Button type="button" variant="outline" size="sm"
@@ -601,6 +662,8 @@ export default function EnquiryDetailPage() {
                       <div className="px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-sm text-sm text-zinc-500" data-testid={`stage-value-readonly-${s.id}`}>
                         {s.input_type === 'image' && getStageValue(s.id) ? (
                           <img src={`/api/files/${getStageValue(s.id)}`} alt={s.name} className="w-20 h-20 object-cover rounded-sm" />
+                        ) : s.input_type === 'qrcode' && getStageValue(s.id) ? (
+                          <span className="font-mono text-xs">{getStageValue(s.id)}</span>
                         ) : getStageValue(s.id) || <span className="italic text-zinc-400">No value set</span>}
                       </div>
                     )}

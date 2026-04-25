@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends, UploadFile, File, Query, Header
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends, UploadFile, File, Query, Header, Form
 from fastapi.responses import StreamingResponse
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -762,6 +762,46 @@ async def create_enquiry(req: EnquiryCreate, request: Request):
         }
         await db.enquiry_history.insert_one(history_doc)
     return {k: v for k, v in enquiry_doc.items() if k != "_id"}
+
+@api_router.post("/enquiries/bulk")
+async def bulk_create_enquiries(request: Request, files: List[UploadFile] = File(...), customer_name: str = Form(...), fabric_type: str = Form(...), style_no: str = Form(""), department: str = Form(""), notes: str = Form(""), fabric_received: str = Form("no"), qty_received: str = Form(""), sample_number: str = Form("")):
+    user = await get_current_user(request)
+    now = datetime.now(timezone.utc).isoformat()
+    created = []
+    for f in files:
+        enquiry_id = secrets.token_hex(12)
+        # Upload image
+        image_path = ""
+        try:
+            ext = f.filename.split(".")[-1] if "." in f.filename else "jpg"
+            path = f"{APP_NAME}/images/{enquiry_id}.{ext}"
+            data = await f.read()
+            result = put_object(path, data, f.content_type or "image/jpeg")
+            image_path = result["path"]
+            file_doc = {
+                "id": str(uuid_mod.uuid4()), "storage_path": result["path"],
+                "original_filename": f.filename, "content_type": f.content_type or "image/jpeg",
+                "size": result.get("size", len(data)), "is_deleted": False,
+                "uploaded_by": user["_id"], "created_at": now
+            }
+            await db.files.insert_one(file_doc)
+        except Exception:
+            pass
+        enquiry_doc = {
+            "id": enquiry_id, "customer_name": customer_name,
+            "fabric_type": fabric_type, "quantity": "",
+            "style_no": style_no, "image_path": image_path,
+            "department": department or user.get("department", ""),
+            "notes": notes, "rate": "", "po_no": "", "po_del_date": "",
+            "fabric_received": fabric_received, "qty_received": qty_received,
+            "sample_number": sample_number, "stage_values": {},
+            "status": "open",
+            "created_by": user["_id"], "created_by_name": user["name"],
+            "created_at": now, "updated_at": now
+        }
+        await db.enquiries.insert_one(enquiry_doc)
+        created.append({k: v for k, v in enquiry_doc.items() if k != "_id"})
+    return {"created": len(created), "enquiries": created}
 
 @api_router.put("/enquiries/{enquiry_id}")
 async def update_enquiry(enquiry_id: str, req: EnquiryUpdate, request: Request):

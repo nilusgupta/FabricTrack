@@ -93,6 +93,9 @@ export default function EnquiriesPage() {
     department: '', notes: '', fabric_received: 'no', qty_received: '', sample_number: ''
   });
   const [imageFile, setImageFile] = useState(null);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkFiles, setBulkFiles] = useState([]);
+  const [bulkCreating, setBulkCreating] = useState(false);
   const [quickCustomer, setQuickCustomer] = useState({ open: false, name: '' });
   const [quickFabric, setQuickFabric] = useState({ open: false, name: '', gsm: '', width: '', composition: '', construction: '' });
 
@@ -149,15 +152,17 @@ export default function EnquiriesPage() {
     e.preventDefault();
     try {
       const res = await api.post('/enquiries', form);
-      // Upload image if selected
+      // Upload image immediately if selected
       if (imageFile && res.data?.id) {
-        const fd = new FormData();
-        fd.append('file', imageFile);
         try {
+          const fd = new FormData();
+          fd.append('file', imageFile);
           const uploadRes = await api.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-          await api.put(`/enquiries/${res.data.id}`, { image_path: uploadRes.data.path });
+          if (uploadRes.data?.path) {
+            await api.put(`/enquiries/${res.data.id}`, { image_path: uploadRes.data.path });
+          }
         } catch (uploadErr) {
-          console.error('Image upload failed', uploadErr);
+          toast.error('Enquiry created but image upload failed. Please edit and re-upload.');
         }
       }
       toast.success('Enquiry created');
@@ -168,6 +173,35 @@ export default function EnquiriesPage() {
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to create');
     }
+  };
+
+  const handleBulkCreate = async () => {
+    if (!form.customer_name || !form.fabric_type || bulkFiles.length === 0) {
+      toast.error('Select customer, fabric type, and at least one image');
+      return;
+    }
+    setBulkCreating(true);
+    try {
+      const fd = new FormData();
+      fd.append('customer_name', form.customer_name);
+      fd.append('fabric_type', form.fabric_type);
+      fd.append('style_no', form.style_no || '');
+      fd.append('department', form.department || '');
+      fd.append('notes', form.notes || '');
+      fd.append('fabric_received', form.fabric_received || 'no');
+      fd.append('qty_received', form.qty_received || '');
+      fd.append('sample_number', form.sample_number || '');
+      for (const f of bulkFiles) { fd.append('files', f); }
+      const res = await api.post('/enquiries/bulk', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      toast.success(`${res.data.created} enquiries created!`);
+      setDialogOpen(false);
+      setBulkMode(false);
+      setBulkFiles([]);
+      setForm({ customer_name: '', fabric_type: '', style_no: '', department: '', notes: '', fabric_received: 'no', qty_received: '', sample_number: '' });
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Bulk creation failed');
+    } finally { setBulkCreating(false); }
   };
 
   const handleQuickCustomer = async (e) => {
@@ -311,22 +345,52 @@ export default function EnquiriesPage() {
 
               {/* Image upload - supports camera, gallery, file */}
               <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Image</Label>
-                <div className="flex gap-2">
-                  <label className="flex-1 cursor-pointer">
-                    <Input type="file" accept="image/*" capture="environment" onChange={e => setImageFile(e.target.files[0])} data-testid="enquiry-image-camera" className="hidden" />
-                    <div className="flex items-center justify-center gap-2 px-3 py-2 border border-zinc-200 rounded-sm text-sm text-zinc-600 hover:bg-zinc-50 transition-colors">
-                      <Camera className="w-4 h-4" /> Camera
-                    </div>
-                  </label>
-                  <label className="flex-1 cursor-pointer">
-                    <Input type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])} data-testid="enquiry-image-gallery" className="hidden" />
-                    <div className="flex items-center justify-center gap-2 px-3 py-2 border border-zinc-200 rounded-sm text-sm text-zinc-600 hover:bg-zinc-50 transition-colors">
-                      <ImageIcon className="w-4 h-4" /> Gallery / File
-                    </div>
-                  </label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Image</Label>
+                  <button type="button" className={`text-xs px-2 py-0.5 rounded-sm border ${bulkMode ? 'bg-zinc-900 text-white border-zinc-900' : 'text-zinc-500 border-zinc-200 hover:bg-zinc-50'}`} onClick={() => { setBulkMode(!bulkMode); setBulkFiles([]); setImageFile(null); }} data-testid="toggle-bulk-mode">
+                    {bulkMode ? 'Bulk Mode ON' : 'Bulk Create'}
+                  </button>
                 </div>
-                {imageFile && <p className="text-xs text-green-600">{imageFile.name}</p>}
+                {bulkMode ? (
+                  <div>
+                    <label className="block cursor-pointer">
+                      <input type="file" accept="image/*" multiple onChange={e => setBulkFiles(Array.from(e.target.files || []))} data-testid="bulk-image-input" className="hidden" />
+                      <div className="flex items-center justify-center gap-2 px-3 py-4 border-2 border-dashed border-zinc-300 rounded-sm text-sm text-zinc-500 hover:bg-zinc-50 transition-colors">
+                        <ImageIcon className="w-5 h-5" /> Select multiple images ({bulkFiles.length} selected)
+                      </div>
+                    </label>
+                    {bulkFiles.length > 0 && (
+                      <div className="mt-2 flex gap-1 flex-wrap">
+                        {bulkFiles.map((f, i) => <Badge key={i} className="rounded-sm text-[10px] bg-zinc-100 text-zinc-600">{f.name}</Badge>)}
+                      </div>
+                    )}
+                    <p className="text-[10px] text-amber-600 mt-1">Each image = one enquiry with same customer/fabric details</p>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex gap-2">
+                      <label className="flex-1 cursor-pointer">
+                        <input type="file" accept="image/*" capture="environment" onChange={e => { if (e.target.files[0]) setImageFile(e.target.files[0]); }} data-testid="enquiry-image-camera" className="hidden" />
+                        <div className="flex items-center justify-center gap-2 px-3 py-2 border border-zinc-200 rounded-sm text-sm text-zinc-600 hover:bg-zinc-50 transition-colors">
+                          <Camera className="w-4 h-4" /> Camera
+                        </div>
+                      </label>
+                      <label className="flex-1 cursor-pointer">
+                        <input type="file" accept="image/*" onChange={e => { if (e.target.files[0]) setImageFile(e.target.files[0]); }} data-testid="enquiry-image-gallery" className="hidden" />
+                        <div className="flex items-center justify-center gap-2 px-3 py-2 border border-zinc-200 rounded-sm text-sm text-zinc-600 hover:bg-zinc-50 transition-colors">
+                          <ImageIcon className="w-4 h-4" /> Gallery / File
+                        </div>
+                      </label>
+                    </div>
+                    {imageFile && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <img src={URL.createObjectURL(imageFile)} alt="Preview" className="w-12 h-12 object-cover rounded-sm border" />
+                        <span className="text-xs text-green-600 flex-1 truncate">{imageFile.name}</span>
+                        <button type="button" onClick={() => setImageFile(null)} className="text-xs text-red-500">Remove</button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -336,7 +400,13 @@ export default function EnquiriesPage() {
 
               <div className="flex justify-end gap-3 pt-2">
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="border-zinc-200">Cancel</Button>
-                <Button type="submit" data-testid="enquiry-submit-button" className="bg-zinc-900 hover:bg-zinc-800 text-white">Create Enquiry</Button>
+                {bulkMode ? (
+                  <Button type="button" onClick={handleBulkCreate} disabled={bulkCreating || bulkFiles.length === 0} data-testid="bulk-create-button" className="bg-zinc-900 hover:bg-zinc-800 text-white">
+                    {bulkCreating ? 'Creating...' : `Create ${bulkFiles.length} Enquiries`}
+                  </Button>
+                ) : (
+                  <Button type="submit" data-testid="enquiry-submit-button" className="bg-zinc-900 hover:bg-zinc-800 text-white">Create Enquiry</Button>
+                )}
               </div>
             </form>
           </DialogContent>
@@ -396,6 +466,18 @@ export default function EnquiriesPage() {
             </CardContent>
           </Card>
         ))}
+        {/* Mobile Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between py-3" data-testid="mobile-pagination">
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="border-zinc-200">
+              <ChevronLeft className="w-4 h-4 mr-1" /> Prev
+            </Button>
+            <span className="text-xs text-zinc-500">Page {page} of {totalPages}</span>
+            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="border-zinc-200">
+              Next <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Desktop Table */}
