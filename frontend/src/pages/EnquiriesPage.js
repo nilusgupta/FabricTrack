@@ -592,6 +592,30 @@ export default function EnquiriesPage() {
           </div>
         )}
       </Card>
+
+      {/* Shared Pagination - always visible */}
+      <div className="flex items-center justify-between px-3 py-2.5 bg-white border border-zinc-200 rounded-sm" data-testid="shared-pagination">
+        <p className="text-xs text-zinc-500">
+          <span className="hidden sm:inline">{(page - 1) * pageSize + 1}–{Math.min(page * pageSize, totalCount)} of </span>{totalCount} enquiries
+        </p>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(1)} className="border-zinc-200 h-8 w-8 p-0 hidden sm:flex">
+              <ChevronsLeft className="w-3.5 h-3.5" />
+            </Button>
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)} data-testid="page-prev" className="border-zinc-200 h-8 px-2 sm:w-8 sm:p-0">
+              <ChevronLeft className="w-3.5 h-3.5" /><span className="sm:hidden ml-1 text-xs">Prev</span>
+            </Button>
+            <span className="text-xs text-zinc-700 font-medium px-2">{page} / {totalPages}</span>
+            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} data-testid="page-next" className="border-zinc-200 h-8 px-2 sm:w-8 sm:p-0">
+              <span className="sm:hidden mr-1 text-xs">Next</span><ChevronRight className="w-3.5 h-3.5" />
+            </Button>
+            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(totalPages)} className="border-zinc-200 h-8 w-8 p-0 hidden sm:flex">
+              <ChevronsRight className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
