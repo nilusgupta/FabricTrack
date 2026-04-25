@@ -28,6 +28,25 @@ db = client[os.environ['DB_NAME']]
 
 JWT_ALGORITHM = "HS256"
 
+# Simple in-memory cache for reference data
+_cache = {}
+_cache_ttl = 30  # seconds
+
+async def get_cached(key, fetch_fn):
+    import time
+    now = time.time()
+    if key in _cache and now - _cache[key]["ts"] < _cache_ttl:
+        return _cache[key]["data"]
+    data = await fetch_fn()
+    _cache[key] = {"data": data, "ts": now}
+    return data
+
+def invalidate_cache(key=None):
+    if key:
+        _cache.pop(key, None)
+    else:
+        _cache.clear()
+
 # ─── Object Storage ───
 STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
 EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
@@ -476,8 +495,7 @@ async def delete_user(user_id: str, request: Request):
 @api_router.get("/stages")
 async def get_stages(request: Request):
     await get_current_user(request)
-    stages = await db.stages.find({}, {"_id": 0}).sort("order", 1).to_list(100)
-    return stages
+    return await get_cached("stages", lambda: db.stages.find({}, {"_id": 0}).sort("order", 1).to_list(100))
 
 @api_router.post("/stages")
 async def create_stage(req: StageCreate, request: Request):
@@ -494,6 +512,7 @@ async def create_stage(req: StageCreate, request: Request):
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.stages.insert_one(stage_doc)
+    invalidate_cache("stages")
     return {k: v for k, v in stage_doc.items() if k != "_id"}
 
 @api_router.put("/stages/{stage_id}")
@@ -506,6 +525,7 @@ async def update_stage(stage_id: str, req: StageUpdate, request: Request):
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Stage not found")
     stage = await db.stages.find_one({"id": stage_id}, {"_id": 0})
+    invalidate_cache("stages")
     return stage
 
 @api_router.delete("/stages/{stage_id}")
@@ -623,7 +643,7 @@ async def get_enquiries(request: Request, stage: Optional[str] = None, departmen
         ]
     total = await db.enquiries.count_documents(query)
     skip = (page - 1) * page_size
-    enquiries = await db.enquiries.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(page_size).to_list(page_size)
+    enquiries = await db.enquiries.find(query, {"_id": 0, "history": 0, "voice_notes": 0, "comments": 0}).sort("created_at", -1).skip(skip).limit(page_size).to_list(page_size)
     # Calculate delay status for list view
     stages = await db.stages.find({}, {"_id": 0}).sort("order", 1).to_list(100)
     now = datetime.now(timezone.utc)
@@ -966,8 +986,7 @@ async def mark_all_read(request: Request):
 @api_router.get("/departments")
 async def get_departments(request: Request):
     await get_current_user(request)
-    depts = await db.departments.find({}, {"_id": 0}).sort("name", 1).to_list(100)
-    return depts
+    return await get_cached("departments", lambda: db.departments.find({}, {"_id": 0}).sort("name", 1).to_list(100))
 
 @api_router.post("/departments")
 async def create_department(req: DepartmentCreate, request: Request):
@@ -978,6 +997,7 @@ async def create_department(req: DepartmentCreate, request: Request):
     dept_id = secrets.token_hex(12)
     dept_doc = {"id": dept_id, "name": req.name, "description": req.description, "created_at": datetime.now(timezone.utc).isoformat()}
     await db.departments.insert_one(dept_doc)
+    invalidate_cache("departments")
     return {k: v for k, v in dept_doc.items() if k != "_id"}
 
 @api_router.put("/departments/{dept_id}")
@@ -990,6 +1010,7 @@ async def update_department(dept_id: str, req: DepartmentUpdate, request: Reques
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Department not found")
     dept = await db.departments.find_one({"id": dept_id}, {"_id": 0})
+    invalidate_cache("departments")
     return dept
 
 @api_router.delete("/departments/{dept_id}")
@@ -998,6 +1019,7 @@ async def delete_department(dept_id: str, request: Request):
     result = await db.departments.delete_one({"id": dept_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Department not found")
+    invalidate_cache("departments")
     return {"message": "Department deleted"}
 
 # ─── Department Stage Hierarchy ───
@@ -1017,6 +1039,7 @@ async def update_department_hierarchy(dept_id: str, req: DepartmentHierarchyUpda
         raise HTTPException(status_code=404, detail="Department not found")
     hierarchy = [item.model_dump() for item in req.items]
     await db.departments.update_one({"id": dept_id}, {"$set": {"stage_hierarchy": hierarchy}})
+    invalidate_cache("departments")
     return hierarchy
 
 # ─── Customer Master ───
@@ -1096,20 +1119,22 @@ async def delete_fabric_type(fab_id: str, request: Request):
 # ─── Dashboard ───
 @api_router.get("/dashboard")
 async def get_dashboard(request: Request):
+    import asyncio
     await get_current_user(request)
-    total = await db.enquiries.count_documents({})
-    stages = await db.stages.find({}, {"_id": 0}).sort("order", 1).to_list(100)
-    stage_map = {s["id"]: s["name"] for s in stages}
-    # Count enquiries that have a value for each stage
-    by_stage = []
-    for s in stages:
-        count = await db.enquiries.count_documents({f"stage_values.{s['id']}": {"$exists": True}})
-        by_stage.append({"stage_id": s["id"], "stage_name": s["name"], "count": count})
-    by_dept_pipeline = [{"$group": {"_id": "$department", "count": {"$sum": 1}}}]
-    by_dept_raw = await db.enquiries.aggregate(by_dept_pipeline).to_list(100)
+    stages = await get_cached("stages", lambda: db.stages.find({}, {"_id": 0}).sort("order", 1).to_list(100))
+    # Parallel queries
+    total_f = db.enquiries.count_documents({})
+    users_f = db.users.count_documents({})
+    by_dept_f = db.enquiries.aggregate([{"$group": {"_id": "$department", "count": {"$sum": 1}}}]).to_list(100)
+    recent_f = db.enquiries.find({}, {"_id": 0}).sort("created_at", -1).limit(5).to_list(5)
+    stage_counts = [db.enquiries.count_documents({f"stage_values.{s['id']}": {"$exists": True}}) for s in stages]
+    results = await asyncio.gather(total_f, users_f, by_dept_f, recent_f, *stage_counts)
+    total = results[0]
+    users_count = results[1]
+    by_dept_raw = results[2]
+    recent = results[3]
+    by_stage = [{"stage_id": s["id"], "stage_name": s["name"], "count": results[4 + i]} for i, s in enumerate(stages)]
     by_department = [{"department": d["_id"] or "Unassigned", "count": d["count"]} for d in by_dept_raw]
-    recent = await db.enquiries.find({}, {"_id": 0}).sort("created_at", -1).limit(5).to_list(5)
-    users_count = await db.users.count_documents({})
     return {
         "total_enquiries": total, "by_stage": by_stage,
         "by_department": by_department, "recent_enquiries": recent,
@@ -1271,8 +1296,8 @@ async def report_pending_stages(request: Request):
 @api_router.get("/reports/user-stages")
 async def report_user_stages(request: Request, filter_department: Optional[str] = None, filter_user: Optional[str] = None, filter_stage: Optional[str] = None):
     await get_current_user(request)
-    depts = await db.departments.find({}, {"_id": 0}).to_list(100)
-    all_stages = {s["id"]: s for s in await db.stages.find({}, {"_id": 0}).to_list(100)}
+    depts = await get_cached("departments", lambda: db.departments.find({}, {"_id": 0}).to_list(100))
+    all_stages = {s["id"]: s for s in await get_cached("stages", lambda: db.stages.find({}, {"_id": 0}).to_list(100))}
     users_list = await db.users.find({}, {"password_hash": 0}).to_list(1000)
     user_map = {str(u["_id"]): u for u in users_list}
     now = datetime.now(timezone.utc)
@@ -1679,10 +1704,19 @@ async def startup():
     await db.login_attempts.create_index("identifier")
     await db.stages.create_index("id", unique=True)
     await db.enquiries.create_index("id", unique=True)
+    await db.enquiries.create_index("department")
+    await db.enquiries.create_index("status")
+    await db.enquiries.create_index("customer_name")
+    await db.enquiries.create_index("created_at")
+    await db.enquiries.create_index([("department", 1), ("status", 1)])
+    await db.enquiry_history.create_index("enquiry_id")
     await db.departments.create_index("id", unique=True)
     await db.departments.create_index("name", unique=True)
     await db.notifications.create_index("user_id")
     await db.notifications.create_index("id", unique=True)
+    await db.webauthn_credentials.create_index("user_id")
+    await db.webauthn_credentials.create_index("credential_id_b64")
+    await db.files.create_index("id", unique=True)
     # Seed default departments
     default_depts = ["Sales", "Production", "Quality", "Admin", "Design", "Logistics"]
     for dept_name in default_depts:
