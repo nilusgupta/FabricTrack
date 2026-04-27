@@ -450,6 +450,7 @@ export default function EnquiriesPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-zinc-900 truncate">{enq.customer_name}</span>
+                    {enq.enquiry_number && <span className="text-[9px] font-mono text-zinc-400">#{enq.enquiry_number}</span>}
                     {enq.status === 'closed' ? <Badge className="rounded-sm text-[9px] bg-green-100 text-green-700 shrink-0">Closed</Badge> : <Badge className="rounded-sm text-[9px] bg-blue-50 text-blue-600 shrink-0">Open</Badge>}
                   </div>
                   <p className="text-xs text-zinc-500 truncate">{enq.fabric_type} · {enq.style_no || 'No style'}</p>
@@ -486,7 +487,7 @@ export default function EnquiriesPage() {
           <table className="caption-bottom text-sm border-collapse" style={{ tableLayout: 'fixed', width: `${438 + visibleStages.length * 180 + 500}px` }}>
             <thead>
               <tr className="border-b bg-zinc-50">
-                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky left-0 bg-zinc-50 z-20" style={{ width: 40 }}>SR</th>
+                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky left-0 bg-zinc-50 z-20" style={{ width: 50 }}>#</th>
                 <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 48, left: 40 }}>Img</th>
                 <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 110, left: 88 }}>Style No.</th>
                 <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 130, left: 198 }}>Customer</th>
@@ -510,7 +511,7 @@ export default function EnquiriesPage() {
               ) : (
                 enquiries.map((enq, idx) => (
                   <tr key={enq.id} className="border-b cursor-pointer hover:bg-zinc-50 transition-colors group" onClick={() => navigate(`/enquiries/${enq.id}`)} data-testid={`enquiry-row-${enq.id}`}>
-                    <td className="p-2 text-zinc-500 text-xs font-mono sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 0 }}>{(page - 1) * pageSize + idx + 1}</td>
+                    <td className="p-2 text-zinc-500 text-xs font-mono sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 0 }}>{enq.enquiry_number || (page - 1) * pageSize + idx + 1}</td>
                     <td className="p-2 sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 40 }}>{enq.image_path ? <EnquiryThumbnail imagePath={enq.image_path} /> : <span className="text-zinc-300">—</span>}</td>
                     <td className="p-2 text-zinc-600 text-sm sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 88 }}>{enq.style_no || '—'}</td>
                     <td className="p-2 font-medium text-zinc-900 sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 198 }}>{enq.customer_name}</td>

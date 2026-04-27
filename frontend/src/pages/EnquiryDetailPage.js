@@ -310,6 +310,7 @@ export default function EnquiryDetailPage() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 truncate">{enquiry.customer_name}</h1>
+            {enquiry.enquiry_number && <Badge className="rounded-sm text-xs bg-zinc-100 text-zinc-600 font-mono shrink-0">#{enquiry.enquiry_number}</Badge>}
             {enquiry.status === 'closed' ? (
               <Badge className="rounded-sm text-xs bg-green-100 text-green-700 border border-green-200 shrink-0" data-testid="enquiry-status-badge">Closed</Badge>
             ) : (

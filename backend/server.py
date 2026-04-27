@@ -47,6 +47,16 @@ def invalidate_cache(key=None):
     else:
         _cache.clear()
 
+async def get_next_enquiry_number():
+    """Get next auto-incrementing enquiry number using a counter collection."""
+    result = await db.counters.find_one_and_update(
+        {"_id": "enquiry_number"},
+        {"$inc": {"seq": 1}},
+        upsert=True,
+        return_document=True
+    )
+    return result["seq"]
+
 # ─── Object Storage ───
 STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
 EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
@@ -736,8 +746,10 @@ async def create_enquiry(req: EnquiryCreate, request: Request):
     user = await get_current_user(request)
     enquiry_id = secrets.token_hex(12)
     now = datetime.now(timezone.utc).isoformat()
+    enquiry_number = await get_next_enquiry_number()
     enquiry_doc = {
-        "id": enquiry_id, "customer_name": req.customer_name,
+        "id": enquiry_id, "enquiry_number": enquiry_number,
+        "customer_name": req.customer_name,
         "fabric_type": req.fabric_type, "quantity": req.quantity,
         "style_no": req.style_no, "image_path": "",
         "department": req.department or user.get("department", ""),
@@ -770,6 +782,7 @@ async def bulk_create_enquiries(request: Request, files: List[UploadFile] = File
     created = []
     for f in files:
         enquiry_id = secrets.token_hex(12)
+        enquiry_number = await get_next_enquiry_number()
         # Upload image
         image_path = ""
         try:
@@ -788,7 +801,8 @@ async def bulk_create_enquiries(request: Request, files: List[UploadFile] = File
         except Exception:
             pass
         enquiry_doc = {
-            "id": enquiry_id, "customer_name": customer_name,
+            "id": enquiry_id, "enquiry_number": enquiry_number,
+            "customer_name": customer_name,
             "fabric_type": fabric_type, "quantity": "",
             "style_no": style_no, "image_path": image_path,
             "department": department or user.get("department", ""),
@@ -1787,6 +1801,13 @@ async def startup():
     os.makedirs("/app/memory", exist_ok=True)
     with open("/app/memory/test_credentials.md", "w") as f:
         f.write(f"# Test Credentials\n\n## Admin\n- Email: {admin_email}\n- Password: {admin_password}\n- Role: admin\n\n## Auth Endpoints\n- POST /api/auth/login\n- POST /api/auth/logout\n- GET /api/auth/me\n")
+    # Migration: backfill enquiry_number for existing enquiries
+    unumbered = await db.enquiries.find({"enquiry_number": {"$exists": False}}).sort("created_at", 1).to_list(10000)
+    if unumbered:
+        for enq in unumbered:
+            num = await get_next_enquiry_number()
+            await db.enquiries.update_one({"id": enq["id"]}, {"$set": {"enquiry_number": num}})
+        logger.info(f"Backfilled enquiry_number for {len(unumbered)} enquiries")
 
 @app.on_event("shutdown")
 async def shutdown():

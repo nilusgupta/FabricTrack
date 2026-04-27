@@ -456,7 +456,7 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
                 ) : (
                   filteredEnquiries.map((e, idx) => (
                     <tr key={e.id} className="border-b hover:bg-zinc-50 group cursor-pointer" onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)} data-testid={`report-row-${e.id}`}>
-                      <td className="p-2 text-zinc-500 text-xs font-mono sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 0 }}>{idx + 1}</td>
+                      <td className="p-2 text-zinc-500 text-xs font-mono sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 0 }}>{e.enquiry_number || idx + 1}</td>
                       <td className="p-2 sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 40 }}>{e.image_path ? <ReportThumbnail imagePath={e.image_path} /> : <span className="text-zinc-300">—</span>}</td>
                       <td className="p-2 text-zinc-600 text-xs sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 88 }}>{e.style_no || '—'}</td>
                       <td className="p-2 font-medium text-zinc-900 text-sm sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 198 }}>{e.customer_name}</td>
