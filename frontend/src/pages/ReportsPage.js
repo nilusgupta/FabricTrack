@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -125,6 +126,7 @@ export default function ReportsPage() {
 }
 
 function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ start_date: '', end_date: '', department: '', customer_name: '', fabric_type: '', style_no: '', rate: '', po_no: '', po_del_date: '', fabric_received: '', qty_received: '', created_by: '' });
@@ -453,7 +455,7 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
                   <tr><td colSpan={12 + stages.length} className="text-center py-8 text-zinc-400">No data</td></tr>
                 ) : (
                   filteredEnquiries.map((e, idx) => (
-                    <tr key={e.id} className="border-b hover:bg-zinc-50 group" data-testid={`report-row-${e.id}`}>
+                    <tr key={e.id} className="border-b hover:bg-zinc-50 group cursor-pointer" onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)} data-testid={`report-row-${e.id}`}>
                       <td className="p-2 text-zinc-500 text-xs font-mono sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 0 }}>{idx + 1}</td>
                       <td className="p-2 sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 40 }}>{e.image_path ? <ReportThumbnail imagePath={e.image_path} /> : <span className="text-zinc-300">—</span>}</td>
                       <td className="p-2 text-zinc-600 text-xs sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 88 }}>{e.style_no || '—'}</td>
@@ -634,6 +636,7 @@ function DepartmentReport({ stageMap }) {
 }
 
 function UserStagesReport({ stages, users, departments }) {
+  const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState('all');
@@ -824,7 +827,7 @@ function UserStagesReport({ stages, users, departments }) {
                                 </thead>
                                 <tbody>
                                   {pendingItems.map((item, idx) => (
-                                    <tr key={idx} className={`border-t border-zinc-100 ${item.is_overdue ? 'bg-red-50/50' : 'hover:bg-zinc-50'}`}>
+                                    <tr key={idx} className={`border-t border-zinc-100 cursor-pointer ${item.is_overdue ? 'bg-red-50/50 hover:bg-red-100/50' : 'hover:bg-zinc-50'}`} onClick={() => navigate(`/enquiries/${item.enquiry_id}?returnTo=/reports`)}>
                                       <td className="px-2 py-1.5">{item.image_path ? <ReportThumbnail imagePath={item.image_path} /> : <span className="text-zinc-300">—</span>}</td>
                                       <td className="px-2 py-1.5"><Badge className="rounded-sm text-[10px] bg-zinc-100 text-zinc-700">{item.stage_name}</Badge></td>
                                       <td className="px-2 py-1.5 text-zinc-700 font-medium">{item.customer_name}</td>
@@ -868,7 +871,7 @@ function UserStagesReport({ stages, users, departments }) {
                                 </thead>
                                 <tbody>
                                   {doneItems.map((item, idx) => (
-                                    <tr key={idx} className="border-t border-zinc-100 hover:bg-zinc-50">
+                                    <tr key={idx} className="border-t border-zinc-100 hover:bg-zinc-50 cursor-pointer" onClick={() => navigate(`/enquiries/${item.enquiry_id}?returnTo=/reports`)}>
                                       <td className="px-2 py-1.5">{item.image_path ? <ReportThumbnail imagePath={item.image_path} /> : <span className="text-zinc-300">—</span>}</td>
                                       <td className="px-2 py-1.5"><Badge className="rounded-sm text-[10px] bg-green-50 text-green-700">{item.stage_name}</Badge></td>
                                       <td className="px-2 py-1.5 text-zinc-700 font-medium">{item.customer_name}</td>

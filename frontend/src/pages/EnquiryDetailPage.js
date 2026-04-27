@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
@@ -82,6 +82,8 @@ function QRCodeScanner({ onScan, onClose }) {
 export default function EnquiryDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get('returnTo') || '/enquiries';
   const { user } = useAuth();
   const [enquiry, setEnquiry] = useState(null);
   const [stages, setStages] = useState([]);
@@ -260,7 +262,7 @@ export default function EnquiryDetailPage() {
       }
       await api.put(`/enquiries/${id}`, form);
       toast.success('Enquiry updated');
-      navigate('/enquiries');
+      navigate(returnTo);
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to update');
     } finally {
@@ -304,7 +306,7 @@ export default function EnquiryDetailPage() {
     <div className="space-y-6 max-w-5xl" data-testid="enquiry-detail-page">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/enquiries')} data-testid="back-to-enquiries"><ArrowLeft className="w-4 h-4 mr-1" /> Back</Button>
+        <Button variant="ghost" size="sm" onClick={() => navigate(returnTo)} data-testid="back-to-enquiries"><ArrowLeft className="w-4 h-4 mr-1" /> Back</Button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 truncate">{enquiry.customer_name}</h1>
