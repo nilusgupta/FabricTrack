@@ -62,17 +62,38 @@ STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
 EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
 APP_NAME = "fabrictrack"
 storage_key = None
+USE_LOCAL_STORAGE = False
+LOCAL_STORAGE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
 
 def init_storage():
-    global storage_key
+    global storage_key, USE_LOCAL_STORAGE
+    if USE_LOCAL_STORAGE:
+        return None
     if storage_key:
         return storage_key
-    resp = requests.post(f"{STORAGE_URL}/init", json={"emergent_key": EMERGENT_KEY}, timeout=30)
-    resp.raise_for_status()
-    storage_key = resp.json()["storage_key"]
-    return storage_key
+    if not EMERGENT_KEY:
+        USE_LOCAL_STORAGE = True
+        os.makedirs(LOCAL_STORAGE_DIR, exist_ok=True)
+        logger.info("Using local file storage (no EMERGENT_LLM_KEY)")
+        return None
+    try:
+        resp = requests.post(f"{STORAGE_URL}/init", json={"emergent_key": EMERGENT_KEY}, timeout=30)
+        resp.raise_for_status()
+        storage_key = resp.json()["storage_key"]
+        return storage_key
+    except Exception:
+        USE_LOCAL_STORAGE = True
+        os.makedirs(LOCAL_STORAGE_DIR, exist_ok=True)
+        logger.info("Emergent storage unavailable, using local file storage")
+        return None
 
 def put_object(path: str, data: bytes, content_type: str) -> dict:
+    if USE_LOCAL_STORAGE:
+        full_path = os.path.join(LOCAL_STORAGE_DIR, path)
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        with open(full_path, "wb") as f:
+            f.write(data)
+        return {"path": path, "size": len(data)}
     key = init_storage()
     resp = requests.put(
         f"{STORAGE_URL}/objects/{path}",
@@ -83,6 +104,15 @@ def put_object(path: str, data: bytes, content_type: str) -> dict:
     return resp.json()
 
 def get_object(path: str):
+    if USE_LOCAL_STORAGE:
+        full_path = os.path.join(LOCAL_STORAGE_DIR, path)
+        if not os.path.exists(full_path):
+            raise FileNotFoundError(f"File not found: {path}")
+        with open(full_path, "rb") as f:
+            data = f.read()
+        ext = path.rsplit(".", 1)[-1].lower() if "." in path else "bin"
+        ct_map = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webm": "audio/webm", "gif": "image/gif", "webp": "image/webp"}
+        return data, ct_map.get(ext, "application/octet-stream")
     key = init_storage()
     resp = requests.get(
         f"{STORAGE_URL}/objects/{path}",
@@ -1798,9 +1828,12 @@ async def startup():
     elif not verify_password(admin_password, existing["password_hash"]):
         await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": hash_password(admin_password)}})
     # Write test credentials
-    os.makedirs("/app/memory", exist_ok=True)
-    with open("/app/memory/test_credentials.md", "w") as f:
-        f.write(f"# Test Credentials\n\n## Admin\n- Email: {admin_email}\n- Password: {admin_password}\n- Role: admin\n\n## Auth Endpoints\n- POST /api/auth/login\n- POST /api/auth/logout\n- GET /api/auth/me\n")
+    try:
+        os.makedirs("/app/memory", exist_ok=True)
+        with open("/app/memory/test_credentials.md", "w") as f:
+            f.write(f"# Test Credentials\n\n## Admin\n- Email: {admin_email}\n- Password: {admin_password}\n- Role: admin\n\n## Auth Endpoints\n- POST /api/auth/login\n- POST /api/auth/logout\n- GET /api/auth/me\n")
+    except PermissionError:
+        logger.info("Skipping test credentials file (non-Emergent environment)")
     # Migration: backfill enquiry_number for existing enquiries
     unumbered = await db.enquiries.find({"enquiry_number": {"$exists": False}}).sort("created_at", 1).to_list(10000)
     if unumbered:
