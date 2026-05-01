@@ -22,3 +22,13 @@
 
 ## Backlog
 - P1: Email notifications (awaiting Resend API key)
+- P2: SSL/HTTPS on EC2 once deployment is stable
+- P2: Refactor monolithic server.py into routes/models/services
+
+## Recent Fixes
+- 2026-05-01: Fixed infinite `/api/auth/refresh` 401 loop on EC2 deployment.
+  Root cause: `frontend/src/lib/api.js` axios interceptor kept retrying refresh
+  when refresh itself returned 401 (each call = new config object, `_retry` flag
+  never propagated). Fix: bypass interceptor entirely for auth endpoints
+  (`/auth/refresh`, `/auth/login`, `/auth/logout`, `/auth/me`) and only redirect
+  to `/login` if not already there. Requires `npm run build` + Nginx reload on EC2.
