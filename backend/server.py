@@ -28,6 +28,17 @@ db = client[os.environ['DB_NAME']]
 
 JWT_ALGORITHM = "HS256"
 
+# Cookie security: defaults work on HTTPS (preview/prod with TLS).
+# For plain-HTTP deployments (e.g. EC2 IP without SSL), set COOKIE_SECURE=false in backend/.env.
+# When secure=False, samesite must be "lax" (browsers reject samesite=none without secure).
+_COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "true").lower() != "false"
+COOKIE_KW = {
+    "httponly": True,
+    "secure": _COOKIE_SECURE,
+    "samesite": "none" if _COOKIE_SECURE else "lax",
+    "path": "/",
+}
+
 # Simple in-memory cache for reference data
 _cache = {}
 _cache_ttl = 30  # seconds
@@ -141,8 +152,8 @@ def create_refresh_token(user_id: str) -> str:
     return jwt.encode(payload, get_jwt_secret(), algorithm=JWT_ALGORITHM)
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str):
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=86400, path="/")
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
+    response.set_cookie(key="access_token", value=access_token, max_age=86400, **COOKIE_KW)
+    response.set_cookie(key="refresh_token", value=refresh_token, max_age=604800, **COOKIE_KW)
 
 async def get_current_user(request: Request) -> dict:
     token = request.cookies.get("access_token")
@@ -337,7 +348,7 @@ async def refresh_token(request: Request, response: Response):
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
         access_token = create_access_token(str(user["_id"]), user["email"])
-        response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=86400, path="/")
+        response.set_cookie(key="access_token", value=access_token, max_age=86400, **COOKIE_KW)
         return {"message": "Token refreshed"}
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
@@ -465,8 +476,8 @@ async def biometric_login_complete(request: Request, response: Response):
         raise HTTPException(status_code=401, detail="User not found")
     access_token = create_access_token(str(user["_id"]), user["email"])
     refresh = create_refresh_token(str(user["_id"]))
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=86400, path="/")
-    response.set_cookie(key="refresh_token", value=refresh, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
+    response.set_cookie(key="access_token", value=access_token, max_age=86400, **COOKIE_KW)
+    response.set_cookie(key="refresh_token", value=refresh, max_age=604800, **COOKIE_KW)
     return {"message": "Biometric login successful", "user": {
         "_id": str(user["_id"]), "email": user["email"], "name": user["name"],
         "role": user.get("role", "user"), "department": user.get("department", "")

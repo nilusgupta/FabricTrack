@@ -26,6 +26,13 @@
 - P2: Refactor monolithic server.py into routes/models/services
 
 ## Recent Fixes
+- 2026-05-01: Fixed login bounce-back on plain-HTTP EC2 deployment.
+  Root cause: backend set auth cookies with `Secure=True; SameSite=none`. Browsers
+  reject `Secure` cookies on `http://` origins, so login succeeded but cookie
+  never persisted → `/auth/me` returned 401 → user redirected back to /login.
+  Fix: cookie flags now driven by `COOKIE_SECURE` env var
+  (default `true` for HTTPS preview/prod). On HTTP-only EC2, set
+  `COOKIE_SECURE=false` in `backend/.env` → cookies become `Secure=False; SameSite=Lax`.
 - 2026-05-01: Fixed infinite `/api/auth/refresh` 401 loop on EC2 deployment.
   Root cause: `frontend/src/lib/api.js` axios interceptor kept retrying refresh
   when refresh itself returned 401 (each call = new config object, `_retry` flag
