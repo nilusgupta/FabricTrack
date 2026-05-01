@@ -1,6 +1,8 @@
 [
   {
-    "_id": "69d90d0a86760741dfcf64a6",
+    "_id": {
+      "$oid": "69d90d0a86760741dfcf64a6"
+    },
     "id": "eb66fe263f3d01b1fa3298ba",
     "enquiry_id": "9f3ca0f9ea3c304296e0ed42",
     "from_stage": "",
@@ -11,7 +13,9 @@
     "notes": "Enquiry created"
   },
   {
-    "_id": "69d9114886760741dfcf64a9",
+    "_id": {
+      "$oid": "69d9114886760741dfcf64a9"
+    },
     "id": "4d96fba4f12996603560de91",
     "enquiry_id": "9f3ca0f9ea3c304296e0ed42",
     "from_stage": "d52e64418a92bed66b542951",
@@ -22,7 +26,9 @@
     "notes": "Stage updated"
   },
   {
-    "_id": "69d916a67e2a4d617e2f256a",
+    "_id": {
+      "$oid": "69d916a67e2a4d617e2f256a"
+    },
     "id": "479c204e4f6606d613690503",
     "enquiry_id": "7c742eb390d7dc5fc2d0b240",
     "stage_id": "68ba2efe27965d67fcad2841",
@@ -34,7 +40,9 @@
     "notes": "Initial value set"
   },
   {
-    "_id": "69d916a67e2a4d617e2f256b",
+    "_id": {
+      "$oid": "69d916a67e2a4d617e2f256b"
+    },
     "id": "bfc28d71217ae4a3faead44e",
     "enquiry_id": "7c742eb390d7dc5fc2d0b240",
     "stage_id": "da587bca5da7d1882b761e4b",
@@ -46,7 +54,9 @@
     "notes": "Initial value set"
   },
   {
-    "_id": "69d916a67e2a4d617e2f256c",
+    "_id": {
+      "$oid": "69d916a67e2a4d617e2f256c"
+    },
     "id": "e0fbe974b61eefdb9b6e08cb",
     "enquiry_id": "7c742eb390d7dc5fc2d0b240",
     "stage_id": "491fb1f3df0152969ca0243c",
@@ -58,7 +68,9 @@
     "notes": "Initial value set"
   },
   {
-    "_id": "69d916a67e2a4d617e2f256d",
+    "_id": {
+      "$oid": "69d916a67e2a4d617e2f256d"
+    },
     "id": "c1f5893a893fff5866e61a53",
     "enquiry_id": "7c742eb390d7dc5fc2d0b240",
     "stage_id": "491fb1f3df0152969ca0243c",
@@ -70,7 +82,9 @@
     "notes": "Stage value updated"
   },
   {
-    "_id": "69d91a487e2a4d617e2f256f",
+    "_id": {
+      "$oid": "69d91a487e2a4d617e2f256f"
+    },
     "id": "d4cbde4ef69c6a03499f6420",
     "enquiry_id": "7c742eb390d7dc5fc2d0b240",
     "stage_id": "d52e64418a92bed66b542951",
@@ -82,7 +96,9 @@
     "notes": "Stage value updated"
   },
   {
-    "_id": "69d91a487e2a4d617e2f2570",
+    "_id": {
+      "$oid": "69d91a487e2a4d617e2f2570"
+    },
     "id": "7b34579535d0533a1f1c5e3f",
     "enquiry_id": "7c742eb390d7dc5fc2d0b240",
     "stage_id": "ca4b546bc121cb646c29eef4",
@@ -94,7 +110,9 @@
     "notes": "Stage value updated"
   },
   {
-    "_id": "69d91a487e2a4d617e2f2571",
+    "_id": {
+      "$oid": "69d91a487e2a4d617e2f2571"
+    },
     "id": "2bfda88234d365124994dac2",
     "enquiry_id": "7c742eb390d7dc5fc2d0b240",
     "stage_id": "db00c680810680f75c25cb0e",
@@ -106,7 +124,9 @@
     "notes": "Stage value updated"
   },
   {
-    "_id": "69d91a557e2a4d617e2f2572",
+    "_id": {
+      "$oid": "69d91a557e2a4d617e2f2572"
+    },
     "id": "3af26b9de84f8a2ec494a04c",
     "enquiry_id": "7c742eb390d7dc5fc2d0b240",
     "stage_id": "6f28189416e213a0a81e27a8",
@@ -118,7 +138,9 @@
     "notes": "Stage value updated"
   },
   {
-    "_id": "69d91a647e2a4d617e2f2573",
+    "_id": {
+      "$oid": "69d91a647e2a4d617e2f2573"
+    },
     "id": "877966c73917222afac9f68d",
     "enquiry_id": "7c742eb390d7dc5fc2d0b240",
     "stage_id": "6f28189416e213a0a81e27a8",
@@ -130,7 +152,9 @@
     "notes": "Stage value updated"
   },
   {
-    "_id": "69d91d3d7d11a7d44571b460",
+    "_id": {
+      "$oid": "69d91d3d7d11a7d44571b460"
+    },
     "id": "2899d907b121a97bcae86c1d",
     "enquiry_id": "34fd069f1781f545e2ab078e",
     "stage_id": "5dfae409bd9e70e866dcd8c5",
@@ -142,7 +166,9 @@
     "notes": "Initial value set"
   },
   {
-    "_id": "69d91d3d7d11a7d44571b461",
+    "_id": {
+      "$oid": "69d91d3d7d11a7d44571b461"
+    },
     "id": "16cce3cd1af1059ad17af1ce",
     "enquiry_id": "34fd069f1781f545e2ab078e",
     "stage_id": "82e318c2d42265c347378a2b",
@@ -154,7 +180,9 @@
     "notes": "Initial value set"
   },
   {
-    "_id": "69d91d3d7d11a7d44571b462",
+    "_id": {
+      "$oid": "69d91d3d7d11a7d44571b462"
+    },
     "id": "24f44c1cca9b954f833e1e01",
     "enquiry_id": "34fd069f1781f545e2ab078e",
     "stage_id": "c97195274515754decaa3c96",
@@ -166,7 +194,9 @@
     "notes": "Initial value set"
   },
   {
-    "_id": "69d91d3d7d11a7d44571b463",
+    "_id": {
+      "$oid": "69d91d3d7d11a7d44571b463"
+    },
     "id": "1b47dd3b582946ef0b5589ce",
     "enquiry_id": "34fd069f1781f545e2ab078e",
     "stage_id": "c97195274515754decaa3c96",
@@ -178,7 +208,9 @@
     "notes": "Stage value updated"
   },
   {
-    "_id": "69d91d7a7d11a7d44571b46d",
+    "_id": {
+      "$oid": "69d91d7a7d11a7d44571b46d"
+    },
     "id": "d9a6a59041cf501b064feb77",
     "enquiry_id": "99f0cbde2c68de712b7eea3a",
     "stage_id": "095e803be48c13d31f1810a7",
@@ -190,7 +222,9 @@
     "notes": "Initial value set"
   },
   {
-    "_id": "69d91d7a7d11a7d44571b46e",
+    "_id": {
+      "$oid": "69d91d7a7d11a7d44571b46e"
+    },
     "id": "766de75d842321fc2f32e6a6",
     "enquiry_id": "99f0cbde2c68de712b7eea3a",
     "stage_id": "04808fbc7e1ca51056118f30",
@@ -202,7 +236,9 @@
     "notes": "Initial value set"
   },
   {
-    "_id": "69d91d7a7d11a7d44571b46f",
+    "_id": {
+      "$oid": "69d91d7a7d11a7d44571b46f"
+    },
     "id": "55112da946cac4feb49a8637",
     "enquiry_id": "99f0cbde2c68de712b7eea3a",
     "stage_id": "f73fb65de30e1b856081a351",
@@ -214,7 +250,9 @@
     "notes": "Initial value set"
   },
   {
-    "_id": "69d91d7a7d11a7d44571b470",
+    "_id": {
+      "$oid": "69d91d7a7d11a7d44571b470"
+    },
     "id": "149f74b42216438c7ee151bd",
     "enquiry_id": "99f0cbde2c68de712b7eea3a",
     "stage_id": "f73fb65de30e1b856081a351",
@@ -226,7 +264,9 @@
     "notes": "Stage value updated"
   },
   {
-    "_id": "69da0363715f314426f7f8d4",
+    "_id": {
+      "$oid": "69da0363715f314426f7f8d4"
+    },
     "id": "f51e707c95797b568fc2e458",
     "enquiry_id": "0f6dbe8f4d79ba71460b8282",
     "stage_id": "d52e64418a92bed66b542951",
@@ -240,7 +280,9 @@
     "notes": "Sample fabric received and looks good"
   },
   {
-    "_id": "69da0395715f314426f7f8db",
+    "_id": {
+      "$oid": "69da0395715f314426f7f8db"
+    },
     "id": "c2322181d91032fe0de36a19",
     "enquiry_id": "cc6fb16f76028f0c892cd9ef",
     "stage_id": "f782b33f8186b8a0affe00ec",
@@ -252,7 +294,9 @@
     "notes": "Initial value set"
   },
   {
-    "_id": "69da0395715f314426f7f8dc",
+    "_id": {
+      "$oid": "69da0395715f314426f7f8dc"
+    },
     "id": "9618525baf9b0225067f53d2",
     "enquiry_id": "cc6fb16f76028f0c892cd9ef",
     "stage_id": "9665e78b7a99d0d8abee9ebc",
@@ -264,7 +308,9 @@
     "notes": "Initial value set"
   },
   {
-    "_id": "69da0395715f314426f7f8dd",
+    "_id": {
+      "$oid": "69da0395715f314426f7f8dd"
+    },
     "id": "1889544b18965019dbaecbde",
     "enquiry_id": "cc6fb16f76028f0c892cd9ef",
     "stage_id": "fa4b8f77efc12e54755e34f2",
@@ -276,7 +322,9 @@
     "notes": "Initial value set"
   },
   {
-    "_id": "69da0395715f314426f7f8de",
+    "_id": {
+      "$oid": "69da0395715f314426f7f8de"
+    },
     "id": "fabfc63bbbdb111cd69ab279",
     "enquiry_id": "cc6fb16f76028f0c892cd9ef",
     "stage_id": "fa4b8f77efc12e54755e34f2",
@@ -289,7 +337,9 @@
     "notes": "Stage value updated"
   },
   {
-    "_id": "69da03a9715f314426f7f8e5",
+    "_id": {
+      "$oid": "69da03a9715f314426f7f8e5"
+    },
     "id": "5b16e19a553b2a8ab9ec12f2",
     "enquiry_id": "eb728ad3671b4d5db317ec67",
     "stage_id": "b7e3681f106a8f7fe74b1397",
@@ -301,7 +351,9 @@
     "notes": "Initial value set"
   },
   {
-    "_id": "69da03a9715f314426f7f8e6",
+    "_id": {
+      "$oid": "69da03a9715f314426f7f8e6"
+    },
     "id": "c456587e59ad9c37e8405e9c",
     "enquiry_id": "eb728ad3671b4d5db317ec67",
     "stage_id": "44db0bdf1be40100d0f46750",
@@ -313,7 +365,9 @@
     "notes": "Initial value set"
   },
   {
-    "_id": "69da03a9715f314426f7f8e7",
+    "_id": {
+      "$oid": "69da03a9715f314426f7f8e7"
+    },
     "id": "aec19a53677f3fd6dd2d4e5a",
     "enquiry_id": "eb728ad3671b4d5db317ec67",
     "stage_id": "d75f952e3e39352c45e1d5a5",
@@ -325,7 +379,9 @@
     "notes": "Initial value set"
   },
   {
-    "_id": "69da03a9715f314426f7f8e8",
+    "_id": {
+      "$oid": "69da03a9715f314426f7f8e8"
+    },
     "id": "512d567b81654154c92b2051",
     "enquiry_id": "eb728ad3671b4d5db317ec67",
     "stage_id": "d75f952e3e39352c45e1d5a5",
@@ -338,7 +394,9 @@
     "notes": "Stage value updated"
   },
   {
-    "_id": "69da03a9715f314426f7f8e9",
+    "_id": {
+      "$oid": "69da03a9715f314426f7f8e9"
+    },
     "id": "da4b4a444758ad11dd57b09f",
     "enquiry_id": "eb728ad3671b4d5db317ec67",
     "stage_id": "b7e3681f106a8f7fe74b1397",
@@ -352,7 +410,9 @@
     "notes": "This is a test comment for the stage"
   },
   {
-    "_id": "69da041d715f314426f7f8eb",
+    "_id": {
+      "$oid": "69da041d715f314426f7f8eb"
+    },
     "id": "de9b082bb2f4a6dec2e28ade",
     "enquiry_id": "83235190554d756588e8ac22",
     "stage_id": "d52e64418a92bed66b542951",
@@ -366,7 +426,9 @@
     "notes": "UI Test Comment - 789494"
   },
   {
-    "_id": "69da0421715f314426f7f8ec",
+    "_id": {
+      "$oid": "69da0421715f314426f7f8ec"
+    },
     "id": "0b6901894040b33488b77d6e",
     "enquiry_id": "83235190554d756588e8ac22",
     "stage_id": "f782b33f8186b8a0affe00ec",
@@ -380,7 +442,9 @@
     "notes": "Enter key test - 789497"
   },
   {
-    "_id": "69da05bb715f314426f7f8ef",
+    "_id": {
+      "$oid": "69da05bb715f314426f7f8ef"
+    },
     "id": "33ee33263570513e48e4cfc9",
     "enquiry_id": "bcac2df046eb98c04ea6c8f2",
     "stage_id": "d52e64418a92bed66b542951",
@@ -393,7 +457,9 @@
     "notes": "Stage value updated"
   },
   {
-    "_id": "69da05bb715f314426f7f8f0",
+    "_id": {
+      "$oid": "69da05bb715f314426f7f8f0"
+    },
     "id": "ec54aea6f9b5118263be00c1",
     "enquiry_id": "bcac2df046eb98c04ea6c8f2",
     "stage_id": "ca4b546bc121cb646c29eef4",
@@ -406,7 +472,9 @@
     "notes": "Stage value updated"
   },
   {
-    "_id": "69da05bb715f314426f7f8f1",
+    "_id": {
+      "$oid": "69da05bb715f314426f7f8f1"
+    },
     "id": "bb04d707013e34251611ff77",
     "enquiry_id": "bcac2df046eb98c04ea6c8f2",
     "stage_id": "db00c680810680f75c25cb0e",
@@ -419,7 +487,9 @@
     "notes": "Stage value updated"
   },
   {
-    "_id": "69da0ce02eb8e139c43ed2fd",
+    "_id": {
+      "$oid": "69da0ce02eb8e139c43ed2fd"
+    },
     "id": "f7ee1ca3bdb755d2c1e2cc82",
     "enquiry_id": "15febfc7c3960e3021c94144",
     "stage_id": "c597917a63700834bc591ba0",
@@ -433,7 +503,9 @@
     "notes": "Test comment from assigned user"
   },
   {
-    "_id": "69da0d20f5415b42e26b4eb2",
+    "_id": {
+      "$oid": "69da0d20f5415b42e26b4eb2"
+    },
     "id": "2b0fab980d71b22522375808",
     "enquiry_id": "15febfc7c3960e3021c94144",
     "stage_id": "211d64735731527901bdf6b4",
@@ -447,7 +519,9 @@
     "notes": "Authorized comment"
   },
   {
-    "_id": "69da5dd71ca61940678b3fa3",
+    "_id": {
+      "$oid": "69da5dd71ca61940678b3fa3"
+    },
     "id": "109526ba38f0a66a2d66b5b3",
     "enquiry_id": "eb728ad3671b4d5db317ec67",
     "stage_id": "d52e64418a92bed66b542951",
@@ -460,7 +534,9 @@
     "notes": "Stage value updated"
   },
   {
-    "_id": "69e33786a8fc0ff3fecdfe0a",
+    "_id": {
+      "$oid": "69e33786a8fc0ff3fecdfe0a"
+    },
     "id": "db9c83e5ce12bd0c68eb43cc",
     "enquiry_id": "15febfc7c3960e3021c94144",
     "stage_id": "",
@@ -473,7 +549,9 @@
     "notes": "Enquiry closed by admin"
   },
   {
-    "_id": "69e3379d3b2b84214cefbea0",
+    "_id": {
+      "$oid": "69e3379d3b2b84214cefbea0"
+    },
     "id": "e8842c86e77b3b14f3fe0925",
     "enquiry_id": "15febfc7c3960e3021c94144",
     "stage_id": "",
@@ -486,7 +564,9 @@
     "notes": "Enquiry closed by admin"
   },
   {
-    "_id": "69e338373b2b84214cefbea2",
+    "_id": {
+      "$oid": "69e338373b2b84214cefbea2"
+    },
     "id": "122ae1cedc7a2779321821b8",
     "enquiry_id": "15febfc7c3960e3021c94144",
     "stage_id": "",
@@ -499,7 +579,9 @@
     "notes": "Enquiry closed by admin"
   },
   {
-    "_id": "69e39e057fa1a777a544d3b8",
+    "_id": {
+      "$oid": "69e39e057fa1a777a544d3b8"
+    },
     "id": "4e2b0b4c15cad09999168a71",
     "enquiry_id": "7caaadded1be94635f4c7a03",
     "stage_id": "d52e64418a92bed66b542951",
@@ -512,7 +594,9 @@
     "notes": "Stage value updated"
   },
   {
-    "_id": "69e39e057fa1a777a544d3b9",
+    "_id": {
+      "$oid": "69e39e057fa1a777a544d3b9"
+    },
     "id": "cdb5752349c59d99dde393db",
     "enquiry_id": "7caaadded1be94635f4c7a03",
     "stage_id": "7d822ba369e3154207a91707",
@@ -525,7 +609,9 @@
     "notes": "Stage value updated"
   },
   {
-    "_id": "69e39e057fa1a777a544d3ba",
+    "_id": {
+      "$oid": "69e39e057fa1a777a544d3ba"
+    },
     "id": "e003cace27db0384c7573254",
     "enquiry_id": "7caaadded1be94635f4c7a03",
     "stage_id": "",
@@ -538,7 +624,9 @@
     "notes": "Auto-closed: all stages completed"
   },
   {
-    "_id": "69e3a26c7fa1a777a544d3bc",
+    "_id": {
+      "$oid": "69e3a26c7fa1a777a544d3bc"
+    },
     "id": "7987c0de5c831ff1c1fb6594",
     "enquiry_id": "6b44b6ed390bec14102c6523",
     "stage_id": "",
@@ -551,7 +639,9 @@
     "notes": "Enquiry closed by admin"
   },
   {
-    "_id": "69e46a36f2223a91087fc374",
+    "_id": {
+      "$oid": "69e46a36f2223a91087fc374"
+    },
     "id": "a11dcefc2fddbf2ca3e56547",
     "enquiry_id": "968d9a92d4f964ac93cac4f9",
     "stage_id": "d52e64418a92bed66b542951",
@@ -564,7 +654,9 @@
     "notes": "Stage value updated"
   },
   {
-    "_id": "69ef30405f8d24f692f57732",
+    "_id": {
+      "$oid": "69ef30405f8d24f692f57732"
+    },
     "id": "c18069cc4273843f52cb81c9",
     "enquiry_id": "eec5caf1c7357442ce53680d",
     "stage_id": "d52e64418a92bed66b542951",

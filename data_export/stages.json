@@ -1,6 +1,8 @@
 [
   {
-    "_id": "69d90d0a86760741dfcf64a3",
+    "_id": {
+      "$oid": "69d90d0a86760741dfcf64a3"
+    },
     "id": "d52e64418a92bed66b542951",
     "name": "Strike off Receipt date",
     "order": 1,
@@ -15,7 +17,9 @@
     "assigned_users": []
   },
   {
-    "_id": "69d90e4986760741dfcf64a7",
+    "_id": {
+      "$oid": "69d90e4986760741dfcf64a7"
+    },
     "id": "ca4b546bc121cb646c29eef4",
     "name": "Cad Ready Date",
     "order": 2,
@@ -29,7 +33,9 @@
     "lead_time_days": 1
   },
   {
-    "_id": "69d9112b86760741dfcf64a8",
+    "_id": {
+      "$oid": "69d9112b86760741dfcf64a8"
+    },
     "id": "db00c680810680f75c25cb0e",
     "name": "Design No",
     "order": 2,
@@ -43,7 +49,9 @@
     "lead_time_days": 1
   },
   {
-    "_id": "69d916237e2a4d617e2f2564",
+    "_id": {
+      "$oid": "69d916237e2a4d617e2f2564"
+    },
     "id": "6f28189416e213a0a81e27a8",
     "name": "S-Off Status",
     "order": 3,
@@ -60,7 +68,9 @@
     "lead_time_days": 2
   },
   {
-    "_id": "69da0394715f314426f7f8d8",
+    "_id": {
+      "$oid": "69da0394715f314426f7f8d8"
+    },
     "id": "fa4b8f77efc12e54755e34f2",
     "name": "Test Select Stage",
     "order": 3,
@@ -78,7 +88,9 @@
     "created_at": "2026-04-11T08:17:24.514074+00:00"
   },
   {
-    "_id": "69db3b9072da8e34c3006ec6",
+    "_id": {
+      "$oid": "69db3b9072da8e34c3006ec6"
+    },
     "id": "7d822ba369e3154207a91707",
     "name": "test stage",
     "order": 6,
@@ -96,7 +108,9 @@
     "created_at": "2026-04-12T06:28:32.896298+00:00"
   },
   {
-    "_id": "69db3ba972da8e34c3006ec7",
+    "_id": {
+      "$oid": "69db3ba972da8e34c3006ec7"
+    },
     "id": "b49e9479c4232ba45739f465",
     "name": "test stage 2",
     "order": 7,

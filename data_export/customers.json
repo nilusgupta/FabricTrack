@@ -1,12 +1,16 @@
 [
   {
-    "_id": "69db54cc8b5daf9462ed78da",
+    "_id": {
+      "$oid": "69db54cc8b5daf9462ed78da"
+    },
     "id": "9a5a9d1eda313c6c81360423",
     "name": "ABC Textiles",
     "created_at": "2026-04-12T08:16:12.791918+00:00"
   },
   {
-    "_id": "69db56c2787f5d44536cbf00",
+    "_id": {
+      "$oid": "69db56c2787f5d44536cbf00"
+    },
     "id": "e3c387a4550446a2d38b09f2",
     "name": "Rare Rabit",
     "created_at": "2026-04-12T08:24:34.962885+00:00"

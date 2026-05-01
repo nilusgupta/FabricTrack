@@ -1,6 +1,8 @@
 [
   {
-    "_id": "69d90d0a86760741dfcf64a5",
+    "_id": {
+      "$oid": "69d90d0a86760741dfcf64a5"
+    },
     "id": "9f3ca0f9ea3c304296e0ed42",
     "customer_name": "Test Customer",
     "fabric_type": "Cotton",
@@ -16,7 +18,9 @@
     "enquiry_number": 1
   },
   {
-    "_id": "69d916a67e2a4d617e2f2569",
+    "_id": {
+      "$oid": "69d916a67e2a4d617e2f2569"
+    },
     "id": "7c742eb390d7dc5fc2d0b240",
     "customer_name": "Rare Rabit",
     "fabric_type": "Cotton",
@@ -76,7 +80,9 @@
     "enquiry_number": 2
   },
   {
-    "_id": "69d91d3d7d11a7d44571b45f",
+    "_id": {
+      "$oid": "69d91d3d7d11a7d44571b45f"
+    },
     "id": "34fd069f1781f545e2ab078e",
     "customer_name": "Test Customer",
     "fabric_type": "Cotton",
@@ -109,7 +115,9 @@
     "enquiry_number": 3
   },
   {
-    "_id": "69d91d7a7d11a7d44571b46c",
+    "_id": {
+      "$oid": "69d91d7a7d11a7d44571b46c"
+    },
     "id": "99f0cbde2c68de712b7eea3a",
     "customer_name": "Test Customer",
     "fabric_type": "Cotton",
@@ -142,7 +150,9 @@
     "enquiry_number": 4
   },
   {
-    "_id": "69da0363715f314426f7f8d3",
+    "_id": {
+      "$oid": "69da0363715f314426f7f8d3"
+    },
     "id": "0f6dbe8f4d79ba71460b8282",
     "customer_name": "Test Customer",
     "fabric_type": "Cotton",
@@ -163,7 +173,9 @@
     "enquiry_number": 5
   },
   {
-    "_id": "69da0395715f314426f7f8da",
+    "_id": {
+      "$oid": "69da0395715f314426f7f8da"
+    },
     "id": "cc6fb16f76028f0c892cd9ef",
     "customer_name": "Test Customer",
     "fabric_type": "Cotton",
@@ -196,7 +208,9 @@
     "enquiry_number": 6
   },
   {
-    "_id": "69da03a9715f314426f7f8e4",
+    "_id": {
+      "$oid": "69da03a9715f314426f7f8e4"
+    },
     "id": "eb728ad3671b4d5db317ec67",
     "customer_name": "Rare Rabit",
     "fabric_type": "60s Camric",
@@ -241,7 +255,9 @@
     "enquiry_number": 7
   },
   {
-    "_id": "69da03d7715f314426f7f8ea",
+    "_id": {
+      "$oid": "69da03d7715f314426f7f8ea"
+    },
     "id": "83235190554d756588e8ac22",
     "customer_name": "Test Customer UI",
     "fabric_type": "Cotton Blend",
@@ -262,7 +278,9 @@
     "enquiry_number": 8
   },
   {
-    "_id": "69da0552715f314426f7f8ed",
+    "_id": {
+      "$oid": "69da0552715f314426f7f8ed"
+    },
     "id": "bcac2df046eb98c04ea6c8f2",
     "customer_name": "Shoppers Stop",
     "fabric_type": "Coton Linen",
@@ -299,7 +317,9 @@
     "enquiry_number": 9
   },
   {
-    "_id": "69da06bd715f314426f7f8f2",
+    "_id": {
+      "$oid": "69da06bd715f314426f7f8f2"
+    },
     "id": "149323a0f8e45a5f06afbdba",
     "customer_name": "Rare Rabit",
     "fabric_type": "Cotton LINEN",
@@ -323,7 +343,9 @@
     "enquiry_number": 10
   },
   {
-    "_id": "69da06c1715f314426f7f8f3",
+    "_id": {
+      "$oid": "69da06c1715f314426f7f8f3"
+    },
     "id": "15febfc7c3960e3021c94144",
     "customer_name": "Rare Rabit",
     "fabric_type": "Cotton LINEN",
@@ -350,7 +372,9 @@
     "enquiry_number": 11
   },
   {
-    "_id": "69e350183b2b84214cefbea3",
+    "_id": {
+      "$oid": "69e350183b2b84214cefbea3"
+    },
     "id": "6b44b6ed390bec14102c6523",
     "customer_name": "Rare Rabit",
     "fabric_type": "Cotton Drill",
@@ -376,7 +400,9 @@
     "enquiry_number": 12
   },
   {
-    "_id": "69e39da67fa1a777a544d3b7",
+    "_id": {
+      "$oid": "69e39da67fa1a777a544d3b7"
+    },
     "id": "7caaadded1be94635f4c7a03",
     "customer_name": "Rare Rabit",
     "fabric_type": "Cotton Drill",
@@ -413,7 +439,9 @@
     "enquiry_number": 13
   },
   {
-    "_id": "69e3a2527fa1a777a544d3bb",
+    "_id": {
+      "$oid": "69e3a2527fa1a777a544d3bb"
+    },
     "id": "968d9a92d4f964ac93cac4f9",
     "customer_name": "Rare Rabit",
     "fabric_type": "Cotton Drill",
@@ -443,7 +471,9 @@
     "enquiry_number": 14
   },
   {
-    "_id": "69ec8a5107d6e35421d31200",
+    "_id": {
+      "$oid": "69ec8a5107d6e35421d31200"
+    },
     "id": "eec5caf1c7357442ce53680d",
     "customer_name": "Bulk Test Customer",
     "fabric_type": "Cotton",
