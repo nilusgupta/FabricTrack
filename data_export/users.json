@@ -1,0 +1,22 @@
+[
+  {
+    "_id": "69d90b2dde4fac0d6b3d87e9",
+    "email": "admin@example.com",
+    "password_hash": "$2b$12$hs5BDTuqoH3khxJ5VNItX.4yvhaVDFE3b.JKVKiHiswLGhGk5sOE2",
+    "name": "Admin",
+    "role": "admin",
+    "department": "Admin",
+    "is_active": true,
+    "created_at": "2026-04-10T14:37:33.382000"
+  },
+  {
+    "_id": "69db388272da8e34c3006ec5",
+    "email": "shailesh@ramanujgroup.com",
+    "password_hash": "$2b$12$GjHYq1J32I/eY0KJlt1mDumCoAgCGxDQ6e7QXSg3M2jzSzE91lK0m",
+    "name": "Shailesh",
+    "role": "admin",
+    "department": "Sales",
+    "is_active": true,
+    "created_at": "2026-04-12T06:15:30.834000"
+  }
+]

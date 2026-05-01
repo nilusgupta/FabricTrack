@@ -1,0 +1,101 @@
+[
+  {
+    "_id": "69d919757e2a4d617e2f256e",
+    "id": "36311411-8d8b-4189-bd97-83d096d17983",
+    "storage_path": "fabrictrack/uploads/69d90b2dde4fac0d6b3d87e9/6ff815b6-48b9-4785-94e2-53a2b85a9fde.jpeg",
+    "original_filename": "GPS-Location.jpeg",
+    "content_type": "image/jpeg",
+    "size": 173889,
+    "is_deleted": false,
+    "uploaded_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_at": "2026-04-10T15:38:29.427174+00:00"
+  },
+  {
+    "_id": "69da0553715f314426f7f8ee",
+    "id": "32a1b953-7a87-42b2-9854-0a5b1707411b",
+    "storage_path": "fabrictrack/uploads/69d90b2dde4fac0d6b3d87e9/5cc56246-03a6-41bf-bf4a-bf09927b9743.jpg",
+    "original_filename": "image.jpg",
+    "content_type": "image/jpeg",
+    "size": 26696,
+    "is_deleted": false,
+    "uploaded_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_at": "2026-04-11T08:24:51.249438+00:00"
+  },
+  {
+    "_id": "69da06c3715f314426f7f8f4",
+    "id": "444f16f2-9300-494b-af3b-72566121cb31",
+    "storage_path": "fabrictrack/uploads/69d90b2dde4fac0d6b3d87e9/1d32ad27-87b2-4487-a641-5e2404561a3d.png",
+    "original_filename": "IMG_6214_20260319_113709.JPG_rtp_2_0.45.png",
+    "content_type": "image/png",
+    "size": 6784452,
+    "is_deleted": false,
+    "uploaded_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_at": "2026-04-11T08:30:59.892210+00:00"
+  },
+  {
+    "_id": "69da06c7715f314426f7f8f5",
+    "id": "a15a9b28-59aa-411d-b0e7-45c97a1e4c4d",
+    "storage_path": "fabrictrack/uploads/69d90b2dde4fac0d6b3d87e9/39350982-f794-4b1b-a390-035ce7f371e8.png",
+    "original_filename": "IMG_6214_20260319_113709.JPG_rtp_2_0.45.png",
+    "content_type": "image/png",
+    "size": 6784452,
+    "is_deleted": false,
+    "uploaded_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_at": "2026-04-11T08:31:03.028660+00:00"
+  },
+  {
+    "_id": "69e399f67fa1a777a544d3ae",
+    "id": "4cf58e94-6b18-4cd3-b010-8fe53f321eb5",
+    "storage_path": "fabrictrack/voice/afedd3454bbebd737de355af/408573cf-a461-43ba-b57f-48dcadaca908.webm",
+    "original_filename": "test_voice.webm",
+    "content_type": "audio/webm",
+    "size": 104,
+    "is_deleted": false,
+    "uploaded_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_at": "2026-04-18T14:49:26.628519+00:00"
+  },
+  {
+    "_id": "69e399f77fa1a777a544d3af",
+    "id": "3f1f2243-9744-4993-93e4-75e77033fd79",
+    "storage_path": "fabrictrack/voice/afedd3454bbebd737de355af/f79f4181-33b4-43d0-a16f-b2d66366e6f0.webm",
+    "original_filename": "test_voice_2.webm",
+    "content_type": "audio/webm",
+    "size": 54,
+    "is_deleted": false,
+    "uploaded_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_at": "2026-04-18T14:49:27.629917+00:00"
+  },
+  {
+    "_id": "69e39a727fa1a777a544d3b3",
+    "id": "b4f7ac3e-d92c-4675-bf3f-c1f4758ed3c8",
+    "storage_path": "fabrictrack/voice/83555909f2ee19c89fba7878/a3d98d8a-b2d3-4e2c-8b1c-ad0cbfe24385.webm",
+    "original_filename": "test_voice.webm",
+    "content_type": "audio/webm",
+    "size": 104,
+    "is_deleted": false,
+    "uploaded_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_at": "2026-04-18T14:51:30.042706+00:00"
+  },
+  {
+    "_id": "69e39a727fa1a777a544d3b4",
+    "id": "93cc14ca-d7b3-4a54-a69b-974451018147",
+    "storage_path": "fabrictrack/voice/83555909f2ee19c89fba7878/800056d4-bf1c-476c-9d58-c8f2b0513d09.webm",
+    "original_filename": "test_voice_2.webm",
+    "content_type": "audio/webm",
+    "size": 54,
+    "is_deleted": false,
+    "uploaded_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_at": "2026-04-18T14:51:30.955769+00:00"
+  },
+  {
+    "_id": "69ec8a5107d6e35421d311ff",
+    "id": "59bfccb6-457c-444d-be38-0ab9131bcd6d",
+    "storage_path": "fabrictrack/images/eec5caf1c7357442ce53680d.txt",
+    "original_filename": "test_img.txt",
+    "content_type": "text/plain",
+    "size": 5,
+    "is_deleted": false,
+    "uploaded_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_at": "2026-04-25T09:33:05.804902+00:00"
+  }
+]

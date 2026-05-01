@@ -1,0 +1,116 @@
+[
+  {
+    "_id": "69d90d0a86760741dfcf64a3",
+    "id": "d52e64418a92bed66b542951",
+    "name": "Strike off Receipt date",
+    "order": 1,
+    "color": "#3B82F6",
+    "description": "Test stage for API testing",
+    "created_at": "2026-04-10T14:45:30.112431+00:00",
+    "input_type": "date",
+    "is_mandatory": true,
+    "select_options": [],
+    "date_input_mode": "manual",
+    "lead_time_days": 0,
+    "assigned_users": []
+  },
+  {
+    "_id": "69d90e4986760741dfcf64a7",
+    "id": "ca4b546bc121cb646c29eef4",
+    "name": "Cad Ready Date",
+    "order": 2,
+    "color": "#3B82F6",
+    "description": "",
+    "created_at": "2026-04-10T14:50:49.270800+00:00",
+    "input_type": "date",
+    "is_mandatory": true,
+    "select_options": [],
+    "date_input_mode": "auto",
+    "lead_time_days": 1
+  },
+  {
+    "_id": "69d9112b86760741dfcf64a8",
+    "id": "db00c680810680f75c25cb0e",
+    "name": "Design No",
+    "order": 2,
+    "color": "#3B82F6",
+    "description": "",
+    "created_at": "2026-04-10T15:03:07.307607+00:00",
+    "input_type": "text",
+    "is_mandatory": true,
+    "select_options": [],
+    "date_input_mode": "manual",
+    "lead_time_days": 1
+  },
+  {
+    "_id": "69d916237e2a4d617e2f2564",
+    "id": "6f28189416e213a0a81e27a8",
+    "name": "S-Off Status",
+    "order": 3,
+    "color": "#3B82F6",
+    "description": "",
+    "input_type": "select",
+    "is_mandatory": true,
+    "select_options": [
+      "APPROVED",
+      "REJECTED"
+    ],
+    "created_at": "2026-04-10T15:24:19.074732+00:00",
+    "date_input_mode": "manual",
+    "lead_time_days": 2
+  },
+  {
+    "_id": "69da0394715f314426f7f8d8",
+    "id": "fa4b8f77efc12e54755e34f2",
+    "name": "Test Select Stage",
+    "order": 3,
+    "color": "#22C55E",
+    "description": "Select stage for testing",
+    "input_type": "select",
+    "is_mandatory": true,
+    "select_options": [
+      "APPROVED",
+      "PENDING",
+      "REJECTED"
+    ],
+    "lead_time_days": 5,
+    "date_input_mode": "manual",
+    "created_at": "2026-04-11T08:17:24.514074+00:00"
+  },
+  {
+    "_id": "69db3b9072da8e34c3006ec6",
+    "id": "7d822ba369e3154207a91707",
+    "name": "test stage",
+    "order": 6,
+    "color": "#3B82F6",
+    "description": "",
+    "input_type": "text",
+    "is_mandatory": false,
+    "select_options": [],
+    "lead_time_days": 0,
+    "date_input_mode": "manual",
+    "assigned_users": [
+      "69d90b2dde4fac0d6b3d87e9",
+      "69db388272da8e34c3006ec5"
+    ],
+    "created_at": "2026-04-12T06:28:32.896298+00:00"
+  },
+  {
+    "_id": "69db3ba972da8e34c3006ec7",
+    "id": "b49e9479c4232ba45739f465",
+    "name": "test stage 2",
+    "order": 7,
+    "color": "#3B82F6",
+    "description": "",
+    "input_type": "text",
+    "is_mandatory": false,
+    "select_options": [],
+    "lead_time_days": 0,
+    "date_input_mode": "manual",
+    "assigned_users": [
+      "69d90b2dde4fac0d6b3d87e9",
+      "69db388272da8e34c3006ec5"
+    ],
+    "created_at": "2026-04-12T06:28:57.826619+00:00"
+  }
+]

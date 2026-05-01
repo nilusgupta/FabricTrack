@@ -1,0 +1,475 @@
+[
+  {
+    "_id": "69d90d0a86760741dfcf64a5",
+    "id": "9f3ca0f9ea3c304296e0ed42",
+    "customer_name": "Test Customer",
+    "fabric_type": "Cotton",
+    "quantity": "100 meters",
+    "current_stage_id": "db00c680810680f75c25cb0e",
+    "assigned_to": "69d90d0a86760741dfcf64a4",
+    "department": "Sales",
+    "notes": "Updated notes for testing",
+    "created_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_by_name": "Admin",
+    "created_at": "2026-04-10T14:45:30.564779+00:00",
+    "updated_at": "2026-04-10T15:03:36.156211+00:00",
+    "enquiry_number": 1
+  },
+  {
+    "_id": "69d916a67e2a4d617e2f2569",
+    "id": "7c742eb390d7dc5fc2d0b240",
+    "customer_name": "Rare Rabit",
+    "fabric_type": "Cotton",
+    "quantity": "100 meters",
+    "style_no": "7",
+    "image_path": "fabrictrack/uploads/69d90b2dde4fac0d6b3d87e9/6ff815b6-48b9-4785-94e2-53a2b85a9fde.jpeg",
+    "assigned_to": "69d916a67e2a4d617e2f2568",
+    "department": "Sales",
+    "notes": "Updated notes for testing",
+    "rate": "175.00",
+    "po_no": "PO123",
+    "po_del_date": "2024-02-15",
+    "stage_values": {
+      "68ba2efe27965d67fcad2841": {
+        "value": "Test text value",
+        "updated_at": "2026-04-18T16:00:52.671395+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      },
+      "da587bca5da7d1882b761e4b": {
+        "value": "2024-01-15",
+        "updated_at": "2026-04-18T16:00:52.671395+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      },
+      "491fb1f3df0152969ca0243c": {
+        "value": "PENDING",
+        "updated_at": "2026-04-18T16:00:52.671395+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      },
+      "d52e64418a92bed66b542951": {
+        "value": "2026-04-10",
+        "updated_at": "2026-04-18T16:00:52.671395+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      },
+      "ca4b546bc121cb646c29eef4": {
+        "value": "2026-04-10",
+        "updated_at": "2026-04-18T16:00:52.671395+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      },
+      "db00c680810680f75c25cb0e": {
+        "value": "8989",
+        "updated_at": "2026-04-18T16:00:52.671395+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      },
+      "6f28189416e213a0a81e27a8": {
+        "value": "REJECTED",
+        "updated_at": "2026-04-18T16:00:52.671395+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      }
+    },
+    "created_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_by_name": "Admin",
+    "created_at": "2026-04-10T15:26:30.683057+00:00",
+    "updated_at": "2026-04-18T16:00:52.671395+00:00",
+    "fabric_received": "no",
+    "qty_received": "",
+    "sample_number": "",
+    "enquiry_number": 2
+  },
+  {
+    "_id": "69d91d3d7d11a7d44571b45f",
+    "id": "34fd069f1781f545e2ab078e",
+    "customer_name": "Test Customer",
+    "fabric_type": "Cotton",
+    "quantity": "100 meters",
+    "style_no": "STY001",
+    "image_path": "",
+    "assigned_to": "69d91d3d7d11a7d44571b45e",
+    "department": "Sales",
+    "notes": "Updated notes for testing",
+    "rate": "175.00",
+    "po_no": "PO123",
+    "po_del_date": "2024-02-15",
+    "stage_values": {
+      "5dfae409bd9e70e866dcd8c5": {
+        "value": "Test text value"
+      },
+      "82e318c2d42265c347378a2b": {
+        "value": "2024-01-15"
+      },
+      "c97195274515754decaa3c96": {
+        "value": "PENDING",
+        "updated_at": "2026-04-10T15:54:37.281528+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      }
+    },
+    "created_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_by_name": "Admin",
+    "created_at": "2026-04-10T15:54:37.137260+00:00",
+    "updated_at": "2026-04-10T15:54:37.281528+00:00",
+    "enquiry_number": 3
+  },
+  {
+    "_id": "69d91d7a7d11a7d44571b46c",
+    "id": "99f0cbde2c68de712b7eea3a",
+    "customer_name": "Test Customer",
+    "fabric_type": "Cotton",
+    "quantity": "100 meters",
+    "style_no": "STY001",
+    "image_path": "",
+    "assigned_to": "69d91d7a7d11a7d44571b46b",
+    "department": "Sales",
+    "notes": "Updated notes for testing",
+    "rate": "175.00",
+    "po_no": "PO123",
+    "po_del_date": "2024-02-15",
+    "stage_values": {
+      "095e803be48c13d31f1810a7": {
+        "value": "Test text value"
+      },
+      "04808fbc7e1ca51056118f30": {
+        "value": "2024-01-15"
+      },
+      "f73fb65de30e1b856081a351": {
+        "value": "PENDING",
+        "updated_at": "2026-04-10T15:55:38.274264+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      }
+    },
+    "created_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_by_name": "Admin",
+    "created_at": "2026-04-10T15:55:38.131258+00:00",
+    "updated_at": "2026-04-10T15:55:38.274264+00:00",
+    "enquiry_number": 4
+  },
+  {
+    "_id": "69da0363715f314426f7f8d3",
+    "id": "0f6dbe8f4d79ba71460b8282",
+    "customer_name": "Test Customer",
+    "fabric_type": "Cotton",
+    "quantity": "100m",
+    "style_no": "TST-01",
+    "image_path": "",
+    "assigned_to": "",
+    "department": "Sales",
+    "notes": "",
+    "rate": "",
+    "po_no": "",
+    "po_del_date": "",
+    "stage_values": {},
+    "created_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_by_name": "Admin",
+    "created_at": "2026-04-11T08:16:35.245886+00:00",
+    "updated_at": "2026-04-11T08:16:35.245886+00:00",
+    "enquiry_number": 5
+  },
+  {
+    "_id": "69da0395715f314426f7f8da",
+    "id": "cc6fb16f76028f0c892cd9ef",
+    "customer_name": "Test Customer",
+    "fabric_type": "Cotton",
+    "quantity": "100 meters",
+    "style_no": "STY001",
+    "image_path": "",
+    "assigned_to": "69da0394715f314426f7f8d9",
+    "department": "Sales",
+    "notes": "Updated notes for testing",
+    "rate": "175.00",
+    "po_no": "PO123",
+    "po_del_date": "2024-02-15",
+    "stage_values": {
+      "f782b33f8186b8a0affe00ec": {
+        "value": "Test text value"
+      },
+      "9665e78b7a99d0d8abee9ebc": {
+        "value": "2024-01-15"
+      },
+      "fa4b8f77efc12e54755e34f2": {
+        "value": "PENDING",
+        "updated_at": "2026-04-11T08:17:25.182099+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      }
+    },
+    "created_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_by_name": "Admin",
+    "created_at": "2026-04-11T08:17:25.014871+00:00",
+    "updated_at": "2026-04-11T08:17:25.182099+00:00",
+    "enquiry_number": 6
+  },
+  {
+    "_id": "69da03a9715f314426f7f8e4",
+    "id": "eb728ad3671b4d5db317ec67",
+    "customer_name": "Rare Rabit",
+    "fabric_type": "60s Camric",
+    "quantity": "100 meters",
+    "style_no": "6",
+    "image_path": "",
+    "assigned_to": "69da03a8715f314426f7f8e3",
+    "department": "Sales",
+    "notes": "Updated notes for testing",
+    "rate": "175.00",
+    "po_no": "PO123",
+    "po_del_date": "2024-02-15",
+    "stage_values": {
+      "b7e3681f106a8f7fe74b1397": {
+        "value": "Test text value",
+        "updated_at": "2026-04-18T16:00:40.470394+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      },
+      "44db0bdf1be40100d0f46750": {
+        "value": "2024-01-15",
+        "updated_at": "2026-04-18T16:00:40.470394+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      },
+      "d75f952e3e39352c45e1d5a5": {
+        "value": "PENDING",
+        "updated_at": "2026-04-18T16:00:40.470394+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      },
+      "d52e64418a92bed66b542951": {
+        "value": "2026-04-11",
+        "updated_at": "2026-04-18T16:00:40.470394+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      }
+    },
+    "created_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_by_name": "Admin",
+    "created_at": "2026-04-11T08:17:45.013412+00:00",
+    "updated_at": "2026-04-18T16:00:40.470394+00:00",
+    "fabric_received": "no",
+    "qty_received": "",
+    "sample_number": "",
+    "enquiry_number": 7
+  },
+  {
+    "_id": "69da03d7715f314426f7f8ea",
+    "id": "83235190554d756588e8ac22",
+    "customer_name": "Test Customer UI",
+    "fabric_type": "Cotton Blend",
+    "quantity": "500 meters",
+    "style_no": "UI-TEST-001",
+    "image_path": "",
+    "assigned_to": "",
+    "department": "Admin",
+    "notes": "Test enquiry created via UI testing",
+    "rate": "200.00",
+    "po_no": "PO-UI-001",
+    "po_del_date": "",
+    "stage_values": {},
+    "created_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_by_name": "Admin",
+    "created_at": "2026-04-11T08:18:31.075020+00:00",
+    "updated_at": "2026-04-11T08:18:31.075020+00:00",
+    "enquiry_number": 8
+  },
+  {
+    "_id": "69da0552715f314426f7f8ed",
+    "id": "bcac2df046eb98c04ea6c8f2",
+    "customer_name": "Shoppers Stop",
+    "fabric_type": "Coton Linen",
+    "quantity": "1",
+    "style_no": "",
+    "image_path": "fabrictrack/uploads/69d90b2dde4fac0d6b3d87e9/5cc56246-03a6-41bf-bf4a-bf09927b9743.jpg",
+    "assigned_to": "69d90b2dde4fac0d6b3d87e9",
+    "department": "Quality",
+    "notes": "",
+    "rate": "90",
+    "po_no": "",
+    "po_del_date": "2026-04-11",
+    "stage_values": {
+      "d52e64418a92bed66b542951": {
+        "value": "2026-04-11",
+        "updated_at": "2026-04-11T08:26:35.535964+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      },
+      "ca4b546bc121cb646c29eef4": {
+        "value": "2026-04-11",
+        "updated_at": "2026-04-11T08:26:35.535964+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      },
+      "db00c680810680f75c25cb0e": {
+        "value": "990",
+        "updated_at": "2026-04-11T08:26:35.535964+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      }
+    },
+    "created_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_by_name": "Admin",
+    "created_at": "2026-04-11T08:24:50.675115+00:00",
+    "updated_at": "2026-04-11T08:26:35.535964+00:00",
+    "enquiry_number": 9
+  },
+  {
+    "_id": "69da06bd715f314426f7f8f2",
+    "id": "149323a0f8e45a5f06afbdba",
+    "customer_name": "Rare Rabit",
+    "fabric_type": "Cotton LINEN",
+    "quantity": "10000m",
+    "style_no": "5",
+    "image_path": "fabrictrack/uploads/69d90b2dde4fac0d6b3d87e9/1d32ad27-87b2-4487-a641-5e2404561a3d.png",
+    "assigned_to": "69d91d3d7d11a7d44571b45e",
+    "department": "Admin",
+    "notes": "",
+    "rate": "190",
+    "po_no": "",
+    "po_del_date": "2026-04-11",
+    "stage_values": {},
+    "created_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_by_name": "Admin",
+    "created_at": "2026-04-11T08:30:53.978591+00:00",
+    "updated_at": "2026-04-18T16:00:30.241929+00:00",
+    "fabric_received": "no",
+    "qty_received": "",
+    "sample_number": "",
+    "enquiry_number": 10
+  },
+  {
+    "_id": "69da06c1715f314426f7f8f3",
+    "id": "15febfc7c3960e3021c94144",
+    "customer_name": "Rare Rabit",
+    "fabric_type": "Cotton LINEN",
+    "quantity": "10000m",
+    "style_no": "2",
+    "image_path": "fabrictrack/uploads/69d90b2dde4fac0d6b3d87e9/39350982-f794-4b1b-a390-035ce7f371e8.png",
+    "assigned_to": "69d91d3d7d11a7d44571b45e",
+    "department": "Admin",
+    "notes": "",
+    "rate": "190",
+    "po_no": "",
+    "po_del_date": "2026-04-11",
+    "stage_values": {},
+    "created_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_by_name": "Admin",
+    "created_at": "2026-04-11T08:30:57.413577+00:00",
+    "updated_at": "2026-04-18T15:59:49.003723+00:00",
+    "closed_at": null,
+    "closed_by": null,
+    "status": "open",
+    "fabric_received": "no",
+    "qty_received": "",
+    "sample_number": "",
+    "enquiry_number": 11
+  },
+  {
+    "_id": "69e350183b2b84214cefbea3",
+    "id": "6b44b6ed390bec14102c6523",
+    "customer_name": "Rare Rabit",
+    "fabric_type": "Cotton Drill",
+    "quantity": "100",
+    "style_no": "40",
+    "image_path": "",
+    "department": "Sales",
+    "notes": "",
+    "rate": "30",
+    "po_no": "",
+    "po_del_date": "",
+    "fabric_received": "no",
+    "qty_received": "",
+    "stage_values": {},
+    "status": "closed",
+    "created_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_by_name": "Admin",
+    "created_at": "2026-04-18T09:34:16.574010+00:00",
+    "updated_at": "2026-04-18T16:05:31.496630+00:00",
+    "closed_at": "2026-04-18T15:25:32.702803+00:00",
+    "closed_by": "69d90b2dde4fac0d6b3d87e9",
+    "sample_number": "",
+    "enquiry_number": 12
+  },
+  {
+    "_id": "69e39da67fa1a777a544d3b7",
+    "id": "7caaadded1be94635f4c7a03",
+    "customer_name": "Rare Rabit",
+    "fabric_type": "Cotton Drill",
+    "quantity": "",
+    "style_no": "3",
+    "image_path": "",
+    "department": "Sales",
+    "notes": "",
+    "rate": "",
+    "po_no": "",
+    "po_del_date": "",
+    "fabric_received": "no",
+    "qty_received": "",
+    "stage_values": {
+      "d52e64418a92bed66b542951": {
+        "value": "2026-04-17",
+        "updated_at": "2026-04-18T16:00:06.156536+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      },
+      "7d822ba369e3154207a91707": {
+        "value": "done",
+        "updated_at": "2026-04-18T16:00:06.156536+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      }
+    },
+    "status": "closed",
+    "created_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_by_name": "Admin",
+    "created_at": "2026-04-18T15:05:10.989091+00:00",
+    "updated_at": "2026-04-18T16:00:06.156536+00:00",
+    "closed_at": "2026-04-18T15:06:45.531506+00:00",
+    "closed_by": "auto",
+    "sample_number": "",
+    "enquiry_number": 13
+  },
+  {
+    "_id": "69e3a2527fa1a777a544d3bb",
+    "id": "968d9a92d4f964ac93cac4f9",
+    "customer_name": "Rare Rabit",
+    "fabric_type": "Cotton Drill",
+    "quantity": "",
+    "style_no": "10",
+    "image_path": "",
+    "department": "Sales",
+    "notes": "",
+    "rate": "",
+    "po_no": "",
+    "po_del_date": "",
+    "fabric_received": "no",
+    "qty_received": "",
+    "stage_values": {
+      "d52e64418a92bed66b542951": {
+        "value": "2026-04-19",
+        "updated_at": "2026-04-19T05:37:58.508713+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      }
+    },
+    "status": "open",
+    "created_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_by_name": "Admin",
+    "created_at": "2026-04-18T15:25:06.013488+00:00",
+    "updated_at": "2026-04-19T05:37:58.508713+00:00",
+    "sample_number": "",
+    "enquiry_number": 14
+  },
+  {
+    "_id": "69ec8a5107d6e35421d31200",
+    "id": "eec5caf1c7357442ce53680d",
+    "customer_name": "Bulk Test Customer",
+    "fabric_type": "Cotton",
+    "quantity": "",
+    "style_no": "",
+    "image_path": "fabrictrack/images/eec5caf1c7357442ce53680d.txt",
+    "department": "Sales",
+    "notes": "",
+    "rate": "",
+    "po_no": "",
+    "po_del_date": "",
+    "fabric_received": "no",
+    "qty_received": "",
+    "sample_number": "",
+    "stage_values": {
+      "d52e64418a92bed66b542951": {
+        "value": "2026-04-27",
+        "updated_at": "2026-04-27T09:45:36.683140+00:00",
+        "updated_by": "69d90b2dde4fac0d6b3d87e9"
+      }
+    },
+    "status": "open",
+    "created_by": "69d90b2dde4fac0d6b3d87e9",
+    "created_by_name": "Admin",
+    "created_at": "2026-04-25T09:33:05.804902+00:00",
+    "updated_at": "2026-04-27T09:45:36.683140+00:00",
+    "enquiry_number": 15
+  }
+]

@@ -1,0 +1,100 @@
+[
+  {
+    "_id": "69da0a3b74c1b68f50b5c6c9",
+    "id": "9df0f6d60484e1cce2a0da53",
+    "name": "Export",
+    "description": "",
+    "created_at": "2026-04-11T08:45:47.687436+00:00"
+  },
+  {
+    "_id": "69da0a3b74c1b68f50b5c6cb",
+    "id": "99178bdbdb7f9567b65aecb6",
+    "name": "Local",
+    "description": "",
+    "created_at": "2026-04-11T08:45:47.688651+00:00"
+  },
+  {
+    "_id": "69db4d29877cd4799b647c83",
+    "id": "e0c66d9fdf4b24fd87d27267",
+    "name": "Sales",
+    "description": "",
+    "created_at": "2026-04-12T07:43:37.441698+00:00",
+    "stage_hierarchy": [
+      {
+        "stage_id": "d52e64418a92bed66b542951",
+        "order": 1,
+        "assigned_users": [
+          "69d90b2dde4fac0d6b3d87e9"
+        ]
+      },
+      {
+        "stage_id": "7d822ba369e3154207a91707",
+        "order": 2,
+        "assigned_users": [
+          "69d90b2dde4fac0d6b3d87e9"
+        ]
+      }
+    ]
+  },
+  {
+    "_id": "69db4d29877cd4799b647c84",
+    "id": "34289a10ae000b5ca8ca7852",
+    "name": "Production",
+    "description": "",
+    "created_at": "2026-04-12T07:43:37.442370+00:00"
+  },
+  {
+    "_id": "69db4d29877cd4799b647c85",
+    "id": "4f90f371ea6e48ea11f331f0",
+    "name": "Quality",
+    "description": "",
+    "created_at": "2026-04-12T07:43:37.442851+00:00"
+  },
+  {
+    "_id": "69db4d29877cd4799b647c86",
+    "id": "9d1ade8bc6a7f61972a62414",
+    "name": "Admin",
+    "description": "",
+    "created_at": "2026-04-12T07:43:37.443324+00:00",
+    "stage_hierarchy": [
+      {
+        "stage_id": "d52e64418a92bed66b542951",
+        "order": 1,
+        "assigned_users": []
+      },
+      {
+        "stage_id": "ca4b546bc121cb646c29eef4",
+        "order": 2,
+        "assigned_users": []
+      }
+    ]
+  },
+  {
+    "_id": "69db4d29877cd4799b647c87",
+    "id": "eebc1856a92427db9f44575e",
+    "name": "Design",
+    "description": "",
+    "created_at": "2026-04-12T07:43:37.443762+00:00"
+  },
+  {
+    "_id": "69db4d29877cd4799b647c88",
+    "id": "aea265f007ebf6b08747e344",
+    "name": "Logistics",
+    "description": "",
+    "created_at": "2026-04-12T07:43:37.444202+00:00"
+  },
+  {
+    "_id": "69e3a2907fa1a777a544d3bd",
+    "id": "bfe46a81737f791523bc923e",
+    "name": "test",
+    "description": "",
+    "created_at": "2026-04-18T15:26:08.517066+00:00",
+    "stage_hierarchy": [
+      {
+        "stage_id": "ca4b546bc121cb646c29eef4",
+        "order": 1,
+        "assigned_users": []
+      }
+    ]
+  }
+]
