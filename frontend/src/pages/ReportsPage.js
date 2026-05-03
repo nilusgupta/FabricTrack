@@ -245,6 +245,14 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ start_date: '', end_date: '', department: '', customer_name: '', fabric_type: '', style_no: '', rate: '', po_no: '', po_del_date: '', fabric_received: '', qty_received: '', created_by: '' });
+  const [didApplyDefault, setDidApplyDefault] = useState(false);
+  // Default the `Created By` filter to the logged-in user; admins/users can change to All or a specific user
+  useEffect(() => {
+    if (!didApplyDefault && currentUser?._id) {
+      setFilters(f => ({ ...f, created_by: currentUser._id }));
+      setDidApplyDefault(true);
+    }
+  }, [currentUser, didApplyDefault]);
   const [stageFilters, setStageFilters] = useState({});
   const [gridFilters, setGridFilters] = useState({});
   const [gridModes, setGridModes] = useState({}); // 'blank' | 'filled' | undefined per column key
@@ -455,9 +463,12 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">Created By</Label>
-                <Select value={filters.created_by} onValueChange={v => setFilters({ ...filters, created_by: v })}>
+                <Select value={filters.created_by || '__all__'} onValueChange={v => setFilters({ ...filters, created_by: v === '__all__' ? '' : v })}>
                   <SelectTrigger className="border-zinc-200" data-testid="report-created-by-filter"><SelectValue placeholder="All" /></SelectTrigger>
-                  <SelectContent>{users.map(u => <SelectItem key={u._id} value={u._id}>{u.name}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    <SelectItem value="__all__">All Users</SelectItem>
+                    {users.map(u => <SelectItem key={u._id} value={u._id}>{u.name}{u._id === currentUser?._id ? ' (Me)' : ''}</SelectItem>)}
+                  </SelectContent>
                 </Select>
               </div>
             </div>

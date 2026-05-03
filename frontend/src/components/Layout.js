@@ -72,6 +72,7 @@ export default function Layout({ children }) {
 
   const [biometricStatus, setBiometricStatus] = useState(null);
   const [biometricLoading, setBiometricLoading] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   useEffect(() => {
     if (window.PublicKeyCredential) {
@@ -163,37 +164,48 @@ export default function Layout({ children }) {
 
         {/* User section */}
         <div className="border-t border-zinc-200 px-4 py-4" data-testid="sidebar-user">
-          <div className="flex items-center gap-3 mb-3">
+          <button
+            type="button"
+            onClick={() => setUserMenuOpen(o => !o)}
+            className="w-full flex items-center gap-3 rounded-sm hover:bg-zinc-50 transition-colors p-1 -m-1"
+            data-testid="user-menu-toggle"
+            aria-expanded={userMenuOpen}
+          >
             <div className="w-8 h-8 rounded-sm bg-zinc-900 flex items-center justify-center text-white text-xs font-bold">
               {user?.name?.charAt(0)?.toUpperCase() || 'U'}
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 text-left">
               <p className="text-sm font-medium text-zinc-900 truncate">{user?.name}</p>
               <p className="text-xs text-zinc-500 truncate">{user?.role} · {user?.department}</p>
             </div>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleLogout}
-            data-testid="logout-button"
-            className="w-full border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
-          >
-            <LogOut className="w-3 h-3 mr-2" />
-            Sign Out
-          </Button>
-          {window.PublicKeyCredential && (
-            <Button
-              variant={biometricStatus?.registered ? "ghost" : "outline"}
-              size="sm"
-              onClick={setupBiometric}
-              disabled={biometricLoading}
-              data-testid="biometric-setup-button"
-              className={`w-full mt-1.5 ${biometricStatus?.registered ? 'text-green-600 hover:text-green-700' : 'border-zinc-200 text-zinc-600'}`}
-            >
-              <Fingerprint className="w-3 h-3 mr-2" />
-              {biometricLoading ? 'Setting up...' : biometricStatus?.registered ? 'Biometric Active' : 'Setup Fingerprint'}
-            </Button>
+            <ChevronRight className={`w-3 h-3 text-zinc-400 transition-transform ${userMenuOpen ? 'rotate-90' : ''}`} />
+          </button>
+          {userMenuOpen && (
+            <div className="mt-3 space-y-1.5" data-testid="user-menu">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                data-testid="logout-button"
+                className="w-full border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
+              >
+                <LogOut className="w-3 h-3 mr-2" />
+                Sign Out
+              </Button>
+              {window.PublicKeyCredential && (
+                <Button
+                  variant={biometricStatus?.registered ? "ghost" : "outline"}
+                  size="sm"
+                  onClick={setupBiometric}
+                  disabled={biometricLoading}
+                  data-testid="biometric-setup-button"
+                  className={`w-full ${biometricStatus?.registered ? 'text-green-600 hover:text-green-700' : 'border-zinc-200 text-zinc-600'}`}
+                >
+                  <Fingerprint className="w-3 h-3 mr-2" />
+                  {biometricLoading ? 'Setting up...' : biometricStatus?.registered ? 'Biometric Active' : 'Setup Fingerprint'}
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </aside>
@@ -242,7 +254,9 @@ export default function Layout({ children }) {
                 </>
               )}
             </div>
-            <span className="hidden sm:inline">{user?.email}</span>
+            <span className="hidden sm:inline relative group cursor-pointer" data-testid="header-user-email" onClick={() => setUserMenuOpen(o => !o)}>
+              {user?.email}
+            </span>
           </div>
         </header>
 
