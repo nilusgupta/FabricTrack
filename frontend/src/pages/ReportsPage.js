@@ -599,13 +599,13 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
                     const { hierarchyMap = {}, orderMap = {} } = hierarchyByDept[e.department] || {};
                     return (
                     <tr key={e.id} className="border-b hover:bg-zinc-50 group" data-testid={`report-row-${e.id}`}>
-                      <td className="p-2 text-zinc-500 text-xs font-mono sticky bg-white group-hover:bg-zinc-50 z-10 cursor-pointer" style={{ left: 0 }} onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.enquiry_number || idx + 1}</td>
-                      <td className="p-2 sticky bg-white group-hover:bg-zinc-50 z-10 cursor-pointer" style={{ left: 40 }} onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.image_path ? <ReportThumbnail imagePath={e.image_path} /> : <span className="text-zinc-300">—</span>}</td>
-                      <td className="p-2 text-zinc-600 text-xs sticky bg-white group-hover:bg-zinc-50 z-10 cursor-pointer" style={{ left: 88 }} onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.style_no || '—'}</td>
-                      <td className="p-2 font-medium text-zinc-900 text-sm sticky bg-white group-hover:bg-zinc-50 z-10 cursor-pointer" style={{ left: 198 }} onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.customer_name}</td>
-                      <td className="p-2 text-zinc-600 text-sm sticky bg-white group-hover:bg-zinc-50 z-10 border-r-2 border-zinc-300 cursor-pointer" style={{ left: 328 }} onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.fabric_type}</td>
+                      <td className="p-2 text-zinc-500 text-xs font-mono sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 0 }}>{e.enquiry_number || idx + 1}</td>
+                      <td className="p-2 sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 40 }}>{e.image_path ? <ReportThumbnail imagePath={e.image_path} /> : <span className="text-zinc-300">—</span>}</td>
+                      <td className="p-2 text-zinc-600 text-xs sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 88 }}>{e.style_no || '—'}</td>
+                      <td className="p-2 font-medium text-zinc-900 text-sm sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 198 }}>{e.customer_name}</td>
+                      <td className="p-2 text-zinc-600 text-sm sticky bg-white group-hover:bg-zinc-50 z-10 border-r-2 border-zinc-300" style={{ left: 328 }}>{e.fabric_type}</td>
                       {stages.map(s => (
-                        <td key={s.id} className="p-1 text-xs text-zinc-600 align-middle" onClick={(ev) => ev.stopPropagation()}>
+                        <td key={s.id} className="p-1 text-xs text-zinc-600 align-middle">
                           <StageEditCell
                             enquiry={e}
                             stage={s}
@@ -616,12 +616,12 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
                           />
                         </td>
                       ))}
-                      <td className="p-2 text-zinc-600 text-xs cursor-pointer" onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.rate || '—'}</td>
-                      <td className="p-2 text-zinc-600 text-xs cursor-pointer" onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.po_no || '—'}</td>
-                      <td className="p-2 text-zinc-600 text-xs cursor-pointer" onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.po_del_date || '—'}</td>
-                      <td className="p-2 text-zinc-600 text-xs cursor-pointer" onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.department || '—'}</td>
-                      <td className="p-2 text-zinc-400 text-xs cursor-pointer" onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.created_at ? new Date(e.created_at).toLocaleDateString() : '—'}</td>
-                      <td className="p-2 text-zinc-500 text-xs max-w-[200px] truncate cursor-pointer" onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.notes || '—'}</td>
+                      <td className="p-2 text-zinc-600 text-xs">{e.rate || '—'}</td>
+                      <td className="p-2 text-zinc-600 text-xs">{e.po_no || '—'}</td>
+                      <td className="p-2 text-zinc-600 text-xs">{e.po_del_date || '—'}</td>
+                      <td className="p-2 text-zinc-600 text-xs">{e.department || '—'}</td>
+                      <td className="p-2 text-zinc-400 text-xs">{e.created_at ? new Date(e.created_at).toLocaleDateString() : '—'}</td>
+                      <td className="p-2 text-zinc-500 text-xs max-w-[200px] truncate">{e.notes || '—'}</td>
                     </tr>
                     );
                   })
@@ -789,6 +789,7 @@ function DepartmentReport({ stageMap }) {
 
 function UserStagesReport({ stages, users, departments }) {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState('all');
@@ -796,6 +797,15 @@ function UserStagesReport({ stages, users, departments }) {
   const [filterDept, setFilterDept] = useState('');
   const [filterUser, setFilterUser] = useState('');
   const [filterStage, setFilterStage] = useState('');
+  const [didApplyDefault, setDidApplyDefault] = useState(false);
+
+  // Preset: default to logged-in user; can change to All or a specific user.
+  useEffect(() => {
+    if (!didApplyDefault && currentUser?._id) {
+      setFilterUser(currentUser._id);
+      setDidApplyDefault(true);
+    }
+  }, [currentUser, didApplyDefault]);
 
   const fetchReport = useCallback(async () => {
     setLoading(true);
@@ -848,9 +858,12 @@ function UserStagesReport({ stages, users, departments }) {
             </div>
             <div className="space-y-1">
               <Label className="text-xs uppercase tracking-wide font-semibold text-zinc-500">User</Label>
-              <Select value={filterUser} onValueChange={setFilterUser}>
+              <Select value={filterUser || '__all__'} onValueChange={v => setFilterUser(v === '__all__' ? '' : v)}>
                 <SelectTrigger className="w-40 border-zinc-200" data-testid="us-filter-user"><SelectValue placeholder="All" /></SelectTrigger>
-                <SelectContent>{users.map(u => <SelectItem key={u._id} value={u._id}>{u.name}</SelectItem>)}</SelectContent>
+                <SelectContent>
+                  <SelectItem value="__all__">All Users</SelectItem>
+                  {users.map(u => <SelectItem key={u._id} value={u._id}>{u.name}{u._id === currentUser?._id ? ' (Me)' : ''}</SelectItem>)}
+                </SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
