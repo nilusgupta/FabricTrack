@@ -920,17 +920,20 @@ async def update_enquiry(enquiry_id: str, req: EnquiryUpdate, request: Request):
                 hierarchy_map[h["stage_id"]] = h.get("assigned_users", [])
                 hierarchy_order[h["stage_id"]] = h.get("order", 0)
         all_stages = {s["id"]: s for s in await db.stages.find({}, {"_id": 0}).to_list(100)}
+        is_admin = user.get("role") == "admin"
         for stage_id, new_val in new_sv.items():
-            # Check permissions: use department hierarchy first, then fall back to stage-level
+            # Resolve assigned users: department hierarchy first, then stage-level fallback
             assigned = hierarchy_map.get(stage_id)
             if assigned is None:
                 stage_def = all_stages.get(stage_id)
                 assigned = stage_def.get("assigned_users", []) if stage_def else []
-            if assigned and len(assigned) > 0:
-                if user["_id"] not in assigned and user.get("role") != "admin":
-                    continue  # Skip stages the user isn't assigned to
+            # Enforce: non-admin must be in assigned list; if no one assigned, only admin allowed
+            if not is_admin:
+                if not assigned or user["_id"] not in assigned:
+                    stage_name = (all_stages.get(stage_id) or {}).get("name", stage_id)
+                    raise HTTPException(status_code=403, detail=f"You are not assigned to the stage '{stage_name}'.")
             # Check previous stage completion (non-admin only): all stages with lower order must be filled
-            if user.get("role") != "admin" and stage_id in hierarchy_order:
+            if not is_admin and stage_id in hierarchy_order:
                 current_order = hierarchy_order[stage_id]
                 prev_stages = [sid for sid, o in hierarchy_order.items() if o < current_order]
                 missing_prev = []
@@ -940,7 +943,8 @@ async def update_enquiry(enquiry_id: str, req: EnquiryUpdate, request: Request):
                     if not pval:
                         missing_prev.append(psid)
                 if missing_prev:
-                    raise HTTPException(status_code=400, detail=f"Complete previous stages first (stage id: {missing_prev[0]})")
+                    missing_names = ", ".join([(all_stages.get(psid) or {}).get("name", psid) for psid in missing_prev])
+                    raise HTTPException(status_code=400, detail=f"Complete previous stages first: {missing_names}")
             new_value_str = new_val.get("value", "") if isinstance(new_val, dict) else str(new_val)
             old_val = old_sv.get(stage_id, {})
             old_value_str = old_val.get("value", "") if isinstance(old_val, dict) else str(old_val) if old_val else ""
