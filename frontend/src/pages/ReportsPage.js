@@ -127,8 +127,7 @@ export default function ReportsPage() {
   );
 }
 
-const StageEditCell = React.memo(function StageEditCell({ enquiry, stage, hierarchyMap, orderMap, currentUser, onSaved }) {
-  const [open, setOpen] = useState(false);
+const StageEditCell = React.memo(function StageEditCell({ enquiry, stage, hierarchyMap, orderMap, currentUser, onSaved }) {  const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const sv = enquiry.stage_values || {};
   const cur = sv[stage.id] || {};
@@ -238,6 +237,141 @@ const StageEditCell = React.memo(function StageEditCell({ enquiry, stage, hierar
     </Popover>
   );
 });
+
+// Self-contained inline editor for User Stages report pending rows.
+// Fetches full enquiry on open so previous-stage gating is accurate.
+function PendingStageInlineEdit({ item, stages, departments, currentUser, onSaved }) {
+  const [open, setOpen] = useState(false);
+  const [enq, setEnq] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [val, setVal] = useState('');
+  const [comment, setComment] = useState('');
+  const [file, setFile] = useState(null);
+
+  const stage = stages.find(s => s.id === item.stage_id);
+  const dept = departments.find(d => d.name === item.department);
+  const orderMap = {};
+  (dept?.stage_hierarchy || []).forEach(h => { orderMap[h.stage_id] = h.order ?? 0; });
+
+  const handleToggle = async (e) => {
+    e.stopPropagation();
+    if (open) { setOpen(false); return; }
+    setLoading(true);
+    setOpen(true);
+    try {
+      const res = await api.get(`/enquiries/${item.enquiry_id}`);
+      setEnq(res.data);
+      const cur = res.data.stage_values?.[item.stage_id];
+      setVal(typeof cur === 'object' ? cur?.value || '' : String(cur || ''));
+    } catch {
+      toast.error('Failed to load enquiry');
+      setOpen(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const prevComplete = (() => {
+    if (currentUser?.role === 'admin') return true;
+    if (!enq) return true;
+    const order = orderMap[item.stage_id];
+    if (order == null) return true;
+    const sv = enq.stage_values || {};
+    for (const [sid, o] of Object.entries(orderMap)) {
+      if (o < order) {
+        const pv = sv[sid];
+        const pval = typeof pv === 'object' ? pv?.value || '' : String(pv || '');
+        if (!pval) return false;
+      }
+    }
+    return true;
+  })();
+
+  const handleSave = async (e) => {
+    e.stopPropagation();
+    setSaving(true);
+    try {
+      let imagePath = null;
+      if (file) {
+        const fd = new FormData();
+        fd.append('file', file);
+        const up = await api.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        imagePath = up.data?.path;
+      }
+      const newStageVal = { value: val };
+      if (comment) newStageVal.comment = comment;
+      if (imagePath) newStageVal.image_path = imagePath;
+      await api.put(`/enquiries/${item.enquiry_id}`, { stage_values: { [item.stage_id]: newStageVal } });
+      toast.success(`${item.stage_name} updated`);
+      setOpen(false);
+      setComment('');
+      setFile(null);
+      onSaved?.();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Update failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!stage) return <span className="text-zinc-300 text-xs">—</span>;
+
+  return (
+    <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        onClick={handleToggle}
+        className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-sm border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors"
+        data-testid={`pending-edit-${item.enquiry_id}-${item.stage_id}`}
+      >
+        <Pencil className="w-3 h-3" />
+        Fill
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-8 z-50 w-80 p-3 bg-white border border-zinc-200 rounded-sm shadow-xl space-y-2" onClick={(e) => e.stopPropagation()}>
+            {loading || !enq ? (
+              <div className="text-xs text-zinc-500 py-2">Loading…</div>
+            ) : !prevComplete ? (
+              <div className="text-xs text-red-600 p-2 bg-red-50 rounded-sm">Complete previous stages first.</div>
+            ) : (
+              <>
+                <div className="text-xs font-semibold uppercase text-zinc-500">{item.stage_name}</div>
+                <div className="text-[10px] text-zinc-400 -mt-1">{item.customer_name} · {item.style_no || item.fabric_type}</div>
+                {stage.input_type === 'select' && (stage.select_options || []).length > 0 ? (
+                  <Select value={val} onValueChange={setVal}>
+                    <SelectTrigger data-testid="pending-edit-value"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {stage.select_options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : stage.input_type === 'date' ? (
+                  <Input type="date" value={val} onChange={e => setVal(e.target.value)} data-testid="pending-edit-value" />
+                ) : (
+                  <Input value={val} onChange={e => setVal(e.target.value)} placeholder="Value" data-testid="pending-edit-value" />
+                )}
+                <Textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Add comment (optional)" rows={2} className="text-xs" data-testid="pending-edit-comment" />
+                <label className="flex items-center gap-2 text-xs text-zinc-600 cursor-pointer">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>{file ? file.name : 'Attach image (optional)'}</span>
+                  <input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0])} className="hidden" data-testid="pending-edit-image" />
+                </label>
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" onClick={handleSave} disabled={saving} className="flex-1 h-7 text-xs" data-testid="pending-edit-save">
+                    {saving ? 'Saving...' : 'Save'}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setOpen(false)} className="h-7 text-xs">Cancel</Button>
+                </div>
+              </>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
   const navigate = useNavigate();
@@ -977,6 +1111,7 @@ function UserStagesReport({ stages, users, departments }) {
                                   <tr className="bg-amber-50/50">
                                     <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase w-10">Img</th>
                                     <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Stage</th>
+                                    <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Action</th>
                                     <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Customer</th>
                                     <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Style</th>
                                     <th className="text-left px-2 py-1.5 font-semibold text-zinc-500 text-[10px] uppercase">Fabric</th>
@@ -991,10 +1126,25 @@ function UserStagesReport({ stages, users, departments }) {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {pendingItems.map((item, idx) => (
-                                    <tr key={idx} className={`border-t border-zinc-100 cursor-pointer ${item.is_overdue ? 'bg-red-50/50 hover:bg-red-100/50' : 'hover:bg-zinc-50'}`} onClick={() => navigate(`/enquiries/${item.enquiry_id}?returnTo=/reports`)}>
+                                  {pendingItems.map((item, idx) => {
+                                    const canEditPending = currentUser?.role === 'admin' || item.assigned_user_id === currentUser?._id || u.user_id === currentUser?._id;
+                                    return (
+                                    <tr key={idx} className={`border-t border-zinc-100 ${item.is_overdue ? 'bg-red-50/50' : ''}`}>
                                       <td className="px-2 py-1.5">{item.image_path ? <ReportThumbnail imagePath={item.image_path} /> : <span className="text-zinc-300">—</span>}</td>
                                       <td className="px-2 py-1.5"><Badge className="rounded-sm text-[10px] bg-zinc-100 text-zinc-700">{item.stage_name}</Badge></td>
+                                      <td className="px-2 py-1.5">
+                                        {canEditPending ? (
+                                          <PendingStageInlineEdit
+                                            item={{ ...item, stage_id: item.stage_id }}
+                                            stages={stages}
+                                            departments={departments}
+                                            currentUser={currentUser}
+                                            onSaved={fetchReport}
+                                          />
+                                        ) : (
+                                          <span className="text-zinc-300 text-xs">—</span>
+                                        )}
+                                      </td>
                                       <td className="px-2 py-1.5 text-zinc-700 font-medium">{item.customer_name}</td>
                                       <td className="px-2 py-1.5 text-zinc-500">{item.style_no || '—'}</td>
                                       <td className="px-2 py-1.5 text-zinc-500">{item.fabric_type || '—'}</td>
@@ -1007,7 +1157,8 @@ function UserStagesReport({ stages, users, departments }) {
                                       <td className="px-2 py-1.5 text-zinc-400">{item.prev_completed_at ? new Date(item.prev_completed_at).toLocaleDateString() : '—'}</td>
                                       <td className="px-2 py-1.5 text-zinc-400">{item.enquiry_created_at ? new Date(item.enquiry_created_at).toLocaleDateString() : '—'}</td>
                                     </tr>
-                                  ))}
+                                    );
+                                  })}
                                 </tbody>
                               </table>
                             </div>
@@ -1036,7 +1187,7 @@ function UserStagesReport({ stages, users, departments }) {
                                 </thead>
                                 <tbody>
                                   {doneItems.map((item, idx) => (
-                                    <tr key={idx} className="border-t border-zinc-100 hover:bg-zinc-50 cursor-pointer" onClick={() => navigate(`/enquiries/${item.enquiry_id}?returnTo=/reports`)}>
+                                    <tr key={idx} className="border-t border-zinc-100 hover:bg-zinc-50">
                                       <td className="px-2 py-1.5">{item.image_path ? <ReportThumbnail imagePath={item.image_path} /> : <span className="text-zinc-300">—</span>}</td>
                                       <td className="px-2 py-1.5"><Badge className="rounded-sm text-[10px] bg-green-50 text-green-700">{item.stage_name}</Badge></td>
                                       <td className="px-2 py-1.5 text-zinc-700 font-medium">{item.customer_name}</td>
