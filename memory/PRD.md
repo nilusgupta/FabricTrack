@@ -26,6 +26,18 @@
 - P2: Refactor monolithic server.py into routes/models/services
 
 ## Recent Fixes
+- 2026-05-03: Reports — department-scoped access + inline stage editing.
+  `GET /api/reports/enquiries` now filters by `user.department` for non-admin.
+  `PUT /api/enquiries/{id}` rejects stage updates where previous stages
+  (lower `order` in department hierarchy) are incomplete. ReportsPage.js adds
+  `StageEditCell` popover with value/comment/image upload per row. Admins bypass
+  both restrictions.
+- 2026-05-03: Migration to AWS EC2 + MongoDB Atlas complete.
+  Root causes of login bounce: (1) cookie flags mismatched HTTPS scheme,
+  (2) imported `_id` values were strings not ObjectId, (3) PWA service worker
+  cached broken api.js, (4) COOKIE_SCHEME typo in .env. Deployed with
+  Let's Encrypt SSL at crm.ramanujgroup.com. 1945 documents imported via
+  mongoexport (--jsonArray) / mongoimport.
 - 2026-05-01: Fixed login bounce-back on plain-HTTP EC2 deployment.
   Root cause: backend set auth cookies with `Secure=True; SameSite=none`. Browsers
   reject `Secure` cookies on `http://` origins, so login succeeded but cookie

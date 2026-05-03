@@ -878,9 +878,11 @@ async def update_enquiry(enquiry_id: str, req: EnquiryUpdate, request: Request):
         dept_name = existing.get("department", "")
         dept = await db.departments.find_one({"name": dept_name}, {"_id": 0}) if dept_name else None
         hierarchy_map = {}
+        hierarchy_order = {}  # stage_id -> order
         if dept and dept.get("stage_hierarchy"):
             for h in dept["stage_hierarchy"]:
                 hierarchy_map[h["stage_id"]] = h.get("assigned_users", [])
+                hierarchy_order[h["stage_id"]] = h.get("order", 0)
         all_stages = {s["id"]: s for s in await db.stages.find({}, {"_id": 0}).to_list(100)}
         for stage_id, new_val in new_sv.items():
             # Check permissions: use department hierarchy first, then fall back to stage-level
@@ -891,6 +893,18 @@ async def update_enquiry(enquiry_id: str, req: EnquiryUpdate, request: Request):
             if assigned and len(assigned) > 0:
                 if user["_id"] not in assigned and user.get("role") != "admin":
                     continue  # Skip stages the user isn't assigned to
+            # Check previous stage completion (non-admin only): all stages with lower order must be filled
+            if user.get("role") != "admin" and stage_id in hierarchy_order:
+                current_order = hierarchy_order[stage_id]
+                prev_stages = [sid for sid, o in hierarchy_order.items() if o < current_order]
+                missing_prev = []
+                for psid in prev_stages:
+                    pv = old_sv.get(psid, {})
+                    pval = pv.get("value", "") if isinstance(pv, dict) else str(pv) if pv else ""
+                    if not pval:
+                        missing_prev.append(psid)
+                if missing_prev:
+                    raise HTTPException(status_code=400, detail=f"Complete previous stages first (stage id: {missing_prev[0]})")
             new_value_str = new_val.get("value", "") if isinstance(new_val, dict) else str(new_val)
             old_val = old_sv.get(stage_id, {})
             old_value_str = old_val.get("value", "") if isinstance(old_val, dict) else str(old_val) if old_val else ""
@@ -1240,14 +1254,18 @@ async def get_dashboard(request: Request):
 @api_router.get("/reports/enquiries")
 async def report_enquiries(request: Request, start_date: Optional[str] = None, end_date: Optional[str] = None, department: Optional[str] = None, assigned_to: Optional[str] = None, customer_name: Optional[str] = None, fabric_type: Optional[str] = None, style_no: Optional[str] = None, rate: Optional[str] = None, po_no: Optional[str] = None, po_del_date: Optional[str] = None, fabric_received: Optional[str] = None, qty_received: Optional[str] = None, created_by: Optional[str] = None, stage_filters: Optional[str] = None):
     import json as _json
-    await get_current_user(request)
+    user = await get_current_user(request)
     query = {}
+    # Non-admin users can only see enquiries in their department
+    if user.get("role") != "admin":
+        user_dept = user.get("department", "")
+        query["department"] = user_dept
+    elif department:
+        query["department"] = department
     if start_date:
         query["created_at"] = {"$gte": start_date}
     if end_date:
         query.setdefault("created_at", {})["$lte"] = end_date
-    if department:
-        query["department"] = department
     if assigned_to:
         query["assigned_to"] = assigned_to
     if customer_name:

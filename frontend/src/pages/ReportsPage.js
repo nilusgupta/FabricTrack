@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -12,8 +13,9 @@ import { Button } from '../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Calendar } from '../components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
+import { Textarea } from '../components/ui/textarea';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
-import { CalendarIcon, Download, Filter, BarChart3, Users, Layers, Building2, ClipboardList } from 'lucide-react';
+import { CalendarIcon, Download, Filter, BarChart3, Users, Layers, Building2, ClipboardList, Pencil, Upload } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -125,8 +127,121 @@ export default function ReportsPage() {
   );
 }
 
+function StageEditCell({ enquiry, stage, hierarchyMap, orderMap, currentUser, onSaved }) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const sv = enquiry.stage_values || {};
+  const cur = sv[stage.id] || {};
+  const curVal = typeof cur === 'object' ? cur.value || '' : String(cur);
+  const [val, setVal] = useState(curVal);
+  const [comment, setComment] = useState('');
+  const [file, setFile] = useState(null);
+
+  const isAdmin = currentUser?.role === 'admin';
+  const assigned = hierarchyMap[stage.id] || stage.assigned_users || [];
+  const canEdit = isAdmin || (assigned.length > 0 && assigned.includes(currentUser?._id));
+  const prevComplete = (() => {
+    if (isAdmin) return true;
+    const order = orderMap[stage.id];
+    if (order == null) return true;
+    for (const [sid, o] of Object.entries(orderMap)) {
+      if (o < order) {
+        const pv = sv[sid];
+        const pval = typeof pv === 'object' ? pv?.value || '' : String(pv || '');
+        if (!pval) return false;
+      }
+    }
+    return true;
+  })();
+
+  const handleSave = async (e) => {
+    e.stopPropagation();
+    setSaving(true);
+    try {
+      let imagePath = null;
+      if (file) {
+        const fd = new FormData();
+        fd.append('file', file);
+        const up = await api.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        imagePath = up.data?.path || up.data?.storage_path || up.data?.filename;
+      }
+      const newStageVal = { value: val };
+      if (comment) newStageVal.comment = comment;
+      if (imagePath) newStageVal.image_path = imagePath;
+      await api.put(`/enquiries/${enquiry.id}`, { stage_values: { [stage.id]: newStageVal } });
+      toast.success(`${stage.name} updated`);
+      setOpen(false);
+      setComment('');
+      setFile(null);
+      onSaved?.();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Update failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const display = curVal || '—';
+
+  if (!canEdit) {
+    return <span className="text-xs text-zinc-600">{display}</span>;
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          className={`w-full text-left text-xs px-1.5 py-1 rounded-sm border transition-colors ${
+            curVal ? 'text-zinc-700 border-zinc-200 bg-white hover:border-amber-300' : 'text-zinc-400 border-dashed border-zinc-300 hover:border-amber-400 hover:bg-amber-50'
+          }`}
+          data-testid={`stage-edit-${enquiry.id}-${stage.id}`}
+        >
+          {display} <Pencil className="w-3 h-3 inline ml-1 text-amber-500" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-3" onClick={(e) => e.stopPropagation()}>
+        <div className="space-y-2">
+          <div className="text-xs font-semibold uppercase text-zinc-500">{stage.name}</div>
+          {!prevComplete && !isAdmin ? (
+            <div className="text-xs text-red-600 p-2 bg-red-50 rounded-sm">Complete previous stages first.</div>
+          ) : (
+            <>
+              {stage.input_type === 'select' && (stage.select_options || []).length > 0 ? (
+                <Select value={val} onValueChange={setVal}>
+                  <SelectTrigger data-testid="stage-edit-value"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    {stage.select_options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : stage.input_type === 'date' ? (
+                <Input type="date" value={val} onChange={e => setVal(e.target.value)} data-testid="stage-edit-value" />
+              ) : (
+                <Input value={val} onChange={e => setVal(e.target.value)} placeholder="Value" data-testid="stage-edit-value" />
+              )}
+              <Textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Add comment (optional)" rows={2} className="text-xs" data-testid="stage-edit-comment" />
+              <label className="flex items-center gap-2 text-xs text-zinc-600 cursor-pointer">
+                <Upload className="w-3.5 h-3.5" />
+                <span>{file ? file.name : 'Attach image (optional)'}</span>
+                <input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0])} className="hidden" data-testid="stage-edit-image" />
+              </label>
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" onClick={handleSave} disabled={saving} className="flex-1 h-7 text-xs" data-testid="stage-edit-save">
+                  {saving ? 'Saving...' : 'Save'}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setOpen(false)} className="h-7 text-xs">Cancel</Button>
+              </div>
+            </>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ start_date: '', end_date: '', department: '', customer_name: '', fabric_type: '', style_no: '', rate: '', po_no: '', po_del_date: '', fabric_received: '', qty_received: '', created_by: '' });
@@ -454,25 +569,44 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
                 ) : !filteredEnquiries.length ? (
                   <tr><td colSpan={12 + stages.length} className="text-center py-8 text-zinc-400">No data</td></tr>
                 ) : (
-                  filteredEnquiries.map((e, idx) => (
-                    <tr key={e.id} className="border-b hover:bg-zinc-50 group cursor-pointer" onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)} data-testid={`report-row-${e.id}`}>
-                      <td className="p-2 text-zinc-500 text-xs font-mono sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 0 }}>{e.enquiry_number || idx + 1}</td>
-                      <td className="p-2 sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 40 }}>{e.image_path ? <ReportThumbnail imagePath={e.image_path} /> : <span className="text-zinc-300">—</span>}</td>
-                      <td className="p-2 text-zinc-600 text-xs sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 88 }}>{e.style_no || '—'}</td>
-                      <td className="p-2 font-medium text-zinc-900 text-sm sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 198 }}>{e.customer_name}</td>
-                      <td className="p-2 text-zinc-600 text-sm sticky bg-white group-hover:bg-zinc-50 z-10 border-r-2 border-zinc-300" style={{ left: 328 }}>{e.fabric_type}</td>
-                      {stages.map(s => {
-                        const val = getStageDisplay(e, s.id);
-                        return <td key={s.id} className="p-2 text-xs text-zinc-600">{val || '—'}</td>;
-                      })}
-                      <td className="p-2 text-zinc-600 text-xs">{e.rate || '—'}</td>
-                      <td className="p-2 text-zinc-600 text-xs">{e.po_no || '—'}</td>
-                      <td className="p-2 text-zinc-600 text-xs">{e.po_del_date || '—'}</td>
-                      <td className="p-2 text-zinc-600 text-xs">{e.department || '—'}</td>
-                      <td className="p-2 text-zinc-400 text-xs">{e.created_at ? new Date(e.created_at).toLocaleDateString() : '—'}</td>
-                      <td className="p-2 text-zinc-500 text-xs max-w-[200px] truncate">{e.notes || '—'}</td>
+                  filteredEnquiries.map((e, idx) => {
+                    const dept = departments.find(d => d.name === e.department);
+                    const hierarchyMap = {};
+                    const orderMap = {};
+                    if (dept && dept.stage_hierarchy) {
+                      dept.stage_hierarchy.forEach(h => {
+                        hierarchyMap[h.stage_id] = h.assigned_users || [];
+                        orderMap[h.stage_id] = h.order ?? 0;
+                      });
+                    }
+                    return (
+                    <tr key={e.id} className="border-b hover:bg-zinc-50 group" data-testid={`report-row-${e.id}`}>
+                      <td className="p-2 text-zinc-500 text-xs font-mono sticky bg-white group-hover:bg-zinc-50 z-10 cursor-pointer" style={{ left: 0 }} onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.enquiry_number || idx + 1}</td>
+                      <td className="p-2 sticky bg-white group-hover:bg-zinc-50 z-10 cursor-pointer" style={{ left: 40 }} onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.image_path ? <ReportThumbnail imagePath={e.image_path} /> : <span className="text-zinc-300">—</span>}</td>
+                      <td className="p-2 text-zinc-600 text-xs sticky bg-white group-hover:bg-zinc-50 z-10 cursor-pointer" style={{ left: 88 }} onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.style_no || '—'}</td>
+                      <td className="p-2 font-medium text-zinc-900 text-sm sticky bg-white group-hover:bg-zinc-50 z-10 cursor-pointer" style={{ left: 198 }} onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.customer_name}</td>
+                      <td className="p-2 text-zinc-600 text-sm sticky bg-white group-hover:bg-zinc-50 z-10 border-r-2 border-zinc-300 cursor-pointer" style={{ left: 328 }} onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.fabric_type}</td>
+                      {stages.map(s => (
+                        <td key={s.id} className="p-1 text-xs text-zinc-600 align-middle" onClick={(ev) => ev.stopPropagation()}>
+                          <StageEditCell
+                            enquiry={e}
+                            stage={s}
+                            hierarchyMap={hierarchyMap}
+                            orderMap={orderMap}
+                            currentUser={currentUser}
+                            onSaved={fetchReport}
+                          />
+                        </td>
+                      ))}
+                      <td className="p-2 text-zinc-600 text-xs cursor-pointer" onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.rate || '—'}</td>
+                      <td className="p-2 text-zinc-600 text-xs cursor-pointer" onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.po_no || '—'}</td>
+                      <td className="p-2 text-zinc-600 text-xs cursor-pointer" onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.po_del_date || '—'}</td>
+                      <td className="p-2 text-zinc-600 text-xs cursor-pointer" onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.department || '—'}</td>
+                      <td className="p-2 text-zinc-400 text-xs cursor-pointer" onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.created_at ? new Date(e.created_at).toLocaleDateString() : '—'}</td>
+                      <td className="p-2 text-zinc-500 text-xs max-w-[200px] truncate cursor-pointer" onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.notes || '—'}</td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>
