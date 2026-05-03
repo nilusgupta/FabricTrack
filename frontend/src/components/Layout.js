@@ -162,50 +162,29 @@ export default function Layout({ children }) {
           })}
         </nav>
 
-        {/* User section */}
-        <div className="border-t border-zinc-200 px-4 py-4" data-testid="sidebar-user">
-          <button
-            type="button"
-            onClick={() => setUserMenuOpen(o => !o)}
-            className="w-full flex items-center gap-3 rounded-sm hover:bg-zinc-50 transition-colors p-1 -m-1"
-            data-testid="user-menu-toggle"
-            aria-expanded={userMenuOpen}
-          >
+        {/* User section - compact */}
+        <div className="border-t border-zinc-200 px-4 py-3" data-testid="sidebar-user">
+          <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-sm bg-zinc-900 flex items-center justify-center text-white text-xs font-bold">
               {user?.name?.charAt(0)?.toUpperCase() || 'U'}
             </div>
-            <div className="flex-1 min-w-0 text-left">
+            <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-zinc-900 truncate">{user?.name}</p>
               <p className="text-xs text-zinc-500 truncate">{user?.role} · {user?.department}</p>
             </div>
-            <ChevronRight className={`w-3 h-3 text-zinc-400 transition-transform ${userMenuOpen ? 'rotate-90' : ''}`} />
-          </button>
-          {userMenuOpen && (
-            <div className="mt-3 space-y-1.5" data-testid="user-menu">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLogout}
-                data-testid="logout-button"
-                className="w-full border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
-              >
-                <LogOut className="w-3 h-3 mr-2" />
-                Sign Out
-              </Button>
-              {window.PublicKeyCredential && (
-                <Button
-                  variant={biometricStatus?.registered ? "ghost" : "outline"}
-                  size="sm"
-                  onClick={setupBiometric}
-                  disabled={biometricLoading}
-                  data-testid="biometric-setup-button"
-                  className={`w-full ${biometricStatus?.registered ? 'text-green-600 hover:text-green-700' : 'border-zinc-200 text-zinc-600'}`}
-                >
-                  <Fingerprint className="w-3 h-3 mr-2" />
-                  {biometricLoading ? 'Setting up...' : biometricStatus?.registered ? 'Biometric Active' : 'Setup Fingerprint'}
-                </Button>
-              )}
-            </div>
+          </div>
+          {window.PublicKeyCredential && !biometricStatus?.registered && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={setupBiometric}
+              disabled={biometricLoading}
+              data-testid="biometric-setup-button"
+              className="w-full mt-2.5 border-zinc-200 text-zinc-600"
+            >
+              <Fingerprint className="w-3 h-3 mr-2" />
+              {biometricLoading ? 'Setting up...' : 'Setup Fingerprint'}
+            </Button>
           )}
         </div>
       </aside>
@@ -254,9 +233,41 @@ export default function Layout({ children }) {
                 </>
               )}
             </div>
-            <span className="hidden sm:inline relative group cursor-pointer" data-testid="header-user-email" onClick={() => setUserMenuOpen(o => !o)}>
-              {user?.email}
-            </span>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setUserMenuOpen(o => !o)}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-sm hover:bg-zinc-100 transition-colors"
+                data-testid="header-user-toggle"
+                aria-expanded={userMenuOpen}
+              >
+                <div className="w-7 h-7 rounded-sm bg-zinc-900 flex items-center justify-center text-white text-[11px] font-bold">
+                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                </div>
+                <span className="hidden sm:inline text-sm text-zinc-700 font-medium">{user?.name}</span>
+              </button>
+              {userMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+                  <div className="absolute right-0 top-11 w-56 bg-white border border-zinc-200 rounded-sm shadow-xl z-50 overflow-hidden" data-testid="header-user-menu">
+                    <div className="px-3 py-2.5 border-b border-zinc-100 bg-zinc-50">
+                      <p className="text-sm font-semibold text-zinc-900 truncate">{user?.name}</p>
+                      <p className="text-[11px] text-zinc-500 truncate">{user?.email}</p>
+                      <p className="text-[10px] text-zinc-400 mt-0.5 uppercase tracking-wide">{user?.role} · {user?.department}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setUserMenuOpen(false); handleLogout(); }}
+                      data-testid="logout-button"
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-zinc-700 hover:bg-red-50 hover:text-red-700 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </header>
 

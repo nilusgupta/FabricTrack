@@ -588,13 +588,48 @@ async def delete_stage(stage_id: str, request: Request):
     return {"message": "Stage deleted"}
 
 # ─── File Upload ───
+def _compress_image(data: bytes, content_type: str) -> tuple[bytes, str, str]:
+    """Resize + recompress image to reduce size.
+    Returns (new_bytes, new_content_type, new_extension).
+    Falls back to original if not a supported image.
+    """
+    if not content_type.startswith("image/"):
+        return data, content_type, ""
+    try:
+        from PIL import Image
+        from io import BytesIO
+        img = Image.open(BytesIO(data))
+        # Preserve PNG transparency, otherwise convert to JPEG
+        has_alpha = img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info)
+        # Resize if larger than 1600px on longest side
+        max_dim = 1600
+        if max(img.size) > max_dim:
+            img.thumbnail((max_dim, max_dim), Image.LANCZOS)
+        out = BytesIO()
+        if has_alpha:
+            img.save(out, format="PNG", optimize=True)
+            return out.getvalue(), "image/png", "png"
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        img.save(out, format="JPEG", quality=82, optimize=True, progressive=True)
+        return out.getvalue(), "image/jpeg", "jpg"
+    except Exception as e:
+        logger.warning(f"Image compression failed, storing original: {e}")
+        return data, content_type, ""
+
+
 @api_router.post("/upload")
 async def upload_file(request: Request, file: UploadFile = File(...)):
     user = await get_current_user(request)
-    ext = file.filename.split(".")[-1] if "." in file.filename else "bin"
-    path = f"{APP_NAME}/uploads/{user['_id']}/{uuid_mod.uuid4()}.{ext}"
-    data = await file.read()
+    raw = await file.read()
     content_type = file.content_type or "application/octet-stream"
+    # Compress/normalize image uploads
+    data, content_type, new_ext = _compress_image(raw, content_type)
+    if new_ext:
+        ext = new_ext
+    else:
+        ext = file.filename.split(".")[-1] if "." in file.filename else "bin"
+    path = f"{APP_NAME}/uploads/{user['_id']}/{uuid_mod.uuid4()}.{ext}"
     result = put_object(path, data, content_type)
     file_doc = {
         "id": str(uuid_mod.uuid4()), "storage_path": result["path"],
@@ -824,17 +859,18 @@ async def bulk_create_enquiries(request: Request, files: List[UploadFile] = File
     for f in files:
         enquiry_id = secrets.token_hex(12)
         enquiry_number = await get_next_enquiry_number()
-        # Upload image
+        # Upload image (with compression)
         image_path = ""
         try:
-            ext = f.filename.split(".")[-1] if "." in f.filename else "jpg"
+            raw = await f.read()
+            data, ctype, new_ext = _compress_image(raw, f.content_type or "image/jpeg")
+            ext = new_ext or (f.filename.split(".")[-1] if "." in f.filename else "jpg")
             path = f"{APP_NAME}/images/{enquiry_id}.{ext}"
-            data = await f.read()
-            result = put_object(path, data, f.content_type or "image/jpeg")
+            result = put_object(path, data, ctype)
             image_path = result["path"]
             file_doc = {
                 "id": str(uuid_mod.uuid4()), "storage_path": result["path"],
-                "original_filename": f.filename, "content_type": f.content_type or "image/jpeg",
+                "original_filename": f.filename, "content_type": ctype,
                 "size": result.get("size", len(data)), "is_deleted": False,
                 "uploaded_by": user["_id"], "created_at": now
             }

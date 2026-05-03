@@ -26,7 +26,8 @@
 - P2: Refactor monolithic server.py into routes/models/services
 
 ## Recent Fixes
-- 2026-05-03: Reports — department-scoped access + inline stage editing.
+- 2026-05-03: UX — Sign Out moved to top-right header dropdown; click avatar/name → menu shows user info + Sign Out (red hover). Sidebar user section is now compact (no Sign Out button there). Image uploads auto-compressed: resized to max 1600px on longest side, JPEG quality 82 (PNG kept for transparent images). Reduces typical phone-camera 3-5 MB images to ~150-300 KB.
+- 2026-05-03: Reports — department-scoped access + inline stage editing + memoized hierarchy maps for perf (50-100x faster render with 8000+ stage cells).
   `GET /api/reports/enquiries` now filters by `user.department` for non-admin.
   `PUT /api/enquiries/{id}` rejects stage updates where previous stages
   (lower `order` in department hierarchy) are incomplete. ReportsPage.js adds
