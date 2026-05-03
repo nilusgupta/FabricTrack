@@ -184,7 +184,7 @@ export default function EnquiryDetailPage() {
       if (enq.department) {
         const dept = deptsRes.data.find(d => d.name === enq.department);
         if (dept) {
-          try { const hRes = await api.get(`/departments/${dept.id}/hierarchy`); setDeptHierarchy(hRes.data); } catch {}
+          try { const hRes = await api.get(`/departments/${dept.id}/hierarchy`); setDeptHierarchy(hRes.data); } catch (err) { console.warn('Failed to load department hierarchy:', err); }
         }
       }
       setForm({
@@ -208,7 +208,7 @@ export default function EnquiryDetailPage() {
         try {
           const imgRes = await api.get(`/files/${enq.image_path}`, { responseType: 'blob' });
           setImageBlobUrl(URL.createObjectURL(imgRes.data));
-        } catch { /* image load failed */ }
+        } catch (err) { console.warn('Failed to load image preview:', err); }
       }
     } catch (err) {
       toast.error('Failed to load enquiry');

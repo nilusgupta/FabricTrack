@@ -361,7 +361,7 @@ export default function EnquiriesPage() {
                     </label>
                     {bulkFiles.length > 0 && (
                       <div className="mt-2 flex gap-1 flex-wrap">
-                        {bulkFiles.map((f, i) => <Badge key={i} className="rounded-sm text-[10px] bg-zinc-100 text-zinc-600">{f.name}</Badge>)}
+                        {bulkFiles.map((f, i) => <Badge key={`${f.name}-${f.size}-${i}`} className="rounded-sm text-[10px] bg-zinc-100 text-zinc-600">{f.name}</Badge>)}
                       </div>
                     )}
                     <p className="text-[10px] text-amber-600 mt-1">Each image = one enquiry with same customer/fabric details</p>

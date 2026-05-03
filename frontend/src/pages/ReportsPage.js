@@ -1129,7 +1129,7 @@ function UserStagesReport({ stages, users, departments }) {
                                   {pendingItems.map((item, idx) => {
                                     const canEditPending = currentUser?.role === 'admin' || item.assigned_user_id === currentUser?._id || u.user_id === currentUser?._id;
                                     return (
-                                    <tr key={idx} className={`border-t border-zinc-100 ${item.is_overdue ? 'bg-red-50/50' : ''}`}>
+                                    <tr key={`${item.enquiry_id}-${item.stage_id}`} className={`border-t border-zinc-100 ${item.is_overdue ? 'bg-red-50/50' : ''}`}>
                                       <td className="px-2 py-1.5">{item.image_path ? <ReportThumbnail imagePath={item.image_path} /> : <span className="text-zinc-300">—</span>}</td>
                                       <td className="px-2 py-1.5"><Badge className="rounded-sm text-[10px] bg-zinc-100 text-zinc-700">{item.stage_name}</Badge></td>
                                       <td className="px-2 py-1.5">
@@ -1187,7 +1187,7 @@ function UserStagesReport({ stages, users, departments }) {
                                 </thead>
                                 <tbody>
                                   {doneItems.map((item, idx) => (
-                                    <tr key={idx} className="border-t border-zinc-100 hover:bg-zinc-50">
+                                    <tr key={`${item.enquiry_id}-${item.stage_id}`} className="border-t border-zinc-100 hover:bg-zinc-50">
                                       <td className="px-2 py-1.5">{item.image_path ? <ReportThumbnail imagePath={item.image_path} /> : <span className="text-zinc-300">—</span>}</td>
                                       <td className="px-2 py-1.5"><Badge className="rounded-sm text-[10px] bg-green-50 text-green-700">{item.stage_name}</Badge></td>
                                       <td className="px-2 py-1.5 text-zinc-700 font-medium">{item.customer_name}</td>
