@@ -127,7 +127,7 @@ export default function ReportsPage() {
   );
 }
 
-function StageEditCell({ enquiry, stage, hierarchyMap, orderMap, currentUser, onSaved }) {
+const StageEditCell = React.memo(function StageEditCell({ enquiry, stage, hierarchyMap, orderMap, currentUser, onSaved }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const sv = enquiry.stage_values || {};
@@ -237,7 +237,7 @@ function StageEditCell({ enquiry, stage, hierarchyMap, orderMap, currentUser, on
       </PopoverContent>
     </Popover>
   );
-}
+});
 
 function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
   const navigate = useNavigate();
@@ -268,6 +268,21 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
   }, [filters, stageFilters]);
 
   useEffect(() => { fetchReport(); }, [fetchReport]);
+
+  // Memoize hierarchy maps once per departments change (was recomputed for every row)
+  const hierarchyByDept = React.useMemo(() => {
+    const out = {};
+    for (const d of departments) {
+      const hMap = {};
+      const oMap = {};
+      (d.stage_hierarchy || []).forEach(h => {
+        hMap[h.stage_id] = h.assigned_users || [];
+        oMap[h.stage_id] = h.order ?? 0;
+      });
+      out[d.name] = { hierarchyMap: hMap, orderMap: oMap };
+    }
+    return out;
+  }, [departments]);
 
   const handleStartDate = (date) => { setStartDate(date); setFilters({ ...filters, start_date: date ? date.toISOString() : '' }); };
   const handleEndDate = (date) => { setEndDate(date); setFilters({ ...filters, end_date: date ? date.toISOString() : '' }); };
@@ -570,15 +585,7 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
                   <tr><td colSpan={12 + stages.length} className="text-center py-8 text-zinc-400">No data</td></tr>
                 ) : (
                   filteredEnquiries.map((e, idx) => {
-                    const dept = departments.find(d => d.name === e.department);
-                    const hierarchyMap = {};
-                    const orderMap = {};
-                    if (dept && dept.stage_hierarchy) {
-                      dept.stage_hierarchy.forEach(h => {
-                        hierarchyMap[h.stage_id] = h.assigned_users || [];
-                        orderMap[h.stage_id] = h.order ?? 0;
-                      });
-                    }
+                    const { hierarchyMap = {}, orderMap = {} } = hierarchyByDept[e.department] || {};
                     return (
                     <tr key={e.id} className="border-b hover:bg-zinc-50 group" data-testid={`report-row-${e.id}`}>
                       <td className="p-2 text-zinc-500 text-xs font-mono sticky bg-white group-hover:bg-zinc-50 z-10 cursor-pointer" style={{ left: 0 }} onClick={() => navigate(`/enquiries/${e.id}?returnTo=/reports`)}>{e.enquiry_number || idx + 1}</td>
