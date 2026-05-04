@@ -1451,7 +1451,8 @@ async def report_user_stages(request: Request, filter_department: Optional[str] 
     await get_current_user(request)
     depts = await get_cached("departments", lambda: db.departments.find({}, {"_id": 0}).to_list(100))
     all_stages = {s["id"]: s for s in await get_cached("stages", lambda: db.stages.find({}, {"_id": 0}).to_list(100))}
-    users_list = await db.users.find({}, {"password_hash": 0}).to_list(1000)
+    # Only the fields needed for the report — drops webauthn_credentials, etc.
+    users_list = await db.users.find({}, {"_id": 1, "name": 1, "department": 1}).to_list(1000)
     user_map = {str(u["_id"]): u for u in users_list}
     now = datetime.now(timezone.utc)
     user_data = {}
@@ -1472,10 +1473,13 @@ async def report_user_stages(request: Request, filter_department: Optional[str] 
     if not active_depts:
         return []
 
-    # Single aggregation-style fetch: all enquiries in active departments in one round-trip
+    # Single aggregation-style fetch: all enquiries in active departments in one round-trip.
+    # Project only fields needed for the report (drops heavy arrays like history, voice_notes, comments).
     dept_names = [d["name"] for d in active_depts]
     all_enquiries = await db.enquiries.find(
-        {"department": {"$in": dept_names}}, {"_id": 0}
+        {"department": {"$in": dept_names}},
+        {"_id": 0, "id": 1, "customer_name": 1, "style_no": 1, "fabric_type": 1,
+         "image_path": 1, "department": 1, "status": 1, "created_at": 1, "stage_values": 1}
     ).to_list(10000)
     enquiries_by_dept = {}
     for enq in all_enquiries:
@@ -1618,7 +1622,8 @@ async def export_user_stages_excel(request: Request, filter_department: Optional
     dept_names = [d["name"] for d in active_depts]
     all_enquiries = await db.enquiries.find(
         {"department": {"$in": dept_names}} if dept_names else {"_id": None},
-        {"_id": 0}
+        {"_id": 0, "id": 1, "customer_name": 1, "style_no": 1, "fabric_type": 1,
+         "image_path": 1, "department": 1, "status": 1, "created_at": 1, "stage_values": 1}
     ).to_list(10000)
     enquiries_by_dept = {}
     for enq in all_enquiries:

@@ -23,15 +23,29 @@ function ReportThumbnail({ imagePath }) {
   const [blobUrl, setBlobUrl] = useState(null);
   const [hovered, setHovered] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [visible, setVisible] = useState(false);
   const ref = useRef(null);
+  const wrapRef = useRef(null);
+
+  // Lazy-load: only fetch when thumbnail scrolls into view
   useEffect(() => {
-    if (!imagePath) return;
+    if (!wrapRef.current) return;
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } });
+    }, { rootMargin: '200px' });
+    obs.observe(wrapRef.current);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!imagePath || !visible) return;
     let revoke = null;
     api.get(`/files/${imagePath}`, { responseType: 'blob' })
       .then(res => { const url = URL.createObjectURL(res.data); revoke = url; setBlobUrl(url); })
       .catch(() => {});
     return () => { if (revoke) URL.revokeObjectURL(revoke); };
-  }, [imagePath]);
+  }, [imagePath, visible]);
+
   const handleMouseEnter = () => {
     if (ref.current) {
       const rect = ref.current.getBoundingClientRect();
@@ -39,9 +53,10 @@ function ReportThumbnail({ imagePath }) {
     }
     setHovered(true);
   };
-  if (!blobUrl) return <span className="text-zinc-300">—</span>;
+
+  if (!blobUrl) return <span ref={wrapRef} className="inline-block w-8 h-8 bg-zinc-100 rounded-sm" />;
   return (
-    <div ref={ref} className="relative" onMouseEnter={handleMouseEnter} onMouseLeave={() => setHovered(false)}>
+    <div ref={el => { ref.current = el; wrapRef.current = el; }} className="relative" onMouseEnter={handleMouseEnter} onMouseLeave={() => setHovered(false)}>
       <img src={blobUrl} alt="Fabric" className="w-8 h-8 object-cover rounded-sm border border-zinc-200" data-testid="report-thumb" />
       {hovered && ReactDOM.createPortal(
         <div className="pointer-events-none" style={{ position: 'fixed', zIndex: 9999, top: pos.top, left: pos.left }}>
