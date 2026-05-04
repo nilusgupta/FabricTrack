@@ -1455,27 +1455,40 @@ async def report_user_stages(request: Request, filter_department: Optional[str] 
     user_map = {str(u["_id"]): u for u in users_list}
     now = datetime.now(timezone.utc)
     user_data = {}
-    for dept in depts:
-        if filter_department and dept["name"] != filter_department:
+
+    # Early department-level filtering
+    active_depts = []
+    for d in depts:
+        if filter_department and d["name"] != filter_department:
             continue
-        hierarchy = dept.get("stage_hierarchy", [])
-        if not hierarchy:
+        if not d.get("stage_hierarchy"):
             continue
-        # Fast skip: when filtering by user, skip depts where this user is not assigned to any stage
         if filter_user:
-            dept_assigned = set()
-            for h in hierarchy:
-                dept_assigned.update(h.get("assigned_users", []))
+            dept_assigned = {u for h in d["stage_hierarchy"] for u in h.get("assigned_users", [])}
             if filter_user not in dept_assigned:
                 continue
-        sorted_h = sorted(hierarchy, key=lambda x: x.get("order", 0))
-        enquiries = await db.enquiries.find({"department": dept["name"]}, {"_id": 0}).to_list(5000)
-        for enq in enquiries:
+        active_depts.append(d)
+
+    if not active_depts:
+        return []
+
+    # Single aggregation-style fetch: all enquiries in active departments in one round-trip
+    dept_names = [d["name"] for d in active_depts]
+    all_enquiries = await db.enquiries.find(
+        {"department": {"$in": dept_names}}, {"_id": 0}
+    ).to_list(10000)
+    enquiries_by_dept = {}
+    for enq in all_enquiries:
+        enquiries_by_dept.setdefault(enq.get("department", ""), []).append(enq)
+
+    for dept in active_depts:
+        sorted_h = sorted(dept["stage_hierarchy"], key=lambda x: x.get("order", 0))
+        for enq in enquiries_by_dept.get(dept["name"], []):
             sv = enq.get("stage_values", {})
             is_closed = enq.get("status") == "closed"
             enq_created = enq.get("created_at", "")
             enq_image = enq.get("image_path", "")
-            first_pending_found = False  # Track if we already found the first pending stage for this enquiry
+            first_pending_found = False
             for i, h in enumerate(sorted_h):
                 sid = h["stage_id"]
                 if filter_stage and sid != filter_stage:
@@ -1544,7 +1557,6 @@ async def report_user_stages(request: Request, filter_department: Optional[str] 
                         user_data[uid]["done"].append(item)
                         user_data[uid]["done_count"] += 1
                     elif not is_closed and not first_pending_found:
-                        # Calculate days pending
                         ref_date_str = prev_completed_at or enq_created
                         days_pending = 0
                         is_overdue = False
@@ -1565,8 +1577,8 @@ async def report_user_stages(request: Request, filter_department: Optional[str] 
                         user_data[uid]["pending"].append(item)
                         user_data[uid]["pending_count"] += 1
                 if not v and not is_closed and not filter_stage:
-                    first_pending_found = True  # Only show first pending stage per enquiry
-                    break  # Stop checking further stages for this enquiry
+                    first_pending_found = True
+                    break
     # Sort pending by overdue first, then days_pending desc
     for ud in user_data.values():
         ud["pending"].sort(key=lambda x: (-int(x.get("is_overdue", False)), -x.get("days_pending", 0)))
@@ -1588,22 +1600,33 @@ async def export_user_stages_excel(request: Request, filter_department: Optional
     umap = {str(u["_id"]): u for u in users_list}
     now_dt = datetime.now(timezone.utc)
     rows = []  # flat rows for Excel
-    for dept in depts:
-        if filter_department and dept["name"] != filter_department:
+
+    # Early department-level filtering (same pattern as /reports/user-stages)
+    active_depts = []
+    for d in depts:
+        if filter_department and d["name"] != filter_department:
             continue
-        hierarchy = dept.get("stage_hierarchy", [])
-        if not hierarchy:
+        if not d.get("stage_hierarchy"):
             continue
-        # Fast skip: when filtering by user, skip depts where this user is not assigned to any stage
         if filter_user:
-            dept_assigned = set()
-            for h in hierarchy:
-                dept_assigned.update(h.get("assigned_users", []))
+            dept_assigned = {u for h in d["stage_hierarchy"] for u in h.get("assigned_users", [])}
             if filter_user not in dept_assigned:
                 continue
-        sorted_h = sorted(hierarchy, key=lambda x: x.get("order", 0))
-        enquiries = await db.enquiries.find({"department": dept["name"]}, {"_id": 0}).to_list(5000)
-        for enq in enquiries:
+        active_depts.append(d)
+
+    # Single aggregation-style fetch
+    dept_names = [d["name"] for d in active_depts]
+    all_enquiries = await db.enquiries.find(
+        {"department": {"$in": dept_names}} if dept_names else {"_id": None},
+        {"_id": 0}
+    ).to_list(10000)
+    enquiries_by_dept = {}
+    for enq in all_enquiries:
+        enquiries_by_dept.setdefault(enq.get("department", ""), []).append(enq)
+
+    for dept in active_depts:
+        sorted_h = sorted(dept["stage_hierarchy"], key=lambda x: x.get("order", 0))
+        for enq in enquiries_by_dept.get(dept["name"], []):
             sv = enq.get("stage_values", {})
             is_closed = enq.get("status") == "closed"
             enq_created = enq.get("created_at", "")
