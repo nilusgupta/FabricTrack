@@ -1461,6 +1461,13 @@ async def report_user_stages(request: Request, filter_department: Optional[str] 
         hierarchy = dept.get("stage_hierarchy", [])
         if not hierarchy:
             continue
+        # Fast skip: when filtering by user, skip depts where this user is not assigned to any stage
+        if filter_user:
+            dept_assigned = set()
+            for h in hierarchy:
+                dept_assigned.update(h.get("assigned_users", []))
+            if filter_user not in dept_assigned:
+                continue
         sorted_h = sorted(hierarchy, key=lambda x: x.get("order", 0))
         enquiries = await db.enquiries.find({"department": dept["name"]}, {"_id": 0}).to_list(5000)
         for enq in enquiries:
@@ -1587,6 +1594,13 @@ async def export_user_stages_excel(request: Request, filter_department: Optional
         hierarchy = dept.get("stage_hierarchy", [])
         if not hierarchy:
             continue
+        # Fast skip: when filtering by user, skip depts where this user is not assigned to any stage
+        if filter_user:
+            dept_assigned = set()
+            for h in hierarchy:
+                dept_assigned.update(h.get("assigned_users", []))
+            if filter_user not in dept_assigned:
+                continue
         sorted_h = sorted(hierarchy, key=lambda x: x.get("order", 0))
         enquiries = await db.enquiries.find({"department": dept["name"]}, {"_id": 0}).to_list(5000)
         for enq in enquiries:
