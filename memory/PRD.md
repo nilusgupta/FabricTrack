@@ -26,6 +26,16 @@
 - P2: Refactor monolithic server.py into routes/models/services
 
 ## Recent Fixes
+- 2026-05-04: User Stages report — fixed two bugs:
+  (1) User filter combo did not isolate the selected user. Root cause: race
+      condition — first unfiltered request fired before `currentUser` arrived
+      and resolved AFTER the second filtered request, overwriting the data.
+      Fix: gate first fetch until default filter applied, and abort in-flight
+      requests via `AbortController` when filters change.
+  (2) "Fill" popup was clipped/off-screen. Fix already in place — replaced
+      Popover with a full-screen portal Dialog rendered to `document.body`,
+      verified centered and unclipped.
+  Files: `frontend/src/pages/ReportsPage.js` (UserStagesReport, PendingStageInlineEdit).
 - 2026-05-03: UX — Sign Out moved to top-right header dropdown; click avatar/name → menu shows user info + Sign Out (red hover). Sidebar user section is now compact (no Sign Out button there). Image uploads auto-compressed: resized to max 1600px on longest side, JPEG quality 82 (PNG kept for transparent images). Reduces typical phone-camera 3-5 MB images to ~150-300 KB.
 - 2026-05-03: Reports — department-scoped access + inline stage editing + memoized hierarchy maps for perf (50-100x faster render with 8000+ stage cells).
   `GET /api/reports/enquiries` now filters by `user.department` for non-admin.

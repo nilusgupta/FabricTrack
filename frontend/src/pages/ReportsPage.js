@@ -962,19 +962,31 @@ function UserStagesReport({ stages, users, departments }) {
     }
   }, [currentUser, didApplyDefault]);
 
-  const fetchReport = useCallback(async () => {
+  // Wait for the default filter (current user) to be applied before firing the first
+  // request — otherwise a stale unfiltered response can race ahead and overwrite the
+  // filtered one, showing every user instead of the selected one.
+  const fetchReport = useCallback(async (signal) => {
     setLoading(true);
     try {
       const params = {};
       if (filterDept) params.filter_department = filterDept;
       if (filterUser) params.filter_user = filterUser;
       if (filterStage) params.filter_stage = filterStage;
-      const res = await api.get('/reports/user-stages', { params });
+      const res = await api.get('/reports/user-stages', { params, signal });
       setData(res.data);
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+    } catch (err) {
+      if (err.name !== 'CanceledError' && err.name !== 'AbortError') console.error(err);
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
   }, [filterDept, filterUser, filterStage]);
 
-  useEffect(() => { fetchReport(); }, [fetchReport]);
+  useEffect(() => {
+    if (currentUser && !didApplyDefault) return; // wait until default filter is applied
+    const ctrl = new AbortController();
+    fetchReport(ctrl.signal);
+    return () => ctrl.abort();
+  }, [fetchReport, currentUser, didApplyDefault]);
 
   const totalPending = data.reduce((sum, u) => sum + u.pending_count, 0);
   const totalDone = data.reduce((sum, u) => sum + u.done_count, 0);
