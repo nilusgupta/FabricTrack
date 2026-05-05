@@ -648,6 +648,7 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
     return {"path": result["path"], "filename": file.filename, "id": file_doc["id"]}
 
 @api_router.get("/files/{path:path}")
+@api_router.head("/files/{path:path}")
 async def download_file(path: str, request: Request, auth: Optional[str] = Query(None)):
     # Auth check - try cookie first, then query param
     token = request.cookies.get("access_token")
@@ -666,8 +667,22 @@ async def download_file(path: str, request: Request, auth: Optional[str] = Query
     record = await db.files.find_one({"storage_path": path, "is_deleted": False})
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
+    # Object Storage paths embed a uuid → contents never change for the same URL.
+    # Use the storage path itself as the ETag (cheap & deterministic).
+    etag = f'"{record.get("id") or path}"'
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers={
+            "ETag": etag,
+            "Cache-Control": "private, max-age=31536000, immutable",
+        })
+    headers = {
+        "Cache-Control": "private, max-age=31536000, immutable",
+        "ETag": etag,
+    }
+    if request.method == "HEAD":
+        return Response(status_code=200, media_type=record.get("content_type"), headers=headers)
     data, ct = get_object(path)
-    return Response(content=data, media_type=record.get("content_type", ct))
+    return Response(content=data, media_type=record.get("content_type", ct), headers=headers)
 
 # ─── Voice Notes ───
 @api_router.post("/enquiries/{enquiry_id}/voice-notes")

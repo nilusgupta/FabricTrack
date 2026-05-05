@@ -15,23 +15,9 @@ import { Plus, Search, Filter, X, Image as ImageIcon, Camera, ChevronLeft, Chevr
 import { toast } from 'sonner';
 
 function EnquiryThumbnail({ imagePath }) {
-  const [blobUrl, setBlobUrl] = useState(null);
   const [hovered, setHovered] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const ref = useRef(null);
-
-  useEffect(() => {
-    if (!imagePath) return;
-    let revoke = null;
-    api.get(`/files/${imagePath}`, { responseType: 'blob' })
-      .then(res => {
-        const url = URL.createObjectURL(res.data);
-        revoke = url;
-        setBlobUrl(url);
-      })
-      .catch(() => {});
-    return () => { if (revoke) URL.revokeObjectURL(revoke); };
-  }, [imagePath]);
 
   const handleMouseEnter = () => {
     if (ref.current) {
@@ -41,7 +27,10 @@ function EnquiryThumbnail({ imagePath }) {
     setHovered(true);
   };
 
-  if (!blobUrl) return <span className="text-zinc-300">—</span>;
+  if (!imagePath) return <span className="text-zinc-300">—</span>;
+  // Direct <img src> uses the browser's HTTP cache (Cache-Control: immutable).
+  // Auth cookie is sent automatically on same-origin requests.
+  const url = `/api/files/${imagePath}`;
 
   return (
     <div
@@ -52,16 +41,19 @@ function EnquiryThumbnail({ imagePath }) {
       onClick={e => e.stopPropagation()}
     >
       <img
-        src={blobUrl}
+        src={url}
         alt="Fabric"
+        loading="lazy"
+        decoding="async"
         className="w-8 h-8 object-cover rounded-sm border border-zinc-200 cursor-pointer"
         data-testid="enquiry-thumb"
       />
       {hovered && ReactDOM.createPortal(
         <div className="pointer-events-none" style={{ position: 'fixed', zIndex: 9999, top: pos.top, left: pos.left }} data-testid="enquiry-thumb-preview-wrap">
           <img
-            src={blobUrl}
+            src={url}
             alt="Fabric preview"
+            decoding="async"
             className="w-64 h-64 object-contain rounded-md border border-zinc-300 shadow-xl bg-white"
             data-testid="enquiry-thumb-preview"
           />

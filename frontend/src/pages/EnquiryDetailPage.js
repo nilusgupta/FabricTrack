@@ -94,7 +94,6 @@ export default function EnquiryDetailPage() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({});
   const [imageFile, setImageFile] = useState(null);
-  const [imageBlobUrl, setImageBlobUrl] = useState(null);
   const [stageComments, setStageComments] = useState({});
   const [commentSending, setCommentSending] = useState({});
   const [quickCustomer, setQuickCustomer] = useState({ open: false, name: '' });
@@ -203,13 +202,8 @@ export default function EnquiryDetailPage() {
         stage_values: enq.stage_values || {},
         image_path: enq.image_path || ''
       });
-      // Load image if exists
-      if (enq.image_path) {
-        try {
-          const imgRes = await api.get(`/files/${enq.image_path}`, { responseType: 'blob' });
-          setImageBlobUrl(URL.createObjectURL(imgRes.data));
-        } catch (err) { console.warn('Failed to load image preview:', err); }
-      }
+      // No blob fetch needed — direct <img src="/api/files/..."> uses the
+      // browser HTTP cache (Cache-Control: immutable) and same-origin cookies.
     } catch (err) {
       toast.error('Failed to load enquiry');
       navigate('/enquiries');
@@ -219,7 +213,6 @@ export default function EnquiryDetailPage() {
   }, [id, navigate]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-  useEffect(() => { return () => { if (imageBlobUrl) URL.revokeObjectURL(imageBlobUrl); }; }, [imageBlobUrl]);
 
   const stageMap = {};
   stages.forEach(s => { stageMap[s.id] = s; });
@@ -343,8 +336,10 @@ export default function EnquiryDetailPage() {
         <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold text-zinc-900">Image</CardTitle></CardHeader>
         <CardContent data-testid="enquiry-image-section">
           <div className="flex items-start gap-4">
-            {imageBlobUrl ? (
-              <img src={imageBlobUrl} alt="Fabric" className="w-32 h-32 object-cover rounded-sm border border-zinc-200" data-testid="enquiry-image-preview" />
+            {imageFile ? (
+              <img src={URL.createObjectURL(imageFile)} alt="New upload" className="w-32 h-32 object-cover rounded-sm border border-green-300" data-testid="enquiry-image-preview" />
+            ) : form.image_path ? (
+              <img src={`/api/files/${form.image_path}`} alt="Fabric" loading="lazy" decoding="async" className="w-32 h-32 object-cover rounded-sm border border-zinc-200" data-testid="enquiry-image-preview" />
             ) : (
               <div className="w-32 h-32 bg-zinc-100 border border-dashed border-zinc-300 rounded-sm flex items-center justify-center">
                 <Upload className="w-6 h-6 text-zinc-300" />
@@ -582,7 +577,7 @@ export default function EnquiryDetailPage() {
                           <div className="space-y-2">
                             {getStageValue(s.id) ? (
                               <div className="flex items-center gap-3">
-                                <img src={`/api/files/${getStageValue(s.id)}`} alt={s.name} className="w-20 h-20 object-cover rounded-sm border border-zinc-200" />
+                                <img src={`/api/files/${getStageValue(s.id)}`} alt={s.name} loading="lazy" decoding="async" className="w-20 h-20 object-cover rounded-sm border border-zinc-200" />
                                 <div className="flex flex-col gap-1">
                                   <span className="text-xs text-green-600 font-medium">Image uploaded</span>
                                   <Button type="button" variant="outline" size="sm" onClick={() => setStageValue(s.id, '')} className="text-xs border-zinc-200">Remove</Button>
@@ -691,7 +686,7 @@ export default function EnquiryDetailPage() {
                     ) : (
                       <div className="px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-sm text-sm text-zinc-500" data-testid={`stage-value-readonly-${s.id}`}>
                         {s.input_type === 'image' && getStageValue(s.id) ? (
-                          <img src={`/api/files/${getStageValue(s.id)}`} alt={s.name} className="w-20 h-20 object-cover rounded-sm" />
+                          <img src={`/api/files/${getStageValue(s.id)}`} alt={s.name} loading="lazy" decoding="async" className="w-20 h-20 object-cover rounded-sm" />
                         ) : s.input_type === 'qrcode' && getStageValue(s.id) ? (
                           <span className="font-mono text-xs">{getStageValue(s.id)}</span>
                         ) : getStageValue(s.id) || <span className="italic text-zinc-400">No value set</span>}

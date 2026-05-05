@@ -20,31 +20,9 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 function ReportThumbnail({ imagePath }) {
-  const [blobUrl, setBlobUrl] = useState(null);
   const [hovered, setHovered] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
-  const [visible, setVisible] = useState(false);
   const ref = useRef(null);
-  const wrapRef = useRef(null);
-
-  // Lazy-load: only fetch when thumbnail scrolls into view
-  useEffect(() => {
-    if (!wrapRef.current) return;
-    const obs = new IntersectionObserver((entries) => {
-      entries.forEach(e => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } });
-    }, { rootMargin: '200px' });
-    obs.observe(wrapRef.current);
-    return () => obs.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!imagePath || !visible) return;
-    let revoke = null;
-    api.get(`/files/${imagePath}`, { responseType: 'blob' })
-      .then(res => { const url = URL.createObjectURL(res.data); revoke = url; setBlobUrl(url); })
-      .catch(() => {});
-    return () => { if (revoke) URL.revokeObjectURL(revoke); };
-  }, [imagePath, visible]);
 
   const handleMouseEnter = () => {
     if (ref.current) {
@@ -54,13 +32,24 @@ function ReportThumbnail({ imagePath }) {
     setHovered(true);
   };
 
-  if (!blobUrl) return <span ref={wrapRef} className="inline-block w-8 h-8 bg-zinc-100 rounded-sm" />;
+  if (!imagePath) return <span className="inline-block w-8 h-8 bg-zinc-100 rounded-sm" />;
+  // Direct <img src> + native lazy loading: the browser only fetches when
+  // scrolled into view, and HTTP cache (Cache-Control: immutable) avoids
+  // refetches across pages.
+  const url = `/api/files/${imagePath}`;
   return (
-    <div ref={el => { ref.current = el; wrapRef.current = el; }} className="relative" onMouseEnter={handleMouseEnter} onMouseLeave={() => setHovered(false)}>
-      <img src={blobUrl} alt="Fabric" className="w-8 h-8 object-cover rounded-sm border border-zinc-200" data-testid="report-thumb" />
+    <div ref={ref} className="relative" onMouseEnter={handleMouseEnter} onMouseLeave={() => setHovered(false)}>
+      <img
+        src={url}
+        alt="Fabric"
+        loading="lazy"
+        decoding="async"
+        className="w-8 h-8 object-cover rounded-sm border border-zinc-200"
+        data-testid="report-thumb"
+      />
       {hovered && ReactDOM.createPortal(
         <div className="pointer-events-none" style={{ position: 'fixed', zIndex: 9999, top: pos.top, left: pos.left }}>
-          <img src={blobUrl} alt="Preview" className="w-64 h-64 object-contain rounded-md border border-zinc-300 shadow-xl bg-white" data-testid="report-thumb-preview" />
+          <img src={url} alt="Preview" decoding="async" className="w-64 h-64 object-contain rounded-md border border-zinc-300 shadow-xl bg-white" data-testid="report-thumb-preview" />
         </div>,
         document.body
       )}

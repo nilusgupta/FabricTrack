@@ -26,6 +26,24 @@
 - P2: Refactor monolithic server.py into routes/models/services
 
 ## Recent Fixes
+- 2026-05-04: Image loading speed — root cause analysis and full fix.
+  Diagnosis: every `<img>` was rendered from a `URL.createObjectURL(blob)`
+  fetched via axios (`responseType:'blob'`). That bypasses the browser HTTP
+  cache → every page navigation re-downloaded every image. There were also
+  no cache headers on `/api/files/`. Fix:
+  (1) Backend `/api/files/{path}` now returns
+      `Cache-Control: private, max-age=31536000, immutable` + ETag,
+      and supports `If-None-Match` → returns 304. Storage paths are immutable
+      (uuid-based) so safe to cache forever. HEAD method also supported.
+  (2) Frontend dropped the blob workaround and uses native `<img src="/api/files/...">`
+      with `loading="lazy"` and `decoding="async"`. The auth cookie is sent
+      automatically on same-origin requests. Browser parallelism + HTTP cache
+      now do the heavy lifting.
+  Verified locally: first hit 200 with proper headers; second hit returns 304.
+  Note: in the Emergent preview (Cloudflare proxy) cache headers are stripped,
+  but on the user's EC2 + Nginx box the headers pass through unchanged.
+  Files: `backend/server.py` (download_file), `frontend/src/pages/EnquiriesPage.js`,
+  `frontend/src/pages/ReportsPage.js`, `frontend/src/pages/EnquiryDetailPage.js`.
 - 2026-05-04: UX defaults — Enquiries list & User Stages report ship with smart defaults.
   Enquiries page: new "Status" dropdown (Open / Closed / All) defaulting to **Open**.
   Backend `/api/enquiries` accepts `?status=open|closed`; `open` includes legacy
