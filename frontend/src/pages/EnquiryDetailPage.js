@@ -657,6 +657,33 @@ export default function EnquiryDetailPage() {
                             <SelectTrigger className="border-zinc-200 text-sm" data-testid={`stage-value-${s.id}`}><SelectValue placeholder="Select..." /></SelectTrigger>
                             <SelectContent>{(s.select_options || []).map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
                           </Select>
+                        ) : s.input_type === 'yes_no' ? (
+                          (() => {
+                            const hItem = (deptHierarchy || []).find(x => x.stage_id === s.id);
+                            const fbId = hItem?.fallback_stage_id;
+                            const fbName = fbId ? (stageMap[fbId]?.name || fbId) : null;
+                            const cur = getStageValue(s.id);
+                            return (
+                              <div className="space-y-2">
+                                <div className="flex gap-2" data-testid={`stage-value-${s.id}`}>
+                                  <label className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 border rounded-sm cursor-pointer text-sm font-semibold transition-colors ${cur.toLowerCase() === 'yes' ? 'border-green-500 bg-green-50 text-green-700' : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50'}`}>
+                                    <input type="radio" name={`yn-${s.id}`} value="yes" checked={cur.toLowerCase() === 'yes'} onChange={() => setStageValue(s.id, 'yes')} className="sr-only" data-testid={`stage-yn-yes-${s.id}`} />
+                                    Pass (Yes)
+                                  </label>
+                                  <label className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 border rounded-sm cursor-pointer text-sm font-semibold transition-colors ${cur.toLowerCase() === 'no' ? 'border-red-500 bg-red-50 text-red-700' : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50'} ${!fbId ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                                    <input type="radio" name={`yn-${s.id}`} value="no" checked={cur.toLowerCase() === 'no'} onChange={() => fbId && setStageValue(s.id, 'no')} disabled={!fbId} className="sr-only" data-testid={`stage-yn-no-${s.id}`} />
+                                    Fail (No)
+                                  </label>
+                                </div>
+                                {!fbId && <p className="text-[10px] text-rose-600">Admin must configure a fallback stage for "No" in Departments → Hierarchy.</p>}
+                                {cur.toLowerCase() === 'no' && fbName && (
+                                  <p className="text-[10px] text-rose-700 bg-rose-50 border border-rose-200 rounded-sm px-2 py-1" data-testid={`stage-yn-warning-${s.id}`}>
+                                    On save, all values from <b>{fbName}</b> through <b>{s.name}</b> will be cleared and the workflow will rewind.
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()
                         ) : (
                           <Input value={getStageValue(s.id)} onChange={e => setStageValue(s.id, e.target.value)} data-testid={`stage-value-${s.id}`} className="border-zinc-200 text-sm" placeholder={`Enter ${s.name.toLowerCase()}...`} />
                         )}
@@ -698,12 +725,17 @@ export default function EnquiryDetailPage() {
                     <div className="border-t border-zinc-100 pt-2 space-y-1.5">
                       {stageHistory.map(h => (
                         <div key={h.id} className="flex items-start gap-2 text-xs" data-testid={`stage-history-${h.id}`}>
-                          <div className={`w-5 h-5 rounded-sm flex items-center justify-center flex-shrink-0 ${h.type === 'comment' ? 'bg-blue-50' : 'bg-zinc-100'}`}>
-                            {h.type === 'comment' ? <MessageSquare className="w-2.5 h-2.5 text-blue-500" /> : <Clock className="w-2.5 h-2.5 text-zinc-400" />}
+                          <div className={`w-5 h-5 rounded-sm flex items-center justify-center flex-shrink-0 ${h.type === 'comment' ? 'bg-blue-50' : h.type === 'stage_rejected' ? 'bg-rose-100' : 'bg-zinc-100'}`}>
+                            {h.type === 'comment' ? <MessageSquare className="w-2.5 h-2.5 text-blue-500" /> : h.type === 'stage_rejected' ? <XCircle className="w-2.5 h-2.5 text-rose-600" /> : <Clock className="w-2.5 h-2.5 text-zinc-400" />}
                           </div>
                           <div className="flex-1 min-w-0">
                             {h.type === 'comment' ? (
                               <p className="text-zinc-700">{h.comment || h.notes}</p>
+                            ) : h.type === 'stage_rejected' ? (
+                              <div className="space-y-0.5">
+                                <span className="inline-block text-[10px] font-bold uppercase tracking-wide text-rose-700 bg-rose-50 border border-rose-200 rounded-sm px-1.5 py-0.5">Rejected — reset to {h.fallback_stage_name || '—'}</span>
+                                {h.comment && <p className="text-zinc-700 mt-0.5">{h.comment}</p>}
+                              </div>
                             ) : (
                               <div className="flex items-center gap-1 flex-wrap">
                                 {h.old_value && <span className="text-zinc-400 line-through">{h.old_value}</span>}
@@ -742,8 +774,8 @@ export default function EnquiryDetailPage() {
             <div className="space-y-2">
               {enquiry.history.map(h => (
                 <div key={h.id} className="flex items-start gap-3 py-2 border-b border-zinc-100 last:border-0">
-                  <div className={`w-7 h-7 rounded-sm flex items-center justify-center flex-shrink-0 ${h.type === 'comment' ? 'bg-blue-50' : 'bg-zinc-100'}`}>
-                    {h.type === 'comment' ? <MessageSquare className="w-3.5 h-3.5 text-blue-500" /> : <Clock className="w-3.5 h-3.5 text-zinc-500" />}
+                  <div className={`w-7 h-7 rounded-sm flex items-center justify-center flex-shrink-0 ${h.type === 'comment' ? 'bg-blue-50' : h.type === 'stage_rejected' ? 'bg-rose-100' : 'bg-zinc-100'}`}>
+                    {h.type === 'comment' ? <MessageSquare className="w-3.5 h-3.5 text-blue-500" /> : h.type === 'stage_rejected' ? <XCircle className="w-3.5 h-3.5 text-rose-600" /> : <Clock className="w-3.5 h-3.5 text-zinc-500" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap text-xs">
@@ -752,6 +784,13 @@ export default function EnquiryDetailPage() {
                       </Badge>
                       {h.type === 'comment' ? (
                         <span className="text-zinc-700">{h.comment || h.notes}</span>
+                      ) : h.type === 'stage_rejected' ? (
+                        <>
+                          <span className="inline-block text-[10px] font-bold uppercase tracking-wide text-rose-700 bg-rose-50 border border-rose-200 rounded-sm px-1.5 py-0.5">Rejected</span>
+                          <span className="text-zinc-500">reset to</span>
+                          <Badge className="rounded-sm text-[10px] bg-zinc-100 text-zinc-700">{h.fallback_stage_name || '—'}</Badge>
+                          {h.comment && <span className="text-zinc-700">— {h.comment}</span>}
+                        </>
                       ) : (
                         <>
                           {h.old_value && <span className="text-zinc-400 line-through">{h.old_value}</span>}

@@ -26,6 +26,21 @@
 - P2: Refactor monolithic server.py into routes/models/services
 
 ## Recent Fixes
+- 2026-05-04: New conditional/branching workflow stage type — `yes_no` (Pass/Fail).
+  Stage Master adds "Yes / No (Pass / Fail)" input type. Department hierarchy
+  rows for yes_no stages now show an "On No, reset to:" selector listing only
+  earlier stages in the same department's hierarchy. Backend PUT
+  `/api/enquiries/{id}` detects yes_no rejections (`value=="no"`) and:
+  (a) clears stage_values for every stage with `fallback_order ≤ order ≤
+  yes_no_order`, (b) writes a `stage_rejected` history entry with
+  `fallback_stage_name` and rejection comment, (c) returns 400 if no
+  `fallback_stage_id` is configured. EnquiryDetailPage and ReportsPage Fill
+  modal both render Pass/Fail radio buttons with a red rewind warning when
+  Fail is selected. History timeline shows rejected entries with a distinct
+  red badge — "Rejected — reset to <fallback>".
+  Files: `backend/server.py` (DepartmentHierarchyItem, update_enquiry),
+  `frontend/src/pages/StageMasterPage.js`, `frontend/src/pages/DepartmentMasterPage.js`,
+  `frontend/src/pages/EnquiryDetailPage.js`, `frontend/src/pages/ReportsPage.js`.
 - 2026-05-04: User Stages report — fixed two bugs:
   (1) User filter combo did not isolate the selected user. Root cause: race
       condition — first unfiltered request fired before `currentUser` arrived

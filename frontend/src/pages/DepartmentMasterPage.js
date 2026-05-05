@@ -89,6 +89,10 @@ export default function DepartmentMasterPage() {
     setHierarchy(prev => prev.map(h => h.stage_id === stageId ? { ...h, assigned_users: h.assigned_users.filter(u => u !== userId) } : h));
   };
 
+  const setFallback = (stageId, fallbackId) => {
+    setHierarchy(prev => prev.map(h => h.stage_id === stageId ? { ...h, fallback_stage_id: fallbackId || null } : h));
+  };
+
   const stageMap = {};
   stages.forEach(s => { stageMap[s.id] = s; });
   const userMap = {};
@@ -250,6 +254,40 @@ export default function DepartmentMasterPage() {
                               </Button>
                             )}
                           </div>
+                          {/* Fallback-on-No (yes_no stages only) */}
+                          {stageDef?.input_type === 'yes_no' && (
+                            <div className="ml-7 mt-2 pt-2 border-t border-dashed border-zinc-200">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] uppercase font-semibold text-rose-600">On No, reset to:</span>
+                                <Select
+                                  value={h.fallback_stage_id || ''}
+                                  onValueChange={v => setFallback(h.stage_id, v === '__none__' ? '' : v)}
+                                >
+                                  <SelectTrigger className="border-rose-200 h-7 text-xs w-56" data-testid={`fallback-select-${h.stage_id}`}>
+                                    <SelectValue placeholder="Select fallback stage..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="__none__">— none (disabled) —</SelectItem>
+                                    {sortedHierarchy
+                                      .filter(x => x.stage_id !== h.stage_id && x.order < h.order)
+                                      .map(x => (
+                                        <SelectItem key={x.stage_id} value={x.stage_id}>
+                                          {stageMap[x.stage_id]?.name || x.stage_id}
+                                        </SelectItem>
+                                      ))}
+                                  </SelectContent>
+                                </Select>
+                                {h.fallback_stage_id && (
+                                  <span className="text-[10px] text-zinc-500">
+                                    On "No", values from <b>{stageMap[h.fallback_stage_id]?.name || h.fallback_stage_id}</b> through <b>{stageDef.name}</b> will be cleared.
+                                  </span>
+                                )}
+                                {!h.fallback_stage_id && (
+                                  <span className="text-[10px] text-rose-600 italic">Required — users can't answer "No" until configured.</span>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}

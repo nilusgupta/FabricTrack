@@ -23,6 +23,7 @@ const INPUT_TYPES = [
   { value: 'select', label: 'Dropdown / Status' },
   { value: 'image', label: 'Image (Camera / Gallery)' },
   { value: 'qrcode', label: 'QR Code Scanner' },
+  { value: 'yes_no', label: 'Yes / No (Pass / Fail)' },
 ];
 
 export default function StageMasterPage() {

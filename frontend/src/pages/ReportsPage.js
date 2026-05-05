@@ -369,6 +369,32 @@ function PendingStageInlineEdit({ item, stages, departments, currentUser, onSave
                   </Select>
                 ) : stage.input_type === 'date' ? (
                   <Input type="date" value={val} onChange={e => setVal(e.target.value)} data-testid="pending-edit-value" />
+                ) : stage.input_type === 'yes_no' ? (
+                  (() => {
+                    const hItem = (dept?.stage_hierarchy || []).find(x => x.stage_id === item.stage_id);
+                    const fbId = hItem?.fallback_stage_id;
+                    const fbName = fbId ? (stages.find(s => s.id === fbId)?.name || fbId) : null;
+                    return (
+                      <div className="space-y-2" data-testid="pending-edit-value">
+                        <div className="flex gap-2">
+                          <label className={`flex-1 flex items-center justify-center px-3 py-2 border rounded-sm cursor-pointer text-sm font-semibold transition-colors ${val.toLowerCase() === 'yes' ? 'border-green-500 bg-green-50 text-green-700' : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50'}`}>
+                            <input type="radio" name={`yn-${item.enquiry_id}-${item.stage_id}`} value="yes" checked={val.toLowerCase() === 'yes'} onChange={() => setVal('yes')} className="sr-only" data-testid="pending-edit-yn-yes" />
+                            Pass (Yes)
+                          </label>
+                          <label className={`flex-1 flex items-center justify-center px-3 py-2 border rounded-sm cursor-pointer text-sm font-semibold transition-colors ${val.toLowerCase() === 'no' ? 'border-red-500 bg-red-50 text-red-700' : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50'} ${!fbId ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                            <input type="radio" name={`yn-${item.enquiry_id}-${item.stage_id}`} value="no" checked={val.toLowerCase() === 'no'} onChange={() => fbId && setVal('no')} disabled={!fbId} className="sr-only" data-testid="pending-edit-yn-no" />
+                            Fail (No)
+                          </label>
+                        </div>
+                        {!fbId && <p className="text-[10px] text-rose-600">Admin must configure a fallback stage for "No" in Departments → Hierarchy.</p>}
+                        {val.toLowerCase() === 'no' && fbName && (
+                          <p className="text-[10px] text-rose-700 bg-rose-50 border border-rose-200 rounded-sm px-2 py-1">
+                            On save, all values from <b>{fbName}</b> through <b>{stage.name}</b> will be cleared.
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()
                 ) : (
                   <Input value={val} onChange={e => setVal(e.target.value)} placeholder="Value" data-testid="pending-edit-value" autoFocus />
                 )}
@@ -982,11 +1008,14 @@ function UserStagesReport({ stages, users, departments }) {
   }, [filterDept, filterUser, filterStage]);
 
   useEffect(() => {
-    if (currentUser && !didApplyDefault) return; // wait until default filter is applied
+    // Wait until the default filter (current user) is applied before the first fetch.
+    // Otherwise an unfiltered request fires while currentUser is still null and may
+    // resolve after the filtered request, overwriting it with all-users data.
+    if (!didApplyDefault) return;
     const ctrl = new AbortController();
     fetchReport(ctrl.signal);
     return () => ctrl.abort();
-  }, [fetchReport, currentUser, didApplyDefault]);
+  }, [fetchReport, didApplyDefault]);
 
   const totalPending = data.reduce((sum, u) => sum + u.pending_count, 0);
   const totalDone = data.reduce((sum, u) => sum + u.done_count, 0);

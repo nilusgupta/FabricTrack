@@ -273,6 +273,12 @@ class DepartmentHierarchyItem(BaseModel):
     stage_id: str
     order: int
     assigned_users: List[str] = []
+    # Only meaningful when the referenced stage has input_type == "yes_no".
+    # Stage_id inside this same department's hierarchy that the workflow
+    # should rewind to when user answers "No" (fail). Values of every stage
+    # from fallback_stage_id up to (and including) this yes_no stage are
+    # cleared so the flow must be re-executed from fallback onwards.
+    fallback_stage_id: Optional[str] = None
 
 class DepartmentHierarchyUpdate(BaseModel):
     items: List[DepartmentHierarchyItem]
@@ -915,13 +921,34 @@ async def update_enquiry(enquiry_id: str, req: EnquiryUpdate, request: Request):
         dept = await db.departments.find_one({"name": dept_name}, {"_id": 0}) if dept_name else None
         hierarchy_map = {}
         hierarchy_order = {}  # stage_id -> order
+        fallback_map = {}     # stage_id -> fallback_stage_id (yes_no only)
         if dept and dept.get("stage_hierarchy"):
             for h in dept["stage_hierarchy"]:
                 hierarchy_map[h["stage_id"]] = h.get("assigned_users", [])
                 hierarchy_order[h["stage_id"]] = h.get("order", 0)
+                if h.get("fallback_stage_id"):
+                    fallback_map[h["stage_id"]] = h["fallback_stage_id"]
         all_stages = {s["id"]: s for s in await db.stages.find({}, {"_id": 0}).to_list(100)}
         is_admin = user.get("role") == "admin"
+        # Collect yes_no "no" rejections to apply after normal updates
+        rejections = []  # list of (stage_id, comment)
+        normal_updates = {}
         for stage_id, new_val in new_sv.items():
+            stage_def = all_stages.get(stage_id)
+            new_val_str = new_val.get("value", "") if isinstance(new_val, dict) else str(new_val)
+            new_val_comment = new_val.get("comment", "") if isinstance(new_val, dict) else ""
+            is_reject = (
+                stage_def is not None
+                and stage_def.get("input_type") == "yes_no"
+                and str(new_val_str).strip().lower() == "no"
+            )
+            if is_reject:
+                if stage_id not in fallback_map:
+                    raise HTTPException(status_code=400, detail=f"Stage '{stage_def.get('name', stage_id)}' has no fallback configured. Admin must set 'On No, reset to' in the department hierarchy.")
+                rejections.append((stage_id, new_val_comment))
+            else:
+                normal_updates[stage_id] = new_val
+        for stage_id, new_val in normal_updates.items():
             # Resolve assigned users: department hierarchy first, then stage-level fallback
             assigned = hierarchy_map.get(stage_id)
             if assigned is None:
@@ -958,13 +985,47 @@ async def update_enquiry(enquiry_id: str, req: EnquiryUpdate, request: Request):
                     "changed_at": now, "notes": "Stage value updated"
                 }
                 await db.enquiry_history.insert_one(history_doc)
-        # Merge stage values
+        # Merge stage values (normal updates only)
         merged = {**old_sv}
-        for k, v in new_sv.items():
+        for k, v in normal_updates.items():
             if isinstance(v, dict):
                 v["updated_at"] = now
                 v["updated_by"] = user["_id"]
             merged[k] = v
+        # Apply rejections: clear values from fallback stage up to (and including) the yes_no stage
+        for yn_stage_id, reject_comment in rejections:
+            # Permission: same as completing the stage
+            assigned = hierarchy_map.get(yn_stage_id)
+            if assigned is None:
+                stage_def = all_stages.get(yn_stage_id)
+                assigned = stage_def.get("assigned_users", []) if stage_def else []
+            if not is_admin and (not assigned or user["_id"] not in assigned):
+                yn_name = (all_stages.get(yn_stage_id) or {}).get("name", yn_stage_id)
+                raise HTTPException(status_code=403, detail=f"You are not assigned to the stage '{yn_name}'.")
+            fb_id = fallback_map.get(yn_stage_id)
+            fb_order = hierarchy_order.get(fb_id, 0)
+            yn_order = hierarchy_order.get(yn_stage_id, 0)
+            cleared = []
+            for sid, o in hierarchy_order.items():
+                if fb_order <= o <= yn_order and sid in merged:
+                    cleared.append(sid)
+                    merged.pop(sid, None)
+            fb_name = (all_stages.get(fb_id) or {}).get("name", fb_id)
+            yn_name = (all_stages.get(yn_stage_id) or {}).get("name", yn_stage_id)
+            history_doc = {
+                "id": secrets.token_hex(12), "enquiry_id": enquiry_id,
+                "stage_id": yn_stage_id, "type": "stage_rejected",
+                "fallback_stage_id": fb_id,
+                "fallback_stage_name": fb_name,
+                "cleared_stage_ids": cleared,
+                "old_value": "", "new_value": "No",
+                "comment": reject_comment,
+                "changed_by": user["_id"], "changed_by_name": user["name"],
+                "changed_at": now,
+                "notes": f"Rejected at '{yn_name}' — reset back to '{fb_name}'",
+            }
+            await db.enquiry_history.insert_one(history_doc)
+            changed_stage_ids.append(fb_id)  # so fallback user gets notified
         update_data["stage_values"] = merged
     for k, v in req_dict.items():
         if v is not None:
