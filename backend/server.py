@@ -712,7 +712,7 @@ async def delete_voice_note(enquiry_id: str, note_id: str, request: Request):
 
 # ─── Enquiry Routes ───
 @api_router.get("/enquiries")
-async def get_enquiries(request: Request, stage: Optional[str] = None, department: Optional[str] = None, assigned_to: Optional[str] = None, search: Optional[str] = None, customer_name: Optional[str] = None, fabric_type: Optional[str] = None, style_no: Optional[str] = None, page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100)):
+async def get_enquiries(request: Request, stage: Optional[str] = None, department: Optional[str] = None, assigned_to: Optional[str] = None, search: Optional[str] = None, customer_name: Optional[str] = None, fabric_type: Optional[str] = None, style_no: Optional[str] = None, status: Optional[str] = None, page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100)):
     await get_current_user(request)
     query = {}
     if stage:
@@ -727,12 +727,22 @@ async def get_enquiries(request: Request, stage: Optional[str] = None, departmen
         query["fabric_type"] = {"$regex": fabric_type, "$options": "i"}
     if style_no:
         query["style_no"] = {"$regex": style_no, "$options": "i"}
+    if status == "open":
+        # Treat missing/empty status as open (legacy enquiries) so the default
+        # filter doesn't hide pre-status documents.
+        open_clause = {"$or": [{"status": "open"}, {"status": {"$exists": False}}, {"status": ""}]}
+        query["$and"] = query.get("$and", []) + [open_clause]
+    elif status == "closed":
+        query["status"] = "closed"
     if search:
-        query["$or"] = [
-            {"customer_name": {"$regex": search, "$options": "i"}},
-            {"fabric_type": {"$regex": search, "$options": "i"}},
-            {"style_no": {"$regex": search, "$options": "i"}}
-        ]
+        search_clause = {
+            "$or": [
+                {"customer_name": {"$regex": search, "$options": "i"}},
+                {"fabric_type": {"$regex": search, "$options": "i"}},
+                {"style_no": {"$regex": search, "$options": "i"}},
+            ]
+        }
+        query["$and"] = query.get("$and", []) + [search_clause]
     total = await db.enquiries.count_documents(query)
     skip = (page - 1) * page_size
     enquiries = await db.enquiries.find(query, {"_id": 0, "history": 0, "voice_notes": 0, "comments": 0}).sort("created_at", -1).skip(skip).limit(page_size).to_list(page_size)

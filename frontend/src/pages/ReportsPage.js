@@ -973,7 +973,7 @@ function UserStagesReport({ stages, users, departments }) {
   const { user: currentUser } = useAuth();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [viewMode, setViewMode] = useState('all');
+  const [viewMode, setViewMode] = useState('pending');
   const [expandedUser, setExpandedUser] = useState(null);
   const [filterDept, setFilterDept] = useState('');
   const [filterUser, setFilterUser] = useState('');
@@ -1036,8 +1036,8 @@ function UserStagesReport({ stages, users, departments }) {
     } catch { toast.error('Export failed'); }
   };
 
-  const clearFilters = () => { setFilterDept(''); setFilterUser(''); setFilterStage(''); setViewMode('all'); };
-  const hasFilters = filterDept || filterUser || filterStage || viewMode !== 'all';
+  const clearFilters = () => { setFilterDept(''); setFilterUser(''); setFilterStage(''); setViewMode('pending'); };
+  const hasFilters = filterDept || filterUser || filterStage || viewMode !== 'pending';
 
   return (
     <div className="space-y-4" data-testid="user-stages-report">

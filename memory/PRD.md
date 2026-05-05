@@ -26,6 +26,15 @@
 - P2: Refactor monolithic server.py into routes/models/services
 
 ## Recent Fixes
+- 2026-05-04: UX defaults — Enquiries list & User Stages report ship with smart defaults.
+  Enquiries page: new "Status" dropdown (Open / Closed / All) defaulting to **Open**.
+  Backend `/api/enquiries` accepts `?status=open|closed`; `open` includes legacy
+  records with missing/empty status (via `$and` + `$or` to compose with search).
+  Smaller default payload → faster initial load. User Stages report defaults
+  Status to **Pending** so users see what needs action first; switching/clearing
+  resets to "pending" not "all".
+  Files: `backend/server.py` (get_enquiries), `frontend/src/pages/EnquiriesPage.js`,
+  `frontend/src/pages/ReportsPage.js`.
 - 2026-05-04: New conditional/branching workflow stage type — `yes_no` (Pass/Fail).
   Stage Master adds "Yes / No (Pass / Fail)" input type. Department hierarchy
   rows for yes_no stages now show an "On No, reset to:" selector listing only

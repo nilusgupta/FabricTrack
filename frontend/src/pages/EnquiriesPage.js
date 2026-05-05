@@ -82,6 +82,7 @@ export default function EnquiriesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [filterDept, setFilterDept] = useState('');
+  const [filterStatus, setFilterStatus] = useState('open');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [totalCount, setTotalCount] = useState(0);
@@ -104,6 +105,7 @@ export default function EnquiriesPage() {
       const params = { page, page_size: pageSize };
       if (search) params.search = search;
       if (filterDept) params.department = filterDept;
+      if (filterStatus) params.status = filterStatus;
       const [enqRes, stagesRes, deptsRes, custRes, fabRes] = await Promise.all([
         api.get('/enquiries', { params }),
         api.get('/stages'),
@@ -123,12 +125,12 @@ export default function EnquiriesPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterDept, page, pageSize]);
+  }, [search, filterDept, filterStatus, page, pageSize]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   // Reset to page 1 when filters change
-  useEffect(() => { setPage(1); }, [search, filterDept]);
+  useEffect(() => { setPage(1); }, [search, filterDept, filterStatus]);
 
   const stageMap = {};
   stages.forEach(s => { stageMap[s.id] = s; });
@@ -233,7 +235,7 @@ export default function EnquiriesPage() {
     return typeof val === 'object' ? val.value || '' : String(val);
   };
 
-  const hasFilters = search || filterDept;
+  const hasFilters = search || filterDept || filterStatus !== 'open';
 
   return (
     <div className="space-y-6" data-testid="enquiries-page">
@@ -427,8 +429,18 @@ export default function EnquiriesPage() {
               </SelectTrigger>
               <SelectContent>{departments.map(d => <SelectItem key={d.id || d.name} value={d.name}>{d.name}</SelectItem>)}</SelectContent>
             </Select>
+            <Select value={filterStatus || '__all__'} onValueChange={v => setFilterStatus(v === '__all__' ? '' : v)}>
+              <SelectTrigger className="w-full sm:w-32 border-zinc-200" data-testid="filter-status-select">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="open">Open</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+                <SelectItem value="__all__">All</SelectItem>
+              </SelectContent>
+            </Select>
             {hasFilters && (
-              <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setFilterDept(''); }} data-testid="clear-filters-button" className="text-zinc-500 hover:text-zinc-900">
+              <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setFilterDept(''); setFilterStatus('open'); }} data-testid="clear-filters-button" className="text-zinc-500 hover:text-zinc-900">
                 <X className="w-3 h-3 mr-1" /> Clear
               </Button>
             )}
