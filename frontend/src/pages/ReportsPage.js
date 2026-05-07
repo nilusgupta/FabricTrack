@@ -131,7 +131,7 @@ export default function ReportsPage() {
   );
 }
 
-const StageEditCell = React.memo(function StageEditCell({ enquiry, stage, hierarchyMap, orderMap, currentUser, onSaved }) {  const [open, setOpen] = useState(false);
+const StageEditCell = React.memo(function StageEditCell({ enquiry, stage, hierarchyMap, orderMap, fallbackMap = {}, stageMap = {}, currentUser, onSaved }) {  const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const sv = enquiry.stage_values || {};
   const cur = sv[stage.id] || {};
@@ -219,6 +219,31 @@ const StageEditCell = React.memo(function StageEditCell({ enquiry, stage, hierar
                 </Select>
               ) : stage.input_type === 'date' ? (
                 <Input type="date" value={val} onChange={e => setVal(e.target.value)} data-testid="stage-edit-value" />
+              ) : stage.input_type === 'yes_no' ? (
+                (() => {
+                  const fbId = fallbackMap[stage.id];
+                  const fbName = fbId ? (stageMap[fbId]?.name || fbId) : null;
+                  return (
+                    <div className="space-y-2" data-testid="stage-edit-value">
+                      <div className="flex gap-2">
+                        <label className={`flex-1 flex items-center justify-center px-2 py-1.5 border rounded-sm cursor-pointer text-xs font-semibold transition-colors ${val.toLowerCase() === 'yes' ? 'border-green-500 bg-green-50 text-green-700' : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50'}`}>
+                          <input type="radio" name={`yn-cell-${enquiry.id}-${stage.id}`} value="yes" checked={val.toLowerCase() === 'yes'} onChange={() => setVal('yes')} className="sr-only" data-testid="stage-edit-yn-yes" />
+                          Pass
+                        </label>
+                        <label className={`flex-1 flex items-center justify-center px-2 py-1.5 border rounded-sm cursor-pointer text-xs font-semibold transition-colors ${val.toLowerCase() === 'no' ? 'border-red-500 bg-red-50 text-red-700' : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50'} ${!fbId ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                          <input type="radio" name={`yn-cell-${enquiry.id}-${stage.id}`} value="no" checked={val.toLowerCase() === 'no'} onChange={() => fbId && setVal('no')} disabled={!fbId} className="sr-only" data-testid="stage-edit-yn-no" />
+                          Fail
+                        </label>
+                      </div>
+                      {!fbId && <p className="text-[10px] text-rose-600">Admin must configure a fallback stage in Departments → Hierarchy.</p>}
+                      {val.toLowerCase() === 'no' && fbName && (
+                        <p className="text-[10px] text-rose-700 bg-rose-50 border border-rose-200 rounded-sm px-1.5 py-0.5">
+                          Will reset values from <b>{fbName}</b> through <b>{stage.name}</b>.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()
               ) : (
                 <Input value={val} onChange={e => setVal(e.target.value)} placeholder="Value" data-testid="stage-edit-value" />
               )}
@@ -453,11 +478,13 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
     for (const d of departments) {
       const hMap = {};
       const oMap = {};
+      const fMap = {};
       (d.stage_hierarchy || []).forEach(h => {
         hMap[h.stage_id] = h.assigned_users || [];
         oMap[h.stage_id] = h.order ?? 0;
+        if (h.fallback_stage_id) fMap[h.stage_id] = h.fallback_stage_id;
       });
-      out[d.name] = { hierarchyMap: hMap, orderMap: oMap };
+      out[d.name] = { hierarchyMap: hMap, orderMap: oMap, fallbackMap: fMap };
     }
     return out;
   }, [departments]);
@@ -705,15 +732,23 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-scroll" style={{ scrollbarGutter: 'stable' }}>
-            <table className="caption-bottom text-sm border-collapse" style={{ tableLayout: 'fixed', width: `${438 + stages.length * 180 + 820}px` }}>
+          <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 220px)', scrollbarGutter: 'stable' }}>
+            <table className="caption-bottom text-sm border-collapse enquiry-report-table" style={{ tableLayout: 'fixed', width: `${438 + stages.length * 180 + 820}px` }}>
+              {/* Sticky-header rules: first thead row sticks at top:0, second filter row at top:40 */}
+              <style>{`
+                .enquiry-report-table thead tr:nth-child(1) th { position: sticky; top: 0; z-index: 25; background: #fafafa; }
+                .enquiry-report-table thead tr:nth-child(2) th { position: sticky; top: 40px; z-index: 24; background: #fafafa; }
+                /* Cells that already need horizontal stickiness (left + top) get a higher z-index so they overlay row stickiness */
+                .enquiry-report-table thead tr:nth-child(1) th[data-sticky-left] { z-index: 35; }
+                .enquiry-report-table thead tr:nth-child(2) th[data-sticky-left] { z-index: 34; }
+              `}</style>
               <thead>
                 <tr className="border-b bg-zinc-50">
-                  <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 40, left: 0 }}>SR</th>
-                  <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 48, left: 40 }}>Img</th>
-                  <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 110, left: 88 }}>Style No.</th>
-                  <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 130, left: 198 }}>Customer</th>
-                  <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500 sticky bg-zinc-50 z-20 border-r-2 border-zinc-300" style={{ width: 110, left: 328 }}>Fabric</th>
+                  <th data-sticky-left className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 40, left: 0 }}>SR</th>
+                  <th data-sticky-left className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 48, left: 40 }}>Img</th>
+                  <th data-sticky-left className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 110, left: 88 }}>Style No.</th>
+                  <th data-sticky-left className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 130, left: 198 }}>Customer</th>
+                  <th data-sticky-left className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500 sticky bg-zinc-50 z-20 border-r-2 border-zinc-300" style={{ width: 110, left: 328 }}>Fabric</th>
                   {stages.map(s => <th key={s.id} className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 180 }}>{s.name}</th>)}
                   <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 100 }}>Rate</th>
                   <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 100 }}>PO No.</th>
@@ -723,15 +758,15 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
                   <th className="h-10 px-2 text-left text-xs font-semibold uppercase text-zinc-500" style={{ width: 200 }}>Comment</th>
                 </tr>
                 <tr className="border-b bg-zinc-50/50">
-                  <th className="px-1 py-1 sticky bg-zinc-50/50 z-20" style={{ width: 40, left: 0 }}></th>
-                  <th className="px-1 py-1 sticky bg-zinc-50/50 z-20" style={{ width: 48, left: 40 }}></th>
-                  <th className="px-1 py-1 sticky bg-zinc-50/50 z-20" style={{ width: 110, left: 88 }}>
+                  <th data-sticky-left className="px-1 py-1 sticky bg-zinc-50/50 z-20" style={{ width: 40, left: 0 }}></th>
+                  <th data-sticky-left className="px-1 py-1 sticky bg-zinc-50/50 z-20" style={{ width: 48, left: 40 }}></th>
+                  <th data-sticky-left className="px-1 py-1 sticky bg-zinc-50/50 z-20" style={{ width: 110, left: 88 }}>
                     <GridFilterCell filterKey="style_no" gridFilters={gridFilters} gridModes={gridModes} updateGridFilter={updateGridFilter} toggleGridMode={toggleGridMode} />
                   </th>
-                  <th className="px-1 py-1 sticky bg-zinc-50/50 z-20" style={{ width: 130, left: 198 }}>
+                  <th data-sticky-left className="px-1 py-1 sticky bg-zinc-50/50 z-20" style={{ width: 130, left: 198 }}>
                     <GridFilterCell filterKey="customer_name" gridFilters={gridFilters} gridModes={gridModes} updateGridFilter={updateGridFilter} toggleGridMode={toggleGridMode} />
                   </th>
-                  <th className="px-1 py-1 sticky bg-zinc-50/50 z-20 border-r-2 border-zinc-300" style={{ width: 110, left: 328 }}>
+                  <th data-sticky-left className="px-1 py-1 sticky bg-zinc-50/50 z-20 border-r-2 border-zinc-300" style={{ width: 110, left: 328 }}>
                     <GridFilterCell filterKey="fabric_type" gridFilters={gridFilters} gridModes={gridModes} updateGridFilter={updateGridFilter} toggleGridMode={toggleGridMode} />
                   </th>
                   {stages.map(s => (
@@ -766,7 +801,7 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
                   <tr><td colSpan={12 + stages.length} className="text-center py-8 text-zinc-400">No data</td></tr>
                 ) : (
                   filteredEnquiries.map((e, idx) => {
-                    const { hierarchyMap = {}, orderMap = {} } = hierarchyByDept[e.department] || {};
+                    const { hierarchyMap = {}, orderMap = {}, fallbackMap = {} } = hierarchyByDept[e.department] || {};
                     return (
                     <tr key={e.id} className="border-b hover:bg-zinc-50 group" data-testid={`report-row-${e.id}`}>
                       <td className="p-2 text-zinc-500 text-xs font-mono sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 0 }}>{e.enquiry_number || idx + 1}</td>
@@ -781,6 +816,8 @@ function EnquiryReport({ stages, users, stageMap, userMap, departments }) {
                             stage={s}
                             hierarchyMap={hierarchyMap}
                             orderMap={orderMap}
+                            fallbackMap={fallbackMap}
+                            stageMap={stageMap}
                             currentUser={currentUser}
                             onSaved={fetchReport}
                           />

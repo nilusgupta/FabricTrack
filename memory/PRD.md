@@ -26,6 +26,18 @@
 - P2: Refactor monolithic server.py into routes/models/services
 
 ## Recent Fixes
+- 2026-05-04: Reports → Enquiries — two improvements.
+  (1) Pass/Fail approval missing in the grid: `StageEditCell` popover only
+      handled select/date/text. Added `yes_no` branch with Pass/Fail radio
+      buttons + rewind warning. `hierarchyByDept` memo now also returns
+      `fallbackMap`, threaded into the cell. Verified end-to-end: clicking
+      Pass on a yes_no cell saves "yes" and the toast confirms update.
+  (2) Sticky table header: wrapper now uses `overflow-auto` with
+      `max-h: calc(100vh - 220px)`. Both header rows (column titles +
+      filter inputs) are pinned via inline `<style>` rules — first row
+      `top:0`, filter row `top:40px`. Cells with horizontal `left:` sticky
+      get a higher z-index so the corner stays correct.
+  Files: `frontend/src/pages/ReportsPage.js`.
 - 2026-05-04: Image loading speed — root cause analysis and full fix.
   Diagnosis: every `<img>` was rendered from a `URL.createObjectURL(blob)`
   fetched via axios (`responseType:'blob'`). That bypasses the browser HTTP
