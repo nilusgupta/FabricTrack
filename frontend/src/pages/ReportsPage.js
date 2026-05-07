@@ -136,7 +136,12 @@ const StageEditCell = React.memo(function StageEditCell({ enquiry, stage, hierar
   const sv = enquiry.stage_values || {};
   const cur = sv[stage.id] || {};
   const curVal = typeof cur === 'object' ? cur.value || '' : String(cur);
-  const [val, setVal] = useState(curVal);
+  // For empty date cells, prefill today (YYYY-MM-DD) so user can save in one
+  // click; they can still change the date before saving.
+  const initialVal = (!curVal && stage.input_type === 'date')
+    ? new Date().toISOString().split('T')[0]
+    : curVal;
+  const [val, setVal] = useState(initialVal);
   const [comment, setComment] = useState('');
   const [file, setFile] = useState(null);
 
@@ -292,7 +297,13 @@ function PendingStageInlineEdit({ item, stages, departments, currentUser, onSave
       const res = await api.get(`/enquiries/${item.enquiry_id}`);
       setEnq(res.data);
       const cur = res.data.stage_values?.[item.stage_id];
-      setVal(typeof cur === 'object' ? cur?.value || '' : String(cur || ''));
+      const curVal = typeof cur === 'object' ? cur?.value || '' : String(cur || '');
+      // Prefill today's date for empty date stages so user can save in one click.
+      if (!curVal && stage?.input_type === 'date') {
+        setVal(new Date().toISOString().split('T')[0]);
+      } else {
+        setVal(curVal);
+      }
     } catch {
       toast.error('Failed to load enquiry');
       setOpen(false);
