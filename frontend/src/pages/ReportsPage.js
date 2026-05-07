@@ -874,7 +874,7 @@ function StageSummary({ stageMap }) {
                   <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#71717A' }} />
                   <YAxis tick={{ fontSize: 11, fill: '#71717A' }} allowDecimals={false} />
                   <Tooltip contentStyle={{ border: '1px solid #E4E4E7', borderRadius: '4px', fontSize: '12px' }} />
-                  <Bar dataKey="count" radius={[2, 2, 0, 0]}>{chartData.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}</Bar>
+                  <Bar dataKey="count" radius={[2, 2, 0, 0]}>{chartData.map(entry => <Cell key={entry.name} fill={entry.color} />)}</Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : <div className="h-[300px] flex items-center justify-center text-zinc-400 text-sm">No data</div>}
@@ -980,7 +980,7 @@ function DepartmentReport({ stageMap }) {
           <CardContent>
             {pieData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
-                <PieChart><Pie data={pieData} cx="50%" cy="50%" outerRadius={100} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>{pieData.map((entry, idx) => <Cell key={idx} fill={entry.fill} />)}</Pie><Tooltip contentStyle={{ border: '1px solid #E4E4E7', borderRadius: '4px', fontSize: '12px' }} /></PieChart>
+                <PieChart><Pie data={pieData} cx="50%" cy="50%" outerRadius={100} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>{pieData.map(entry => <Cell key={entry.name} fill={entry.fill} />)}</Pie><Tooltip contentStyle={{ border: '1px solid #E4E4E7', borderRadius: '4px', fontSize: '12px' }} /></PieChart>
               </ResponsiveContainer>
             ) : <div className="h-[300px] flex items-center justify-center text-zinc-400 text-sm">No data</div>}
           </CardContent>

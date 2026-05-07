@@ -26,6 +26,9 @@
 - P2: Refactor monolithic server.py into routes/models/services
 
 ## Recent Fixes
+- 2026-05-04: Code-review triage — replaced `key={idx}` with stable
+  `key={entry.name}` on Recharts `<Cell>` mappings (ReportsPage.js bar +
+  pie). Most other items in the review were false positives (see CHANGELOG).
 - 2026-05-04: Date prefill — Reports → Enquiries inline edit popover and
   User Stages "Fill" modal now default empty date stages to today (YYYY-MM-DD).
   User can change before saving; saves typical 2-click date entry into 1 click.
