@@ -5,8 +5,7 @@ import api from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Label } from '../components/ui/label';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
@@ -15,9 +14,10 @@ import { Calendar } from '../components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Textarea } from '../components/ui/textarea';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
-import { CalendarIcon, Download, Filter, BarChart3, Users, Layers, Building2, ClipboardList, Pencil, Upload } from 'lucide-react';
+import { CalendarIcon, Download, Filter, BarChart3, Users, Layers, Building2, ClipboardList, Pencil, Upload, GanttChart } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import GanttView from './GanttView';
 
 function ReportThumbnail({ imagePath }) {
   const [hovered, setHovered] = useState(false);
@@ -119,6 +119,7 @@ export default function ReportsPage() {
             <TabsTrigger value="users" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-users"><Users className="w-3 h-3 mr-1.5 hidden sm:block" /> Users</TabsTrigger>
             <TabsTrigger value="departments" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-departments"><Building2 className="w-3 h-3 mr-1.5 hidden sm:block" /> Dept</TabsTrigger>
             <TabsTrigger value="pending" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-pending"><ClipboardList className="w-3 h-3 mr-1.5 hidden sm:block" /> User Stages</TabsTrigger>
+            <TabsTrigger value="gantt" className="rounded-sm data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs sm:text-sm" data-testid="tab-gantt"><GanttChart className="w-3 h-3 mr-1.5 hidden sm:block" /> Gantt</TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="enquiries"><EnquiryReport stages={stages} users={users} stageMap={stageMap} userMap={userMap} departments={departments} /></TabsContent>
@@ -126,6 +127,7 @@ export default function ReportsPage() {
         <TabsContent value="users"><UserPerformance /></TabsContent>
         <TabsContent value="departments"><DepartmentReport stageMap={stageMap} /></TabsContent>
         <TabsContent value="pending"><UserStagesReport stages={stages} users={users} departments={departments} /></TabsContent>
+        <TabsContent value="gantt"><GanttView stages={stages} departments={departments} stageMap={stageMap} /></TabsContent>
       </Tabs>
     </div>
   );

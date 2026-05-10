@@ -26,6 +26,17 @@
 - P2: Refactor monolithic server.py into routes/models/services
 
 ## Recent Fixes
+- 2026-05-04: New **Gantt** report — visualize enquiry timelines as
+  horizontal bars per stage. Each row is an enquiry, each bar is a stage with
+  start = previous-stage completion (or enquiry creation), end = max(planned
+  end, actual/today). Planned end = previous-stage completion + stage's
+  `lead_time_days`. Bar fill = stage color (from Stage Master), border =
+  status: green (done on time), orange (done late), amber (in progress),
+  red (overdue). Today is shown as a vertical red line. Enquiries are
+  grouped by department (collapsible). Filters: department, status (default
+  Open), customer, fabric. Zoom in/out + Fit-to-data; auto switches between
+  monthly / weekly / daily ticks based on zoom level. New tab in Reports.
+  Files: `frontend/src/pages/GanttView.js` (new), `frontend/src/pages/ReportsPage.js`.
 - 2026-05-04: Code-review triage — replaced `key={idx}` with stable
   `key={entry.name}` on Recharts `<Cell>` mappings (ReportsPage.js bar +
   pie). Most other items in the review were false positives (see CHANGELOG).
