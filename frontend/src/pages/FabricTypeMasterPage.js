@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import api from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -6,8 +6,10 @@ import { Label } from '../components/ui/label';
 import { Card, CardContent } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { toast } from 'sonner';
+
+const PAGE_SIZE = 50;
 
 export default function FabricTypeMasterPage() {
   const [fabrics, setFabrics] = useState([]);
@@ -15,6 +17,9 @@ export default function FabricTypeMasterPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState({ name: '', gsm: '', width: '', composition: '', construction: '' });
+  const [search, setSearch] = useState('');
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [saving, setSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -31,6 +36,8 @@ export default function FabricTypeMasterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
+    setSaving(true);
     try {
       if (editItem) {
         await api.put(`/fabric-types/${editItem.id}`, form);
@@ -41,8 +48,27 @@ export default function FabricTypeMasterPage() {
       }
       setDialogOpen(false);
       fetchData();
-    } catch (err) { toast.error(err.response?.data?.detail || 'Failed to save'); }
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const filteredFabrics = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return fabrics;
+    return fabrics.filter(f =>
+      f.name?.toLowerCase().includes(q)
+      || f.composition?.toLowerCase().includes(q)
+      || f.construction?.toLowerCase().includes(q)
+    );
+  }, [fabrics, search]);
+
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [search]);
+
+  const visibleFabrics = filteredFabrics.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredFabrics.length;
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this fabric type?')) return;
@@ -55,7 +81,7 @@ export default function FabricTypeMasterPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">Fabric Type Master</h1>
-          <p className="text-sm text-zinc-500 mt-1">{fabrics.length} fabric types</p>
+          <p className="text-sm text-zinc-500 mt-1">{fabrics.length} fabric types{search ? ` · ${filteredFabrics.length} match` : ''}</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -90,7 +116,7 @@ export default function FabricTypeMasterPage() {
               </div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="rounded-sm border-zinc-200">Cancel</Button>
-                <Button type="submit" data-testid="fabric-save-button" className="bg-zinc-900 hover:bg-zinc-800 text-white rounded-sm">{editItem ? 'Update' : 'Create'}</Button>
+                <Button type="submit" disabled={saving} data-testid="fabric-save-button" className="bg-zinc-900 hover:bg-zinc-800 text-white rounded-sm">{saving ? 'Saving...' : (editItem ? 'Update' : 'Create')}</Button>
               </div>
             </form>
           </DialogContent>
@@ -98,6 +124,18 @@ export default function FabricTypeMasterPage() {
       </div>
       <Card className="bg-white border-zinc-200 rounded-sm">
         <CardContent className="p-0">
+          <div className="p-3 border-b border-zinc-200">
+            <div className="relative max-w-sm">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+              <Input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search by name / composition / construction..."
+                className="pl-8 border-zinc-200 h-9"
+                data-testid="fabric-search"
+              />
+            </div>
+          </div>
           <Table>
             <TableHeader>
               <TableRow className="bg-zinc-50 hover:bg-zinc-50">
@@ -112,10 +150,10 @@ export default function FabricTypeMasterPage() {
             <TableBody>
               {loading ? (
                 [...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={6}><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></TableCell></TableRow>)
-              ) : fabrics.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-zinc-400">No fabric types yet</TableCell></TableRow>
+              ) : filteredFabrics.length === 0 ? (
+                <TableRow><TableCell colSpan={6} className="text-center py-8 text-zinc-400">{search ? 'No fabric types match your search' : 'No fabric types yet'}</TableCell></TableRow>
               ) : (
-                fabrics.map(f => (
+                visibleFabrics.map(f => (
                   <TableRow key={f.id} data-testid={`fabric-row-${f.id}`}>
                     <TableCell className="font-medium text-zinc-900">{f.name}</TableCell>
                     <TableCell className="text-zinc-600 text-sm">{f.gsm || '—'}</TableCell>
@@ -133,6 +171,19 @@ export default function FabricTypeMasterPage() {
               )}
             </TableBody>
           </Table>
+          {hasMore && (
+            <div className="p-3 border-t border-zinc-200 text-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+                className="border-zinc-200"
+                data-testid="fabric-show-more"
+              >
+                Show {Math.min(PAGE_SIZE, filteredFabrics.length - visibleCount)} more · {visibleCount} of {filteredFabrics.length}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

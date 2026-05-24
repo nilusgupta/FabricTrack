@@ -26,6 +26,13 @@
 - P2: Refactor monolithic server.py into routes/models/services
 
 ## Recent Fixes
+- 2026-05-04: **Critical perf fix** — Customer Master & Fabric Type Master
+  pages were rendering every row in a single non-paginated table. With ~388
+  records in production this caused the browser to freeze ("Page Unresponsive")
+  after any edit (re-fetch → re-render all rows). Fix: client-side search
+  box + chunked render (50 rows initial, "Show more" button to load next 50).
+  Saving guard added to Save buttons to prevent double-submit on slow links.
+  Files: `frontend/src/pages/CustomerMasterPage.js`, `frontend/src/pages/FabricTypeMasterPage.js`.
 - 2026-05-04: **Refactor — `ReportsPage.js` split into 6 focused files.**
   Was a 1326-line monolith with 5 Report components, 4 helper components,
   and orchestration code mixed together. Now:
