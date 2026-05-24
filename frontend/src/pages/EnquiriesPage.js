@@ -89,6 +89,7 @@ export default function EnquiriesPage() {
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkFiles, setBulkFiles] = useState([]);
   const [bulkCreating, setBulkCreating] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [quickCustomer, setQuickCustomer] = useState({ open: false, name: '' });
   const [quickFabric, setQuickFabric] = useState({ open: false, name: '', gsm: '', width: '', composition: '', construction: '' });
 
@@ -144,6 +145,8 @@ export default function EnquiriesPage() {
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    if (creating) return; // Prevent double-submit
+    setCreating(true);
     try {
       const res = await api.post('/enquiries', form);
       // Upload image immediately if selected
@@ -166,6 +169,8 @@ export default function EnquiriesPage() {
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to create');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -399,7 +404,7 @@ export default function EnquiriesPage() {
                     {bulkCreating ? 'Creating...' : `Create ${bulkFiles.length} Enquiries`}
                   </Button>
                 ) : (
-                  <Button type="submit" data-testid="enquiry-submit-button" className="bg-zinc-900 hover:bg-zinc-800 text-white">Create Enquiry</Button>
+                  <Button type="submit" disabled={creating} data-testid="enquiry-submit-button" className="bg-zinc-900 hover:bg-zinc-800 text-white">{creating ? 'Creating...' : 'Create Enquiry'}</Button>
                 )}
               </div>
             </form>

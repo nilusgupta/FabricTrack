@@ -26,6 +26,14 @@
 - P2: Refactor monolithic server.py into routes/models/services
 
 ## Recent Fixes
+- 2026-05-04: **Critical UX fix** — duplicate enquiry creation. The New Enquiry
+  "Create Enquiry" button was clickable while the POST was in flight. On the
+  user's EC2 box with slow Atlas latency, users would click, see no immediate
+  response, click again — creating duplicate records. Fix: `creating` state
+  added; button now shows "Creating..." + disabled while the request is
+  pending. Re-entrant guard at handler start also rejects double-submits.
+  Verified with 3000ms artificial latency: second click did nothing.
+  File: `frontend/src/pages/EnquiriesPage.js`.
 - 2026-05-04: New **Gantt** report — visualize enquiry timelines as
   horizontal bars per stage. Each row is an enquiry, each bar is a stage with
   start = previous-stage completion (or enquiry creation), end = max(planned
