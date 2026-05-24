@@ -26,6 +26,21 @@
 - P2: Refactor monolithic server.py into routes/models/services
 
 ## Recent Fixes
+- 2026-05-04: **Refactor — `ReportsPage.js` split into 6 focused files.**
+  Was a 1326-line monolith with 5 Report components, 4 helper components,
+  and orchestration code mixed together. Now:
+  - `ReportsPage.js` (57 lines) — thin orchestrator: tab list + dispatch.
+  - `reports/EnquiryReport.js` (633 lines) — main editable grid; includes
+    co-located helpers `ReportThumbnail`, `GridFilterCell`, `StageEditCell`.
+  - `reports/UserStagesReport.js` (531 lines) — pending/done stage tracker;
+    includes `PendingStageInlineEdit` and its own `ReportThumbnail`.
+  - `reports/StageSummary.js` (65), `reports/UserPerformance.js` (56),
+    `reports/DepartmentReport.js` (48) — self-contained chart reports.
+  Functional behaviour unchanged. Lint clean. All 6 tabs (Enquiries / Stages /
+  Users / Dept / User Stages / Gantt) verified — zero runtime errors;
+  Fill modal & inline stage edit popover both work.
+  Files: `frontend/src/pages/ReportsPage.js` (rewritten),
+  `frontend/src/pages/reports/*.js` (new directory, 5 files).
 - 2026-05-04: **Critical UX fix** — duplicate enquiry creation. The New Enquiry
   "Create Enquiry" button was clickable while the POST was in flight. On the
   user's EC2 box with slow Atlas latency, users would click, see no immediate
