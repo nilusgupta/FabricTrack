@@ -1,5 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import ReactDOM from 'react-dom';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { Button } from '../components/ui/button';
@@ -13,56 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Textarea } from '../components/ui/textarea';
 import { Plus, Search, Filter, X, Image as ImageIcon, Camera, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { toast } from 'sonner';
-
-function EnquiryThumbnail({ imagePath }) {
-  const [hovered, setHovered] = useState(false);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-  const ref = useRef(null);
-
-  const handleMouseEnter = () => {
-    if (ref.current) {
-      const rect = ref.current.getBoundingClientRect();
-      setPos({ top: rect.bottom + 8, left: rect.left });
-    }
-    setHovered(true);
-  };
-
-  if (!imagePath) return <span className="text-zinc-300">—</span>;
-  // Direct <img src> uses the browser's HTTP cache (Cache-Control: immutable).
-  // Auth cookie is sent automatically on same-origin requests.
-  const url = `/api/files/${imagePath}`;
-
-  return (
-    <div
-      ref={ref}
-      className="relative"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={() => setHovered(false)}
-      onClick={e => e.stopPropagation()}
-    >
-      <img
-        src={url}
-        alt="Fabric"
-        loading="lazy"
-        decoding="async"
-        className="w-8 h-8 object-cover rounded-sm border border-zinc-200 cursor-pointer"
-        data-testid="enquiry-thumb"
-      />
-      {hovered && ReactDOM.createPortal(
-        <div className="pointer-events-none" style={{ position: 'fixed', zIndex: 9999, top: pos.top, left: pos.left }} data-testid="enquiry-thumb-preview-wrap">
-          <img
-            src={url}
-            alt="Fabric preview"
-            decoding="async"
-            className="w-64 h-64 object-contain rounded-md border border-zinc-300 shadow-xl bg-white"
-            data-testid="enquiry-thumb-preview"
-          />
-        </div>,
-        document.body
-      )}
-    </div>
-  );
-}
+import EnquiryThumbnail from './enquiries/EnquiryThumbnail';
 
 export default function EnquiriesPage() {
   const [enquiries, setEnquiries] = useState([]);

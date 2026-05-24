@@ -26,6 +26,15 @@
 - P2: Refactor monolithic server.py into routes/models/services
 
 ## Recent Fixes
+- 2026-05-04: **UX consistency + small refactor.** Same chunked-render + search +
+  save-button-guard pattern applied to UsersPage (was the last unprotected master
+  page). Also extracted `EnquiryThumbnail` (~50 lines) out of EnquiriesPage.js
+  into `frontend/src/pages/enquiries/EnquiryThumbnail.js`.
+  Larger refactors (full EnquiriesPage split, server.py split, EnquiryDetailPage
+  split) deferred — they require dedicated sessions because of tight state
+  coupling. Now tracked explicitly in /app/memory/ROADMAP.md.
+  Files: `frontend/src/pages/UsersPage.js`, `frontend/src/pages/EnquiriesPage.js`,
+  `frontend/src/pages/enquiries/EnquiryThumbnail.js` (new).
 - 2026-05-04: **Critical perf fix** — Customer Master & Fabric Type Master
   pages were rendering every row in a single non-paginated table. With ~388
   records in production this caused the browser to freeze ("Page Unresponsive")

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import api from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
@@ -9,8 +9,10 @@ import { Card } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Plus, Edit2, Trash2, UserCheck, UserX } from 'lucide-react';
+import { Plus, Edit2, Trash2, UserCheck, UserX, Search } from 'lucide-react';
 import { toast } from 'sonner';
+
+const PAGE_SIZE = 50;
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -20,6 +22,9 @@ export default function UsersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [form, setForm] = useState({ email: '', password: '', name: '', role: 'sales', department: '' });
+  const [search, setSearch] = useState('');
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [saving, setSaving] = useState(false);
   const roles = ['admin', 'sales', 'production', 'quality', 'design', 'logistics'];
 
   const fetchData = useCallback(async () => {
@@ -53,6 +58,8 @@ export default function UsersPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
+    setSaving(true);
     try {
       if (editUser) {
         const updateData = { name: form.name, role: form.role, department: form.department };
@@ -66,6 +73,8 @@ export default function UsersPage() {
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to save');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -102,12 +111,28 @@ export default function UsersPage() {
     return map[role] || { bg: '#F3F4F6', text: '#374151' };
   };
 
+  const filteredUsers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(u =>
+      u.name?.toLowerCase().includes(q)
+      || u.email?.toLowerCase().includes(q)
+      || u.role?.toLowerCase().includes(q)
+      || u.department?.toLowerCase().includes(q)
+    );
+  }, [users, search]);
+
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [search]);
+
+  const visibleUsers = filteredUsers.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredUsers.length;
+
   return (
     <div className="space-y-6" data-testid="users-page">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">Users</h1>
-          <p className="text-sm text-zinc-500 mt-1">{users.length} users in the system</p>
+          <p className="text-sm text-zinc-500 mt-1">{users.length} users in the system{search ? ` · ${filteredUsers.length} match` : ''}</p>
         </div>
         {currentUser?.role === 'admin' && (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -163,7 +188,7 @@ export default function UsersPage() {
                 </div>
                 <div className="flex justify-end gap-3 pt-2">
                   <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="border-zinc-200">Cancel</Button>
-                  <Button type="submit" data-testid="user-submit-button" className="bg-zinc-900 hover:bg-zinc-800 text-white">{editUser ? 'Update' : 'Create'}</Button>
+                  <Button type="submit" disabled={saving} data-testid="user-submit-button" className="bg-zinc-900 hover:bg-zinc-800 text-white">{saving ? 'Saving...' : (editUser ? 'Update' : 'Create')}</Button>
                 </div>
               </form>
             </DialogContent>
@@ -172,6 +197,18 @@ export default function UsersPage() {
       </div>
 
       <Card className="bg-white border-zinc-200 rounded-sm overflow-hidden">
+        <div className="p-3 border-b border-zinc-200">
+          <div className="relative max-w-sm">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by name / email / role / dept..."
+              className="pl-8 border-zinc-200 h-9"
+              data-testid="users-search"
+            />
+          </div>
+        </div>
         <div className="overflow-x-auto" data-testid="users-table">
           <Table>
             <TableHeader>
@@ -193,12 +230,12 @@ export default function UsersPage() {
                     {[...Array(6)].map((_, j) => <TableCell key={j}><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></TableCell>)}
                   </TableRow>
                 ))
-              ) : users.length === 0 ? (
+              ) : filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12 text-zinc-400">No users found</TableCell>
+                  <TableCell colSpan={6} className="text-center py-12 text-zinc-400">{search ? 'No users match your search' : 'No users found'}</TableCell>
                 </TableRow>
               ) : (
-                users.map(u => {
+                visibleUsers.map(u => {
                   const rc = roleColor(u.role);
                   return (
                     <TableRow key={u._id} className="hover:bg-zinc-50 transition-colors" data-testid={`user-row-${u._id}`}>
@@ -237,6 +274,19 @@ export default function UsersPage() {
             </TableBody>
           </Table>
         </div>
+        {hasMore && (
+          <div className="p-3 border-t border-zinc-200 text-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+              className="border-zinc-200"
+              data-testid="users-show-more"
+            >
+              Show {Math.min(PAGE_SIZE, filteredUsers.length - visibleCount)} more · {visibleCount} of {filteredUsers.length}
+            </Button>
+          </div>
+        )}
       </Card>
     </div>
   );
