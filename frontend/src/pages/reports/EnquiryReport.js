@@ -15,6 +15,7 @@ import { Textarea } from '../../components/ui/textarea';
 import { CalendarIcon, Download, Pencil, Upload } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { fileUrl } from '../../lib/fileUrl';
 
 function ReportThumbnail({ imagePath }) {
   const [hovered, setHovered] = useState(false);
@@ -33,7 +34,7 @@ function ReportThumbnail({ imagePath }) {
   // Direct <img src> + native lazy loading: the browser only fetches when
   // scrolled into view, and HTTP cache (Cache-Control: immutable) avoids
   // refetches across pages.
-  const url = `/api/files/${imagePath}`;
+  const url = fileUrl(imagePath);
   return (
     <div ref={ref} className="relative" onMouseEnter={handleMouseEnter} onMouseLeave={() => setHovered(false)}>
       <img

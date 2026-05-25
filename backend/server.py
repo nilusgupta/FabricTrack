@@ -635,17 +635,33 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
         ext = new_ext
     else:
         ext = file.filename.split(".")[-1] if "." in file.filename else "bin"
-    path = f"{APP_NAME}/uploads/{user['_id']}/{uuid_mod.uuid4()}.{ext}"
-    result = put_object(path, data, content_type)
+
+    # If LOCAL_UPLOADS_DIR is configured, store the file on disk so it can be
+    # served by Nginx directly (no Python round-trip, no Object Storage call).
+    # Falls back to Object Storage when the env var is unset → easy rollback.
+    local_dir = os.environ.get("LOCAL_UPLOADS_DIR")
+    if local_dir:
+        os.makedirs(local_dir, exist_ok=True)
+        fname = f"{uuid_mod.uuid4()}.{ext}"
+        with open(os.path.join(local_dir, fname), "wb") as f:
+            f.write(data)
+        storage_path = f"local/{fname}"
+        size = len(data)
+    else:
+        storage_path = f"{APP_NAME}/uploads/{user['_id']}/{uuid_mod.uuid4()}.{ext}"
+        result = put_object(storage_path, data, content_type)
+        storage_path = result["path"]
+        size = result.get("size", len(data))
+
     file_doc = {
-        "id": str(uuid_mod.uuid4()), "storage_path": result["path"],
+        "id": str(uuid_mod.uuid4()), "storage_path": storage_path,
         "original_filename": file.filename, "content_type": content_type,
-        "size": result.get("size", len(data)), "is_deleted": False,
+        "size": size, "is_deleted": False,
         "uploaded_by": user["_id"],
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.files.insert_one(file_doc)
-    return {"path": result["path"], "filename": file.filename, "id": file_doc["id"]}
+    return {"path": storage_path, "filename": file.filename, "id": file_doc["id"]}
 
 @api_router.get("/files/{path:path}")
 @api_router.head("/files/{path:path}")
@@ -681,6 +697,18 @@ async def download_file(path: str, request: Request, auth: Optional[str] = Query
     }
     if request.method == "HEAD":
         return Response(status_code=200, media_type=record.get("content_type"), headers=headers)
+    # Local-disk fast path — used when the file lives on EC2 (saved by
+    # /api/upload when LOCAL_UPLOADS_DIR is configured). Falls through to
+    # Object Storage for legacy paths.
+    if path.startswith("local/"):
+        local_dir = os.environ.get("LOCAL_UPLOADS_DIR")
+        if local_dir:
+            full = os.path.join(local_dir, path[len("local/"):])
+            if os.path.isfile(full):
+                with open(full, "rb") as f:
+                    data = f.read()
+                return Response(content=data, media_type=record.get("content_type"), headers=headers)
+        raise HTTPException(status_code=404, detail="Local file missing")
     data, ct = get_object(path)
     return Response(content=data, media_type=record.get("content_type", ct), headers=headers)
 

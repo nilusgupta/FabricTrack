@@ -26,6 +26,18 @@
 - P2: Refactor monolithic server.py into routes/models/services
 
 ## Recent Fixes
+- 2026-05-04: **Image-loading perf — Solution B.** New uploads now go to
+  local EC2 disk (`/opt/fabrictrack/uploads/`) and are served by Nginx
+  directly, bypassing both FastAPI and Emergent Object Storage. Expected
+  per-image speedup: 200ms → 2ms (~50–100×). Backward compatible: old
+  Object Storage paths still served via `/api/files/<path>` with auth.
+  Flag-gated by `LOCAL_UPLOADS_DIR` env var → trivial rollback.
+  Frontend uses new `lib/fileUrl.js` helper to route `local/`-prefixed
+  paths to `/uploads/<name>` (Nginx) vs `/api/files/<path>` (FastAPI).
+  Deploy guide: `/app/SOLUTION_B_DEPLOY.md`.
+  Files: `backend/server.py` (upload_file + download_file),
+  `frontend/src/lib/fileUrl.js` (new), `EnquiryThumbnail.js`,
+  `EnquiryDetailPage.js`, `reports/EnquiryReport.js`, `reports/UserStagesReport.js`.
 - 2026-05-04: **UX consistency + small refactor.** Same chunked-render + search +
   save-button-guard pattern applied to UsersPage (was the last unprotected master
   page). Also extracted `EnquiryThumbnail` (~50 lines) out of EnquiriesPage.js

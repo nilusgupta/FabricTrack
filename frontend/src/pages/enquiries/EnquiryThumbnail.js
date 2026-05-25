@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
+import { fileUrl } from '../../lib/fileUrl';
 
 /**
  * Small fabric thumbnail with hover-preview that pops out as a 256×256 overlay
@@ -21,7 +22,7 @@ export default function EnquiryThumbnail({ imagePath }) {
   };
 
   if (!imagePath) return <span className="text-zinc-300">—</span>;
-  const url = `/api/files/${imagePath}`;
+  const url = fileUrl(imagePath);
 
   return (
     <div

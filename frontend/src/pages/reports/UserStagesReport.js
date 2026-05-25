@@ -14,6 +14,8 @@ import { Textarea } from '../../components/ui/textarea';
 import { Upload, Pencil, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { fileUrl } from '../../lib/fileUrl';
+
 function ReportThumbnail({ imagePath }) {
   const [hovered, setHovered] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
@@ -26,7 +28,7 @@ function ReportThumbnail({ imagePath }) {
     setHovered(true);
   };
   if (!imagePath) return <span className="inline-block w-8 h-8 bg-zinc-100 rounded-sm" />;
-  const url = `/api/files/${imagePath}`;
+  const url = fileUrl(imagePath);
   return (
     <div ref={ref} className="relative" onMouseEnter={handleMouseEnter} onMouseLeave={() => setHovered(false)}>
       <img src={url} alt="Fabric" loading="lazy" decoding="async" className="w-8 h-8 object-cover rounded-sm border border-zinc-200" />

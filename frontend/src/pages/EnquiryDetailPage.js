@@ -11,6 +11,7 @@ import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { ArrowLeft, Save, Trash2, Clock, User, Upload, Camera, Image as ImageIcon, Send, MessageSquare, Lock, Plus, XCircle, CheckCircle2, Mic, Square, Play, Pause, ScanLine } from 'lucide-react';
 import { toast } from 'sonner';
+import { fileUrl } from '../lib/fileUrl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 
 function VoiceNotePlayer({ storagePath }) {
@@ -339,7 +340,7 @@ export default function EnquiryDetailPage() {
             {imageFile ? (
               <img src={URL.createObjectURL(imageFile)} alt="New upload" className="w-32 h-32 object-cover rounded-sm border border-green-300" data-testid="enquiry-image-preview" />
             ) : form.image_path ? (
-              <img src={`/api/files/${form.image_path}`} alt="Fabric" loading="lazy" decoding="async" className="w-32 h-32 object-cover rounded-sm border border-zinc-200" data-testid="enquiry-image-preview" />
+              <img src={fileUrl(form.image_path)} alt="Fabric" loading="lazy" decoding="async" className="w-32 h-32 object-cover rounded-sm border border-zinc-200" data-testid="enquiry-image-preview" />
             ) : (
               <div className="w-32 h-32 bg-zinc-100 border border-dashed border-zinc-300 rounded-sm flex items-center justify-center">
                 <Upload className="w-6 h-6 text-zinc-300" />
@@ -577,7 +578,7 @@ export default function EnquiryDetailPage() {
                           <div className="space-y-2">
                             {getStageValue(s.id) ? (
                               <div className="flex items-center gap-3">
-                                <img src={`/api/files/${getStageValue(s.id)}`} alt={s.name} loading="lazy" decoding="async" className="w-20 h-20 object-cover rounded-sm border border-zinc-200" />
+                                <img src={fileUrl(getStageValue(s.id))} alt={s.name} loading="lazy" decoding="async" className="w-20 h-20 object-cover rounded-sm border border-zinc-200" />
                                 <div className="flex flex-col gap-1">
                                   <span className="text-xs text-green-600 font-medium">Image uploaded</span>
                                   <Button type="button" variant="outline" size="sm" onClick={() => setStageValue(s.id, '')} className="text-xs border-zinc-200">Remove</Button>
@@ -686,7 +687,7 @@ export default function EnquiryDetailPage() {
                     ) : (
                       <div className="px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-sm text-sm text-zinc-500" data-testid={`stage-value-readonly-${s.id}`}>
                         {s.input_type === 'image' && getStageValue(s.id) ? (
-                          <img src={`/api/files/${getStageValue(s.id)}`} alt={s.name} loading="lazy" decoding="async" className="w-20 h-20 object-cover rounded-sm" />
+                          <img src={fileUrl(getStageValue(s.id))} alt={s.name} loading="lazy" decoding="async" className="w-20 h-20 object-cover rounded-sm" />
                         ) : s.input_type === 'qrcode' && getStageValue(s.id) ? (
                           <span className="font-mono text-xs">{getStageValue(s.id)}</span>
                         ) : getStageValue(s.id) || <span className="italic text-zinc-400">No value set</span>}
