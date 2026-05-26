@@ -69,7 +69,9 @@ def _init_storage():
         timeout=30,
     )
     resp.raise_for_status()
-    return resp.json()["key"]
+    body = resp.json()
+    # Object Storage returns {"storage_key": "..."}; older docs called it "key".
+    return body.get("storage_key") or body["key"]
 
 
 def _download(path: str, storage_key: str) -> bytes:
