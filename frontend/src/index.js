@@ -10,9 +10,12 @@ root.render(
   </React.StrictMode>,
 );
 
-// Register service worker for PWA
+// Service worker disabled. We previously registered /sw.js as a PWA cache,
+// but stale installs were serving cached 404 HTML for legacy image URLs and
+// blocking the Nginx fix. /sw.js is now a one-shot kill switch that
+// unregisters itself; we do not re-register it here.
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
-  });
+  navigator.serviceWorker.getRegistrations()
+    .then((regs) => regs.forEach((r) => r.unregister()))
+    .catch(() => {});
 }

@@ -1,25 +1,30 @@
-const CACHE_NAME = 'fabrictrack-v1';
-const STATIC_ASSETS = ['/', '/index.html'];
-
+// Kill-switch service worker.
+// Older versions of this file cached requests aggressively (including 404
+// responses for /api/files/...), which prevented legacy images from loading
+// even after the Nginx fix. This replacement unregisters itself on install
+// and wipes every Cache Storage entry, so any browser that picks it up
+// returns to a clean state on the next reload.
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
+  event.waitUntil((async () => {
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    } catch (_) { /* ignore */ }
+    try {
+      await self.registration.unregister();
+    } catch (_) { /* ignore */ }
+    try {
+      const clients = await self.clients.matchAll({ type: 'window' });
+      clients.forEach((c) => {
+        try { c.navigate(c.url); } catch (_) { /* ignore */ }
+      });
+    } catch (_) { /* ignore */ }
+  })());
 });
 
-self.addEventListener('fetch', (event) => {
-  if (event.request.url.includes('/api/')) return;
-  event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
-  );
-});
+// Never intercept any fetch — let the browser go straight to the network.
+self.addEventListener('fetch', () => {});
