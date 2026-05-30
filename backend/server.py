@@ -624,6 +624,43 @@ def _compress_image(data: bytes, content_type: str) -> tuple[bytes, str, str]:
         return data, content_type, ""
 
 
+def _make_thumbnail(data: bytes) -> bytes | None:
+    """Generate a tiny 256px JPEG thumbnail for fast list rendering.
+    Returns None if the input isn't a decodable image.
+    Each thumb ≈ 5-15 KB vs the full image ≈ 150 KB-5 MB.
+    """
+    try:
+        from PIL import Image
+        from io import BytesIO
+        img = Image.open(BytesIO(data))
+        img.thumbnail((256, 256), Image.LANCZOS)
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        out = BytesIO()
+        img.save(out, format="JPEG", quality=70, optimize=True, progressive=True)
+        return out.getvalue()
+    except Exception as e:
+        logger.warning(f"Thumbnail generation failed: {e}")
+        return None
+
+
+def _save_thumb_to_disk(local_dir: str, fname: str, data: bytes) -> None:
+    """Write a 256px JPEG thumbnail to {local_dir}/thumbs/{fname-base}.jpg.
+    Failures are swallowed — the full image is still usable as fallback."""
+    try:
+        thumb = _make_thumbnail(data)
+        if not thumb:
+            return
+        thumbs_dir = os.path.join(local_dir, "thumbs")
+        os.makedirs(thumbs_dir, exist_ok=True)
+        # Always store thumbs as .jpg regardless of source extension.
+        base = fname.rsplit(".", 1)[0]
+        with open(os.path.join(thumbs_dir, f"{base}.jpg"), "wb") as f:
+            f.write(thumb)
+    except Exception as e:
+        logger.warning(f"Could not write thumb for {fname}: {e}")
+
+
 @api_router.post("/upload")
 async def upload_file(request: Request, file: UploadFile = File(...)):
     user = await get_current_user(request)
@@ -645,6 +682,7 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
         fname = f"{uuid_mod.uuid4()}.{ext}"
         with open(os.path.join(local_dir, fname), "wb") as f:
             f.write(data)
+        _save_thumb_to_disk(local_dir, fname, data)
         storage_path = f"local/{fname}"
         size = len(data)
     else:
@@ -914,23 +952,34 @@ async def create_enquiry(req: EnquiryCreate, request: Request):
 async def bulk_create_enquiries(request: Request, files: List[UploadFile] = File(...), customer_name: str = Form(...), fabric_type: str = Form(...), style_no: str = Form(""), department: str = Form(""), notes: str = Form(""), fabric_received: str = Form("no"), qty_received: str = Form(""), sample_number: str = Form("")):
     user = await get_current_user(request)
     now = datetime.now(timezone.utc).isoformat()
+    local_dir = os.environ.get("LOCAL_UPLOADS_DIR")
     created = []
     for f in files:
         enquiry_id = secrets.token_hex(12)
         enquiry_number = await get_next_enquiry_number()
-        # Upload image (with compression)
+        # Upload image (with compression + thumb generation)
         image_path = ""
         try:
             raw = await f.read()
             data, ctype, new_ext = _compress_image(raw, f.content_type or "image/jpeg")
             ext = new_ext or (f.filename.split(".")[-1] if "." in f.filename else "jpg")
-            path = f"{APP_NAME}/images/{enquiry_id}.{ext}"
-            result = put_object(path, data, ctype)
-            image_path = result["path"]
+            if local_dir:
+                os.makedirs(local_dir, exist_ok=True)
+                fname = f"{uuid_mod.uuid4()}.{ext}"
+                with open(os.path.join(local_dir, fname), "wb") as fp:
+                    fp.write(data)
+                _save_thumb_to_disk(local_dir, fname, data)
+                image_path = f"local/{fname}"
+                size = len(data)
+            else:
+                path = f"{APP_NAME}/images/{enquiry_id}.{ext}"
+                result = put_object(path, data, ctype)
+                image_path = result["path"]
+                size = result.get("size", len(data))
             file_doc = {
-                "id": str(uuid_mod.uuid4()), "storage_path": result["path"],
+                "id": str(uuid_mod.uuid4()), "storage_path": image_path,
                 "original_filename": f.filename, "content_type": ctype,
-                "size": result.get("size", len(data)), "is_deleted": False,
+                "size": size, "is_deleted": False,
                 "uploaded_by": user["_id"], "created_at": now
             }
             await db.files.insert_one(file_doc)

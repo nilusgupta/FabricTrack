@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { fileUrl } from '../../lib/fileUrl';
+import { fileUrl, fileThumbUrl } from '../../lib/fileUrl';
 
 /**
  * Small fabric thumbnail with hover-preview that pops out as a 256×256 overlay
@@ -22,7 +22,8 @@ export default function EnquiryThumbnail({ imagePath }) {
   };
 
   if (!imagePath) return <span className="text-zinc-300">—</span>;
-  const url = fileUrl(imagePath);
+  const thumbSrc = fileThumbUrl(imagePath);
+  const fullSrc = fileUrl(imagePath);
 
   return (
     <div
@@ -33,17 +34,20 @@ export default function EnquiryThumbnail({ imagePath }) {
       onClick={e => e.stopPropagation()}
     >
       <img
-        src={url}
+        src={thumbSrc}
         alt="Fabric"
         loading="lazy"
         decoding="async"
+        width={32}
+        height={32}
         className="w-8 h-8 object-cover rounded-sm border border-zinc-200 cursor-pointer"
         data-testid="enquiry-thumb"
+        onError={e => { if (e.currentTarget.src !== fullSrc) e.currentTarget.src = fullSrc; }}
       />
       {hovered && ReactDOM.createPortal(
         <div className="pointer-events-none" style={{ position: 'fixed', zIndex: 9999, top: pos.top, left: pos.left }} data-testid="enquiry-thumb-preview-wrap">
           <img
-            src={url}
+            src={fullSrc}
             alt="Fabric preview"
             decoding="async"
             className="w-64 h-64 object-contain rounded-md border border-zinc-300 shadow-xl bg-white"
