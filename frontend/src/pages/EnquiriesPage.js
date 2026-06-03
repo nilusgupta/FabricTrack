@@ -8,11 +8,11 @@ import { Badge } from '../components/ui/badge';
 import { Card, CardContent } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Textarea } from '../components/ui/textarea';
 import { Plus, Search, Filter, X, Image as ImageIcon, Camera, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { toast } from 'sonner';
 import EnquiryThumbnail from './enquiries/EnquiryThumbnail';
+import EnquiryTableRow from './enquiries/EnquiryTableRow';
 
 export default function EnquiriesPage() {
   const [enquiries, setEnquiries] = useState([]);
@@ -29,6 +29,11 @@ export default function EnquiriesPage() {
   const [pageSize] = useState(20);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  // When true, the table shows every stage column even if no enquiry on the
+  // current page has a value for it. When false (the default), we hide empty
+  // stage columns to reduce the DOM size of the table from ~700 cells to
+  // ~100-200, which makes scroll/hover feel instant.
+  const [showAllStages, setShowAllStages] = useState(false);
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
@@ -80,18 +85,50 @@ export default function EnquiriesPage() {
 
   // When a department filter is active, show only that department's hierarchy stages
   const visibleStages = React.useMemo(() => {
+    let base = stages;
     if (filterDept) {
       const dept = departments.find(d => d.name === filterDept);
       if (dept && dept.stage_hierarchy && dept.stage_hierarchy.length > 0) {
         const sMap = {};
         stages.forEach(s => { sMap[s.id] = s; });
         const sorted = [...dept.stage_hierarchy].sort((a, b) => a.order - b.order);
-        const result = sorted.map(h => sMap[h.stage_id]).filter(Boolean);
-        return result;
+        base = sorted.map(h => sMap[h.stage_id]).filter(Boolean);
       }
     }
-    return stages;
-  }, [filterDept, departments, stages]);
+    // Hide stage columns that no enquiry on the current page has any value for.
+    // Cuts ~700 DOM cells down to ~100-200 for typical pages.
+    if (!showAllStages && enquiries.length > 0) {
+      const usedIds = new Set();
+      for (const e of enquiries) {
+        const sv = e.stage_values || {};
+        for (const sid of Object.keys(sv)) {
+          const v = sv[sid];
+          const text = typeof v === 'object' ? v?.value : v;
+          if (text !== undefined && text !== null && text !== '') usedIds.add(sid);
+        }
+      }
+      const filtered = base.filter(s => usedIds.has(s.id));
+      // If filtering removed everything (e.g., page of brand-new enquiries),
+      // fall back to the full list so the table never collapses to zero stage
+      // columns.
+      return filtered.length > 0 ? filtered : base;
+    }
+    return base;
+  }, [filterDept, departments, stages, enquiries, showAllStages]);
+
+  const hiddenStageCount = React.useMemo(() => {
+    if (showAllStages) return 0;
+    const all = filterDept
+      ? (() => {
+          const dept = departments.find(d => d.name === filterDept);
+          if (dept && dept.stage_hierarchy && dept.stage_hierarchy.length > 0) {
+            return dept.stage_hierarchy.length;
+          }
+          return stages.length;
+        })()
+      : stages.length;
+    return Math.max(0, all - visibleStages.length);
+  }, [showAllStages, filterDept, departments, stages, visibleStages]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -442,15 +479,45 @@ export default function EnquiriesPage() {
 
       {/* Desktop Table */}
       <Card className="bg-white border-zinc-200 rounded-sm hidden md:block" style={{ overflow: 'hidden', maxWidth: '100%' }}>
+        {/* Toggle to expose hidden empty stage columns */}
+        {hiddenStageCount > 0 && (
+          <div className="flex items-center justify-end px-3 py-2 border-b border-zinc-100 bg-zinc-50/40 text-xs">
+            <button
+              type="button"
+              onClick={() => setShowAllStages(true)}
+              data-testid="show-all-stages-button"
+              className="text-zinc-500 hover:text-zinc-900 underline-offset-2 hover:underline"
+            >
+              {hiddenStageCount} empty stage column{hiddenStageCount === 1 ? '' : 's'} hidden — show all
+            </button>
+          </div>
+        )}
+        {showAllStages && (
+          <div className="flex items-center justify-end px-3 py-2 border-b border-zinc-100 bg-zinc-50/40 text-xs">
+            <button
+              type="button"
+              onClick={() => setShowAllStages(false)}
+              data-testid="hide-empty-stages-button"
+              className="text-zinc-500 hover:text-zinc-900 underline-offset-2 hover:underline"
+            >
+              Hide empty stage columns
+            </button>
+          </div>
+        )}
         <div className="overflow-x-scroll" data-testid="enquiries-table" style={{ scrollbarGutter: 'stable' }}>
-          <table className="caption-bottom text-sm border-collapse" style={{ tableLayout: 'fixed', width: `${438 + visibleStages.length * 180 + 500}px` }}>
+          <table className="caption-bottom text-sm border-collapse" style={{ tableLayout: 'fixed', width: `${50 + 48 + 110 + 130 + 110 + visibleStages.length * 180 + 400}px` }}>
             <thead>
               <tr className="border-b bg-zinc-50">
+                {/* Sticky col 1: # */}
                 <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky left-0 bg-zinc-50 z-20" style={{ width: 50 }}>#</th>
-                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 48, left: 40 }}>Img</th>
-                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 110, left: 88 }}>Style No.</th>
-                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky bg-zinc-50 z-20" style={{ width: 130, left: 198 }}>Customer</th>
-                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky bg-zinc-50 z-20 border-r-2 border-zinc-300" style={{ width: 110, left: 328 }}>Fabric</th>
+                {/* Non-sticky now: Img */}
+                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500" style={{ width: 48 }}>Img</th>
+                {/* Non-sticky now: Style No. */}
+                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500" style={{ width: 110 }}>Style No.</th>
+                {/* Sticky col 2: Customer (the only other column users really need pinned) */}
+                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 sticky bg-zinc-50 z-20 border-r-2 border-zinc-300" style={{ width: 130, left: 50 }}>Customer</th>
+                {/* Non-sticky now: Fabric */}
+                <th className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500" style={{ width: 110 }}>Fabric</th>
                 {visibleStages.map(s => (
                   <th key={s.id} className="h-10 px-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500" style={{ width: 180 }}>{s.name}</th>
                 ))}
@@ -463,44 +530,21 @@ export default function EnquiriesPage() {
             <tbody>
               {loading ? (
                 [...Array(5)].map((_, i) => (
-                  <tr key={i} className="border-b">{[...Array(8 + visibleStages.length)].map((_, j) => <td key={j} className="p-2"><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></td>)}</tr>
+                  <tr key={i} className="border-b">{[...Array(9 + visibleStages.length)].map((_, j) => <td key={j} className="p-2"><div className="h-4 bg-zinc-100 rounded-sm animate-pulse" /></td>)}</tr>
                 ))
               ) : enquiries.length === 0 ? (
-                <tr><td colSpan={8 + visibleStages.length} className="text-center py-12 text-zinc-400">No enquiries found. Create your first enquiry.</td></tr>
+                <tr><td colSpan={9 + visibleStages.length} className="text-center py-12 text-zinc-400">No enquiries found. Create your first enquiry.</td></tr>
               ) : (
                 enquiries.map((enq, idx) => (
-                  <tr key={enq.id} className="border-b cursor-pointer hover:bg-zinc-50 transition-colors group" onClick={() => navigate(`/enquiries/${enq.id}`)} data-testid={`enquiry-row-${enq.id}`}>
-                    <td className="p-2 text-zinc-500 text-xs font-mono sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 0 }}>{enq.enquiry_number || (page - 1) * pageSize + idx + 1}</td>
-                    <td className="p-2 sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 40 }}>{enq.image_path ? <EnquiryThumbnail imagePath={enq.image_path} /> : <span className="text-zinc-300">—</span>}</td>
-                    <td className="p-2 text-zinc-600 text-sm sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 88 }}>{enq.style_no || '—'}</td>
-                    <td className="p-2 font-medium text-zinc-900 sticky bg-white group-hover:bg-zinc-50 z-10" style={{ left: 198 }}>{enq.customer_name}</td>
-                    <td className="p-2 text-zinc-600 sticky bg-white group-hover:bg-zinc-50 z-10 border-r-2 border-zinc-300" style={{ left: 328 }}>{enq.fabric_type}</td>
-                    {visibleStages.map(s => {
-                      const val = getStageDisplay(enq, s.id);
-                      const delayStatus = enq.delay_status?.[s.id];
-                      const isDelayed = delayStatus === 'delayed' || delayStatus === 'completed_late';
-                      const isEarly = delayStatus === 'completed_early';
-                      return (
-                        <td key={s.id} className="p-2 text-xs">
-                          <div className="flex flex-col gap-0.5">
-                            {val ? (
-                              <Badge className="rounded-sm text-xs font-normal" style={{ backgroundColor: s.color + '15', color: s.color, border: `1px solid ${s.color}30` }}>
-                                {val}
-                              </Badge>
-                            ) : <span className="text-zinc-300">—</span>}
-                            {isDelayed && <span className="text-[10px] font-semibold text-red-600" data-testid={`delay-badge-${enq.id}-${s.id}`}>DELAYED</span>}
-                            {isEarly && <span className="text-[10px] font-semibold text-green-600" data-testid={`early-badge-${enq.id}-${s.id}`}>ON TIME</span>}
-                          </div>
-                        </td>
-                      );
-                    })}
-                    <td className="p-2 text-zinc-600 text-sm">{enq.rate || '—'}</td>
-                    <td className="p-2 text-zinc-600 text-xs">{enq.department || '—'}</td>
-                    <td className="p-2 text-xs">
-                      {enq.status === 'closed' ? <Badge className="rounded-sm text-[10px] bg-green-100 text-green-700 border border-green-200">Closed</Badge> : <Badge className="rounded-sm text-[10px] bg-blue-50 text-blue-600 border border-blue-200">Open</Badge>}
-                    </td>
-                    <td className="p-2 text-zinc-400 text-xs">{new Date(enq.created_at).toLocaleDateString()}</td>
-                  </tr>
+                  <EnquiryTableRow
+                    key={enq.id}
+                    enq={enq}
+                    visibleStages={visibleStages}
+                    page={page}
+                    pageSize={pageSize}
+                    idx={idx}
+                    onClick={() => navigate(`/enquiries/${enq.id}`)}
+                  />
                 ))
               )}
             </tbody>
